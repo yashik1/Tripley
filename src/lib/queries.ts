@@ -14,6 +14,14 @@ import type { MemberLocation } from './types';
 let channelSeq = 0;
 const channelName = (base: string) => `${base}:${Date.now().toString(36)}${(channelSeq++).toString(36)}`;
 
+/**
+ * True for the server's "Subscribed to PostgreSQL" message, sent each time a
+ * channel's database listener is ready (first join and every reconnect).
+ * Changes made before that moment are never streamed, so refetch then.
+ */
+const isListenerReady = (msg: { extension?: string; status?: string } | undefined) =>
+  msg?.extension === 'postgres_changes' && msg?.status === 'ok';
+
 export const keys = {
   trips: ['trips'] as const,
   trip: (id: string) => ['trip', id] as const,
@@ -82,6 +90,12 @@ export function useTripRealtime(tripId: string) {
         qc.invalidateQueries({ queryKey: keys.members(tripId) });
         qc.invalidateQueries({ queryKey: keys.locations(tripId) });
       })
+      .on('system', {}, (msg) => {
+        if (!isListenerReady(msg)) return;
+        for (const key of [keys.locations, keys.members, keys.bills, keys.shares, keys.settlements]) {
+          qc.invalidateQueries({ queryKey: key(tripId) });
+        }
+      })
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
@@ -105,6 +119,11 @@ export function useNotificationsRealtime(userId: string | undefined) {
           if (kind === 'invitation') qc.invalidateQueries({ queryKey: keys.invitations });
         },
       )
+      .on('system', {}, (msg) => {
+        if (!isListenerReady(msg)) return;
+        qc.invalidateQueries({ queryKey: keys.notifications });
+        qc.invalidateQueries({ queryKey: keys.invitations });
+      })
       .subscribe();
     return () => {
       supabase.removeChannel(channel);

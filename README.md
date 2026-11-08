@@ -2,6 +2,8 @@
 
 Group trips without the "where are you?" texts and the spreadsheet at the end.
 
+**Live:** https://web-production-f080e3.up.railway.app (guest sign-in: type a name and go)
+
 - **Live map.** Everyone on the trip sees each other, even with the app closed (iPhone & Android). Pause anytime; sharing stops by itself when the trip ends.
 - **Invite by link or in the app.** The organizer shares a link or QR code (WhatsApp, SMS…), or invites people already on Tripley by phone number or email. They tap Accept.
 - **Bills split for you.** Whoever paid adds the bill, taps who had which item, and Tripley works out every share: shared items, tax, service, tip, discounts, other currencies. No maths.
@@ -166,6 +168,9 @@ Fill in `public/.well-known/apple-app-site-association` (your Apple Team ID) and
 
 Tripley runs in the Railway project **tripley**: the open-source Supabase stack plus the website, all in one project.
 
+- Website: https://web-production-f080e3.up.railway.app
+- API: https://supabase-production-4a6b.up.railway.app
+
 | Service | What it is |
 |---|---|
 | `db` | Postgres (Supabase image) with a volume |
@@ -185,6 +190,7 @@ Tripley runs in the Railway project **tripley**: the open-source Supabase stack 
 | `EXPO_PUBLIC_SUPABASE_ANON_KEY` | Public anon key, printed in the `supabase` gateway's deploy logs |
 | `EXPO_PUBLIC_AUTH_METHODS` | `guest` |
 | `EXPO_PUBLIC_APP_DOMAIN` | `${{RAILWAY_PUBLIC_DOMAIN}}` |
+| `NODE_ENV` | `production` |
 
 **`auth` variables:**
 
@@ -202,6 +208,19 @@ To add phone sign-in later, set the `GOTRUE_EXTERNAL_PHONE_ENABLED` and `GOTRUE_
 **Cost.** Usage-based on Railway's Hobby plan. With all nine Supabase services the template's author estimates $20–40/month; light use is usually lower. Check *Usage* in the Railway dashboard.
 
 **Backups.** Self-hosted means backups are on you. Railway volume backups can be enabled on the `db` volume.
+
+**Checked live (8 Nov 2026).** A one-off script ran inside the Railway project against the public URLs, the way the app calls them, then deleted its test data:
+
+- guest sign-up and name
+- creating a trip, previewing the invite and joining by code
+- sharing locations, with live map updates over realtime
+- an itemized bill with tax, and a bill whose shares don't add up being rejected
+- marking a payment as paid and confirming it, with notifications
+- a stranger seeing no trip, map, bills or receipt photos
+- CORS from the website
+- `/` and `/join/<code>` serving the app
+
+All 23 checks passed.
 
 ---
 
