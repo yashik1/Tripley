@@ -6,7 +6,7 @@ const globals = require('globals');
 module.exports = defineConfig([
   expoConfig,
   {
-    ignores: ['dist/*', 'supabase/functions/*', 'tests/e2e/*'],
+    ignores: ['dist/*', 'supabase/functions/*', 'tests/e2e/*', 'public/maplibre-gl-worker.mjs'],
   },
   {
     // Node-only CommonJS scripts (web server, migrations).

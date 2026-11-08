@@ -2,6 +2,7 @@
 /**
  * Serves the exported web app (dist/) for hosting on Railway or any Node host.
  * - Unknown paths fall back to index.html (client-side routing, e.g. /join/<code>)
+ *   but a missing file (a path with an extension) is a 404, not the HTML page
  * - /.well-known/* (iOS universal links, Android app links) served as JSON
  * - Fingerprinted assets under /_expo/static and /assets get long cache headers
  *
@@ -18,6 +19,7 @@ const index = path.join(root, 'index.html');
 const TYPES = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
+  '.mjs': 'text/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
   '.json': 'application/json',
   '.map': 'application/json',
@@ -55,7 +57,15 @@ const server = http.createServer((req, res) => {
     } catch {
       isFile = false;
     }
-    if (!isFile) file = index;
+    if (!isFile) {
+      // Routes have no extension; a missing script or image must not get HTML
+      // back (a browser would run or cache it as the wrong type).
+      if (path.extname(urlPath)) {
+        res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-cache' }).end('Not found');
+        return;
+      }
+      file = index;
+    }
 
     const headers = {
       'Content-Type': urlPath.startsWith('/.well-known/') ? 'application/json' : TYPES[path.extname(file)] || 'application/octet-stream',

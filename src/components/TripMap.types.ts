@@ -30,9 +30,18 @@ export function boundsOf(people: { lat: number; lng: number }[]): Bounds | null 
     s = Math.min(s, p.lat);
     n = Math.max(n, p.lat);
   }
-  // Give a single person (or people standing together) some breathing room.
-  const pad = 0.005;
-  if (e - w < pad) { w -= pad; e += pad; }
-  if (n - s < pad) { s -= pad; n += pad; }
+  // Show at least ~200 m around a single person or people standing together,
+  // centred on them, so friends a street apart don't end up on one spot.
+  const min = 0.002;
+  if (e - w < min) {
+    const c = (w + e) / 2;
+    w = c - min / 2;
+    e = c + min / 2;
+  }
+  if (n - s < min) {
+    const c = (s + n) / 2;
+    s = c - min / 2;
+    n = c + min / 2;
+  }
   return [w, s, e, n];
 }

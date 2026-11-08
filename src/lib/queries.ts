@@ -69,15 +69,17 @@ export function useTripRealtime(tripId: string) {
     const channel = supabase
       .channel(channelName(`trip:${tripId}`))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'member_locations', filter }, (payload) => {
-        qc.setQueryData<MemberLocation[]>(keys.locations(tripId), (prev = []) => {
-          if (payload.eventType === 'DELETE') {
-            const old = payload.old as Partial<MemberLocation>;
-            return prev.filter((l) => l.user_id !== old.user_id);
-          }
-          const row = payload.new as MemberLocation;
-          return [...prev.filter((l) => l.user_id !== row.user_id), row];
-        });
-        if (payload.eventType === 'DELETE') qc.invalidateQueries({ queryKey: keys.locations(tripId) });
+        const key = keys.locations(tripId);
+        const prev = qc.getQueryData<MemberLocation[]>(key);
+        // Patch only a list that's already loaded. Starting one from this event
+        // (often my own upload, before the map has fetched) would cache a
+        // one-person list as fresh and skip fetching everyone else.
+        if (!prev || payload.eventType === 'DELETE') {
+          qc.invalidateQueries({ queryKey: key });
+          return;
+        }
+        const row = payload.new as MemberLocation;
+        qc.setQueryData<MemberLocation[]>(key, [...prev.filter((l) => l.user_id !== row.user_id), row]);
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'bills', filter }, () => {
         qc.invalidateQueries({ queryKey: keys.bills(tripId) });

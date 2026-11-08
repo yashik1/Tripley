@@ -71,7 +71,8 @@
     "test:all": "vitest run",
     "typecheck": "tsc --noEmit",
     "functions:check": "for f in scan-receipt revenuecat-webhook send-push; do deno check --config supabase/functions/$f/deno.json supabase/functions/$f/index.ts || exit 1; done",
-    "export:web": "expo export --platform web",
+    "export:web": "node scripts/copy-map-worker.cjs && expo export --platform web",
+    "postinstall": "node scripts/copy-map-worker.cjs",
     "test:e2e": "node tests/e2e/trip-flow.cjs",
     "start:web": "node scripts/serve-web.cjs",
     "db:migrate": "node scripts/migrate.cjs"

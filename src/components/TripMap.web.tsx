@@ -7,7 +7,12 @@ import { View } from 'react-native';
 import { config } from '@/config';
 import { boundsOf, type MapPerson, type TripMapProps } from './TripMap.types';
 
-// Plain background used if the map tiles can't load (offline, blocked), so
+// MapLibre finds its worker next to its own module (import.meta.url), which in
+// a bundled app points at the bundle, so serve a copy from public/ instead
+// (scripts/copy-map-worker.cjs). Without a worker no map tiles can be drawn.
+maplibregl.setWorkerUrl(`/maplibre-gl-worker.mjs?v=${maplibregl.getVersion()}`);
+
+// Plain background used if the map style can't load (offline, blocked), so
 // people's pins still show where everyone is relative to each other.
 const FALLBACK_STYLE: maplibregl.StyleSpecification = {
   version: 8,
@@ -63,9 +68,16 @@ export function TripMap({ people, focusId, onSelect, fitToken = 0 }: TripMapProp
       attributionControl: { compact: true },
     });
     m.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
+    // Only a style that never loads falls back to the plain background. A tile
+    // or icon that fails later just leaves a gap; the rest of the map stays.
+    let styleLoaded = false;
     let fellBack = false;
-    m.on('error', () => {
-      if (!fellBack && !m.isStyleLoaded()) {
+    m.once('style.load', () => {
+      styleLoaded = true;
+    });
+    m.on('error', (e) => {
+      console.warn('[map]', e.error?.message ?? e);
+      if (!styleLoaded && !fellBack) {
         fellBack = true;
         m.setStyle(FALLBACK_STYLE);
       }
@@ -112,7 +124,7 @@ export function TripMap({ people, focusId, onSelect, fitToken = 0 }: TripMapProp
             [b[0], b[1]],
             [b[2], b[3]],
           ],
-          { padding: { top: 170, bottom: 300, left: 70, right: 70 }, duration: 600, maxZoom: 15 },
+          { padding: { top: 170, bottom: 300, left: 70, right: 70 }, duration: 600, maxZoom: 17 },
         );
       }
     }

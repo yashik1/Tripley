@@ -6,6 +6,8 @@ node_modules/
 # Expo
 .expo/
 dist/
+# Copied from node_modules by scripts/copy-map-worker.cjs
+public/maplibre-gl-worker.mjs
 web-build/
 expo-env.d.ts
 

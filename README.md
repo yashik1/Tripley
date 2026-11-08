@@ -177,7 +177,7 @@ Tripley runs in the Railway project **tripley**: the open-source Supabase stack 
 | `auth`, `rest`, `realtime`, `storage`, `meta`, `functions` | Supabase's sign-in, REST API, live updates, file storage (volume), dashboard backend, edge runtime |
 | `studio` | The Supabase dashboard |
 | `supabase` | Gateway: the public API URL (`https://supabase-production-….up.railway.app`), and Studio behind a login |
-| `web` | This repo: built with `npx expo export --platform web`, served by `scripts/serve-web.cjs` |
+| `web` | This repo: built with `npm run export:web` (copies the map worker into `public/`, then `expo export --platform web`), served by `scripts/serve-web.cjs` |
 
 **How a deploy works.** Pushing to the deployed branch rebuilds `web`. Before the new version goes live, Railway runs the pre-deploy command `node scripts/migrate.cjs`. It applies any new file in `supabase/migrations/` once, recorded in `supabase_migrations.schema_migrations` (the Supabase CLI's table). If a migration fails, the deploy stops and the old version keeps running.
 
