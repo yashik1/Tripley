@@ -1,20 +1,24 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Platform, View } from 'react-native';
 
-import { Avatar, Banner, Button, Card, Loading, Row, Screen, Stack, Text } from '@/components/ui';
+import { Avatar, Banner, Button, Card, Field, Loading, Row, Screen, Stack, Text } from '@/components/ui';
 import { isConfigured } from '@/config';
 import { joinTripByCode, tripPreview } from '@/lib/api';
+import { hasAuth } from '@/lib/auth-methods';
 import { errorMessage } from '@/lib/errors';
 import { formatDateRange } from '@/lib/format';
-import { setPendingJoin } from '@/lib/pending-join';
+import { signInAsGuest } from '@/lib/guest';
+import { clearPendingJoin, peekPendingJoin, setPendingJoin } from '@/lib/pending-join';
 import { keys } from '@/lib/queries';
 import { useAuth } from '@/providers/AuthProvider';
 import { space } from '@/theme';
 
+const otherSignIn = hasAuth('phone') || hasAuth('email') || hasAuth('google') || hasAuth('apple');
+
 export default function JoinTrip() {
-  const { code = '' } = useLocalSearchParams<{ code: string }>();
+  const { code = '', auto } = useLocalSearchParams<{ code: string; auto?: string }>();
   const { session } = useAuth();
   const qc = useQueryClient();
   const preview = useQuery({
@@ -24,9 +28,44 @@ export default function JoinTrip() {
   });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [guestName, setGuestName] = useState('');
+  const autoTried = useRef(false);
+  const p = preview.data;
+
+  const join = useCallback(async () => {
+    setError(null);
+    setBusy(true);
+    try {
+      const tripId = await joinTripByCode(code);
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: keys.trips }),
+        qc.invalidateQueries({ queryKey: keys.sharing }),
+      ]);
+      router.replace(`/trip/${tripId}/map`);
+    } catch (e) {
+      setError(errorMessage(e));
+      setBusy(false);
+    }
+  }, [code, qc]);
+
+  // Finish joining automatically after signing in from this invite.
+  useEffect(() => {
+    if (!session || !p || p.is_member || autoTried.current) return;
+    let cancelled = false;
+    peekPendingJoin().then(async (pending) => {
+      if (cancelled || autoTried.current) return;
+      if (auto === '1' || pending === code) {
+        autoTried.current = true;
+        await clearPendingJoin();
+        join();
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [session, p, auto, code, join]);
 
   if (preview.isLoading) return <Loading />;
-  const p = preview.data;
 
   if (!p) {
     return (
@@ -38,22 +77,20 @@ export default function JoinTrip() {
     );
   }
 
-  const join = async () => {
+  const signInFirst = async () => {
+    await setPendingJoin(code);
+    router.replace('/sign-in');
+  };
+
+  const joinAsGuest = async () => {
     setError(null);
-    if (!session) {
-      await setPendingJoin(code);
-      router.replace('/sign-in');
-      return;
-    }
     setBusy(true);
     try {
-      const tripId = await joinTripByCode(code);
-      await Promise.all([
-        qc.invalidateQueries({ queryKey: keys.trips }),
-        qc.invalidateQueries({ queryKey: keys.sharing }),
-      ]);
-      router.replace(`/trip/${tripId}/map`);
+      await setPendingJoin(code);
+      await signInAsGuest(guestName);
+      // Once signed in, the effect above joins the trip.
     } catch (e) {
+      await clearPendingJoin();
       setError(errorMessage(e));
       setBusy(false);
     }
@@ -85,8 +122,26 @@ export default function JoinTrip() {
       {error ? <Banner tone="danger">{error}</Banner> : null}
       {p.is_member ? (
         <Button title="Open trip" onPress={() => router.replace(`/trip/${p.trip_id}/map`)} />
+      ) : session ? (
+        <Button title="Join trip" onPress={join} loading={busy} testID="join-trip" />
+      ) : hasAuth('guest') ? (
+        <Stack gap={space.sm}>
+          <Field
+            label="Your name"
+            testID="join-guest-name"
+            value={guestName}
+            onChangeText={setGuestName}
+            placeholder="So friends know who you are"
+            autoComplete="name"
+            maxLength={60}
+            onSubmitEditing={joinAsGuest}
+          />
+          <Button title="Join trip" onPress={joinAsGuest} loading={busy} testID="join-as-guest" />
+          <Text variant="caption" faint center>No sign-up needed. Your account stays on this device.</Text>
+          {otherSignIn ? <Button title="I have an account, sign in" kind="ghost" small onPress={signInFirst} testID="join-trip" /> : null}
+        </Stack>
       ) : (
-        <Button title={session ? 'Join trip' : 'Sign in to join'} onPress={join} loading={busy} testID="join-trip" />
+        <Button title="Sign in to join" onPress={signInFirst} testID="join-trip" />
       )}
       {Platform.OS === 'web' ? (
         <Banner tone="info" title="Get the app for the best experience" icon="location">

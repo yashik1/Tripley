@@ -5,6 +5,7 @@ const KEY = 'tripley.pendingJoin';
 
 export const setPendingJoin = (code: string) => AsyncStorage.setItem(KEY, code);
 export const clearPendingJoin = () => AsyncStorage.removeItem(KEY);
+export const peekPendingJoin = () => AsyncStorage.getItem(KEY);
 export async function takePendingJoin(): Promise<string | null> {
   const code = await AsyncStorage.getItem(KEY);
   if (code) await AsyncStorage.removeItem(KEY);

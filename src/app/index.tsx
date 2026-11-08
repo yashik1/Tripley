@@ -26,7 +26,7 @@ export default function TripsHome() {
 
   useEffect(() => {
     takePendingJoin().then((code) => {
-      if (code) router.push(`/join/${code}`);
+      if (code) router.push({ pathname: '/join/[code]', params: { code, auto: '1' } });
     });
   }, []);
 

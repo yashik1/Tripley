@@ -7,6 +7,7 @@ import { Avatar, Banner, Button, Card, Field, Row, Screen, SectionTitle, Stack, 
 import { isPro, updateProfile } from '@/lib/api';
 import { confirm } from '@/lib/confirm';
 import { errorMessage } from '@/lib/errors';
+import { isGuest } from '@/lib/guest';
 import { normalizeHandles, type PaymentHandles } from '@/lib/payment-links';
 import { useAccount } from '@/lib/queries';
 import { useAuth } from '@/providers/AuthProvider';
@@ -51,7 +52,8 @@ export default function Profile() {
   };
 
   const pro = isPro(account.data);
-  const contact = user?.phone ? `+${user.phone.replace(/^\+/, '')}` : user?.email ?? '';
+  const guest = isGuest(user);
+  const contact = guest ? 'Guest account' : user?.phone ? `+${user.phone.replace(/^\+/, '')}` : user?.email ?? '';
 
   return (
     <Screen footer={<Button title="Save" onPress={save} loading={busy} testID="save-profile" />}>
@@ -62,6 +64,12 @@ export default function Profile() {
           <Text variant="caption" muted>{contact}</Text>
         </Stack>
       </Row>
+
+      {guest ? (
+        <Banner tone="warning" title="Guest account" icon="person">
+          Your account lives in this browser. If you sign out or clear this site&apos;s data, you won&apos;t be able to get back into your trips.
+        </Banner>
+      ) : null}
 
       <Card>
         <Field label="Name" value={name} onChangeText={setName} maxLength={60} />
@@ -109,7 +117,15 @@ export default function Profile() {
         icon="logout"
         kind="ghost"
         onPress={async () => {
-          if (await confirm('Sign out?', 'Location sharing stops on this device until you sign in again.', 'Sign out')) {
+          const ok = guest
+            ? await confirm(
+                'Sign out of a guest account?',
+                "Guest accounts can't sign back in. You'll lose access to your trips and balances on this device.",
+                'Sign out anyway',
+                true,
+              )
+            : await confirm('Sign out?', 'Location sharing stops on this device until you sign in again.', 'Sign out');
+          if (ok) {
             await signOut();
           }
         }}

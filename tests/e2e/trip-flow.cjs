@@ -1,5 +1,5 @@
 /**
- * End-to-end flow with three people in three browsers, against the web build
+ * End-to-end flow with four people in four browsers (one joins as a guest), against the web build
  * and a local Supabase (`npx supabase start` with test OTP numbers
  * 15550000001-3 = 123456 in supabase/config.toml).
  *
@@ -16,6 +16,7 @@ const goa = {
   maya: { latitude: 15.5527, longitude: 73.7517 },
   sam: { latitude: 15.5571, longitude: 73.7552 },
   lee: { latitude: 15.5489, longitude: 73.7608 },
+  priya: { latitude: 15.5512, longitude: 73.7581 },
 };
 
 let step = 0;
@@ -56,6 +57,7 @@ async function signIn(page, local, name) {
   const maya = await ctx('maya');
   const sam = await ctx('sam');
   const lee = await ctx('lee');
+  const priya = await ctx('priya');
 
   try {
     console.log('1. Maya signs up with her phone number and creates a trip');
@@ -81,14 +83,19 @@ async function signIn(page, local, name) {
     await sam.goto(`${BASE}/join/${code}`);
     await sam.getByText('Goa trip').waitFor();
     await shot(sam, 'join-preview');
-    await sam.getByTestId('join-trip').click();
+    await sam.getByText('I have an account, sign in').click();
     await signIn(sam, '5550000002', 'Sam');
-    // After signing up, Tripley returns Sam to the invite he opened.
-    await sam.getByTestId('join-trip').filter({ hasText: 'Join trip' }).waitFor({ timeout: 15000 });
-    await shot(sam, 'join-after-signup');
-    await sam.getByTestId('join-trip').click();
-    await sam.getByText("Who's where").waitFor({ timeout: 15000 });
-    expect(true, 'Sam joined and sees the trip map');
+    // After signing up, Tripley finishes joining the invite he opened.
+    await sam.getByText("Who's where").waitFor({ timeout: 20000 });
+    expect(true, 'Sam signed up and was taken straight into the trip');
+
+    console.log('2b. Priya joins from the link as a guest (just her name)');
+    await priya.goto(`${BASE}/join/${code}`);
+    await priya.getByTestId('join-guest-name').fill('Priya');
+    await shot(priya, 'join-as-guest');
+    await priya.getByTestId('join-as-guest').click();
+    await priya.getByText("Who's where").waitFor({ timeout: 20000 });
+    expect(true, 'Priya joined as a guest without phone or email');
 
     console.log('3. Lee signs up; Maya invites Lee by phone; Lee accepts in the app');
     await lee.goto(BASE);
@@ -111,8 +118,8 @@ async function signIn(page, local, name) {
     await maya.goto(`${BASE}/trip/${await tripIdFrom(sam)}/map`);
     await maya.getByText("Who's where").waitFor();
     const pins = maya.locator('[data-testid^="map-pin-"]');
-    for (let i = 0; i < 20 && (await pins.count()) < 3; i++) await maya.waitForTimeout(1000);
-    expect((await pins.count()) === 3, `Maya's map shows 3 people (${await pins.count()})`);
+    for (let i = 0; i < 20 && (await pins.count()) < 4; i++) await maya.waitForTimeout(1000);
+    expect((await pins.count()) === 4, `Maya's map shows 4 people (${await pins.count()})`);
     await shot(maya, 'map');
 
     console.log('5. Maya adds the dinner bill and taps who had what');
@@ -127,8 +134,8 @@ async function signIn(page, local, name) {
     await maya.getByTestId('item-price-1').fill('900');
     await maya.locator('[data-testid^="assign-1-"]').filter({ hasText: 'Sam' }).click();
     await maya.getByTestId('tax-input').fill('300');
-    await maya.getByText('₹1,854.54').first().waitFor();
-    expect(true, 'live preview: Sam ₹1,854.54 (half pizza share + beer + tax)');
+    await maya.getByText('₹1,636.36').first().waitFor();
+    expect(true, 'live preview: Sam ₹1,636.36 (quarter of the pizza + beer + his part of the tax)');
     await shot(maya, 'bill-editor');
     await maya.getByTestId('save-bill').click();
     await maya.waitForURL((u) => !u.toString().includes('/bill/new'), { timeout: 15000 });
@@ -140,7 +147,7 @@ async function signIn(page, local, name) {
     await sam.goto(`${BASE}/trip/${tripId}/balances`);
     await sam.getByTestId('net-balance').waitFor();
     const samNet = await sam.getByTestId('net-balance').innerText();
-    expect(samNet === '₹1,854.54', `Sam owes ${samNet}`);
+    expect(samNet === '₹1,636.36', `Sam owes ${samNet}`);
     await shot(sam, 'balances-owe');
     await sam.locator('[data-testid^="pay-"]').first().click();
     await sam.getByTestId('mark-paid').waitFor();
@@ -157,7 +164,7 @@ async function signIn(page, local, name) {
     await maya.getByText('Got it').click();
     await maya.getByText('Confirmed', { exact: false }).first().waitFor({ timeout: 15000 });
     const mayaNet = await maya.getByTestId('net-balance').innerText();
-    expect(mayaNet === '₹872.73', `Maya is still owed ${mayaNet} by Lee`);
+    expect(mayaNet === '₹1,309.09', `Maya is still owed ${mayaNet} by Lee and Priya`);
     await shot(maya, 'balances-after');
 
     console.log('8. Notifications reached the right people');
@@ -169,7 +176,7 @@ async function signIn(page, local, name) {
     console.log('\nAll steps passed.');
   } catch (e) {
     console.error('\nFAILED:', e.message);
-    for (const [n, p] of Object.entries({ maya, sam, lee })) await p.screenshot({ path: `${SHOTS}/fail-${n}.png` }).catch(() => {});
+    for (const [n, p] of Object.entries({ maya, sam, lee, priya })) await p.screenshot({ path: `${SHOTS}/fail-${n}.png` }).catch(() => {});
     process.exitCode = 1;
   } finally {
     await browser.close();
