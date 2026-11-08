@@ -240,6 +240,8 @@ To add phone sign-in later, set the `GOTRUE_EXTERNAL_PHONE_ENABLED` and `GOTRUE_
 
 All 23 checks passed.
 
+Accounts were checked the same way after they launched (21 of 21 passed): signing up and logging in with email and password, the 8-character minimum, duplicate emails and wrong passwords refused, a guest saving their account and logging in elsewhere as the same account, reset requests (with no hint whether an email has an account), and the reset link the email contains, which opens `/reset-password` on the website, works once and sets a new password.
+
 ---
 
 ## Testing
