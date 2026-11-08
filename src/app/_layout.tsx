@@ -34,9 +34,15 @@ export default function RootLayout() {
   );
 }
 
-function SignedInServices({ userId, children }: { userId: string; children: ReactNode }) {
-  useNotificationsRealtime(userId);
+/**
+ * Push, purchases, notifications and location sharing for the signed-in person.
+ * Always mounted (with userId null when signed out) so signing in or out never
+ * rebuilds the navigator underneath, which would drop the page you're on.
+ */
+function SignedInServices({ userId, children }: { userId: string | null; children: ReactNode }) {
+  useNotificationsRealtime(userId ?? undefined);
   useEffect(() => {
+    if (!userId) return;
     registerForPush().catch(() => undefined);
     setupPurchases(userId).catch(() => undefined);
     return configureNotificationHandling((data) => {
@@ -52,7 +58,7 @@ function SignedInServices({ userId, children }: { userId: string; children: Reac
 }
 
 function AppNavigator() {
-  const { ready, session, profile, profileLoading } = useAuth();
+  const { ready, session, profile } = useAuth();
   const t = useTheme();
 
   useEffect(() => {
@@ -63,7 +69,7 @@ function AppNavigator() {
   const needsName = signedIn && !!profile && !profile.display_name.trim();
   const navTheme = t.scheme === 'dark' ? DarkTheme : DefaultTheme;
 
-  if (!ready || (signedIn && profileLoading)) return <Loading />;
+  if (!ready) return <Loading />;
 
   const stack = (
     <Stack
@@ -78,15 +84,17 @@ function AppNavigator() {
       <Stack.Protected guard={!isConfigured} redirectTo="/">
         <Stack.Screen name="setup" options={{ title: 'Set up Tripley' }} />
       </Stack.Protected>
-      <Stack.Protected guard={isConfigured && !signedIn} redirectTo="/">
-        <Stack.Screen name="sign-in" options={{ headerShown: false }} />
-        <Stack.Screen name="verify" options={{ title: 'Enter your code' }} />
-      </Stack.Protected>
+      {/* Public home: the landing page when signed out, your trips when signed in. */}
+      <Stack.Screen name="index" options={{ title: 'Tripley' }} />
+      {/* Log in / sign up screens go back by themselves once you're signed in (useLeaveWhenSignedIn). */}
+      <Stack.Screen name="sign-in" options={{ headerShown: false, title: 'Log in' }} />
+      <Stack.Screen name="sign-up" options={{ headerShown: false, title: 'Create your account' }} />
+      <Stack.Screen name="forgot-password" options={{ headerShown: false, title: 'Reset your password' }} />
+      <Stack.Screen name="verify" options={{ title: 'Enter your code' }} />
       <Stack.Protected guard={needsName} redirectTo="/">
         <Stack.Screen name="welcome" options={{ headerShown: false }} />
       </Stack.Protected>
       <Stack.Protected guard={signedIn && !needsName} redirectTo={!isConfigured ? '/setup' : !signedIn ? '/sign-in' : '/welcome'}>
-        <Stack.Screen name="index" options={{ title: 'Tripley' }} />
         <Stack.Screen name="trips/new" options={{ title: 'New trip', presentation: 'modal' }} />
         <Stack.Screen name="trip/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="profile" options={{ title: 'Profile' }} />
@@ -94,13 +102,15 @@ function AppNavigator() {
         <Stack.Screen name="pro" options={{ title: 'Tripley Pro', presentation: 'modal' }} />
       </Stack.Protected>
       <Stack.Screen name="join/[code]" options={{ title: 'Join trip' }} />
+      {/* Opened from the reset email, signed out; the link signs you in. */}
+      <Stack.Screen name="reset-password" options={{ headerShown: false, title: 'Choose a new password' }} />
       <Stack.Screen name="auth/callback" options={{ headerShown: false }} />
     </Stack>
   );
 
   return (
     <ThemeProvider value={{ ...navTheme, colors: { ...navTheme.colors, background: t.bg, card: t.surface, primary: t.primary } }}>
-      {signedIn ? <SignedInServices userId={session!.user.id}>{stack}</SignedInServices> : stack}
+      <SignedInServices userId={session?.user.id ?? null}>{stack}</SignedInServices>
     </ThemeProvider>
   );
 }

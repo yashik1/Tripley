@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { router, useLocalSearchParams } from 'expo-router';
+import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Platform, View } from 'react-native';
 
@@ -15,11 +15,14 @@ import { keys } from '@/lib/queries';
 import { useAuth } from '@/providers/AuthProvider';
 import { space } from '@/theme';
 
-const otherSignIn = hasAuth('phone') || hasAuth('email') || hasAuth('google') || hasAuth('apple');
+const accounts = hasAuth('password');
+const otherSignIn = accounts || hasAuth('phone') || hasAuth('email') || hasAuth('google') || hasAuth('apple');
 
 export default function JoinTrip() {
   const { code = '', auto } = useLocalSearchParams<{ code: string; auto?: string }>();
-  const { session } = useAuth();
+  const { session, profile } = useAuth();
+  // New accounts without a name set it first; the invite is kept and finished after.
+  const needsName = !!session && !!profile && !profile.display_name.trim();
   const qc = useQueryClient();
   const preview = useQuery({
     queryKey: ['preview', code, !!session],
@@ -50,7 +53,7 @@ export default function JoinTrip() {
 
   // Finish joining automatically after signing in from this invite.
   useEffect(() => {
-    if (!session || !p || p.is_member || autoTried.current) return;
+    if (!session || needsName || !p || p.is_member || autoTried.current) return;
     let cancelled = false;
     peekPendingJoin().then(async (pending) => {
       if (cancelled || autoTried.current) return;
@@ -63,8 +66,9 @@ export default function JoinTrip() {
     return () => {
       cancelled = true;
     };
-  }, [session, p, auto, code, join]);
+  }, [session, needsName, p, auto, code, join]);
 
+  if (needsName) return <Redirect href="/welcome" />;
   if (preview.isLoading) return <Loading />;
 
   if (!p) {
@@ -77,9 +81,9 @@ export default function JoinTrip() {
     );
   }
 
-  const signInFirst = async () => {
+  const signInFirst = async (to: '/sign-in' | '/sign-up' = '/sign-in') => {
     await setPendingJoin(code);
-    router.replace('/sign-in');
+    router.push(to);
   };
 
   const joinAsGuest = async () => {
@@ -124,24 +128,38 @@ export default function JoinTrip() {
         <Button title="Open trip" onPress={() => router.replace(`/trip/${p.trip_id}/map`)} />
       ) : session ? (
         <Button title="Join trip" onPress={join} loading={busy} testID="join-trip" />
-      ) : hasAuth('guest') ? (
-        <Stack gap={space.sm}>
-          <Field
-            label="Your name"
-            testID="join-guest-name"
-            value={guestName}
-            onChangeText={setGuestName}
-            placeholder="So friends know who you are"
-            autoComplete="name"
-            maxLength={60}
-            onSubmitEditing={joinAsGuest}
-          />
-          <Button title="Join trip" onPress={joinAsGuest} loading={busy} testID="join-as-guest" />
-          <Text variant="caption" faint center>No sign-up needed. Your account stays on this device.</Text>
-          {otherSignIn ? <Button title="I have an account, sign in" kind="ghost" small onPress={signInFirst} testID="join-trip" /> : null}
-        </Stack>
       ) : (
-        <Button title="Sign in to join" onPress={signInFirst} testID="join-trip" />
+        <Stack gap={space.lg}>
+          {accounts ? (
+            <Stack gap={space.sm}>
+              <Button title="Create an account and join" onPress={() => signInFirst('/sign-up')} testID="join-signup" />
+              <Button title="I have an account, log in" kind="secondary" onPress={() => signInFirst('/sign-in')} testID="join-trip" />
+              <Text variant="caption" faint center>Your trips, bills and balances are saved to your account.</Text>
+            </Stack>
+          ) : null}
+          {hasAuth('guest') ? (
+            <Stack gap={space.sm}>
+              {accounts ? <Text variant="label">Or join as a guest</Text> : null}
+              <Field
+                label="Your name"
+                testID="join-guest-name"
+                value={guestName}
+                onChangeText={setGuestName}
+                placeholder="So friends know who you are"
+                autoComplete="name"
+                maxLength={60}
+                onSubmitEditing={joinAsGuest}
+              />
+              <Button title={accounts ? 'Join as guest' : 'Join trip'} kind={accounts ? 'secondary' : 'primary'} onPress={joinAsGuest} loading={busy} testID="join-as-guest" />
+              <Text variant="caption" faint center>
+                {accounts ? 'No sign-up needed. A guest account lives only in this browser; you can save it later.' : 'No sign-up needed. Your account stays on this device.'}
+              </Text>
+              {otherSignIn && !accounts ? <Button title="I have an account, sign in" kind="ghost" small onPress={() => signInFirst('/sign-in')} testID="join-trip" /> : null}
+            </Stack>
+          ) : !accounts ? (
+            <Button title="Sign in to join" onPress={() => signInFirst('/sign-in')} testID="join-trip" />
+          ) : null}
+        </Stack>
       )}
       {Platform.OS === 'web' ? (
         <Banner tone="info" title="Get the app for the best experience" icon="location">

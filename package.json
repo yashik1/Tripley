@@ -74,6 +74,7 @@
     "export:web": "node scripts/copy-map-worker.cjs && expo export --platform web",
     "postinstall": "node scripts/copy-map-worker.cjs",
     "test:e2e": "node tests/e2e/trip-flow.cjs",
+    "test:e2e:accounts": "node tests/e2e/accounts.cjs",
     "start:web": "node scripts/serve-web.cjs",
     "db:migrate": "node scripts/migrate.cjs"
   },

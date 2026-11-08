@@ -27,14 +27,19 @@ type SharingContextValue = {
 const SharingContext = createContext<SharingContextValue | null>(null);
 const EMPTY: SharingState = { trips: [], mode: 'live' };
 
-/** Keeps location sharing in sync with the trips I'm on. Mounted once when signed in. */
-export function SharingProvider({ children, userId }: { children: ReactNode; userId: string }) {
+/**
+ * Keeps location sharing in sync with the trips I'm on. Always mounted; when
+ * signed out (userId null) the plan is empty, which stops sharing.
+ */
+export function SharingProvider({ children, userId }: { children: ReactNode; userId: string | null }) {
   const memberships = useQuery({
-    queryKey: [...keys.sharing, userId],
+    queryKey: [...keys.sharing, userId ?? 'signed-out'],
     queryFn: listMySharingMemberships,
     refetchInterval: 5 * 60_000,
+    enabled: !!userId,
   });
-  const plan = useMemo(() => (memberships.data ? sharingPlan(memberships.data as never) : EMPTY), [memberships.data]);
+  const data = userId ? memberships.data : undefined;
+  const plan = useMemo(() => (data ? sharingPlan(data as never) : EMPTY), [data]);
   const [status, setStatus] = useState<SharingStatus>('idle');
 
   const apply = useCallback(async () => {

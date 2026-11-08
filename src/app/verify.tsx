@@ -4,8 +4,10 @@ import { useEffect, useState } from 'react';
 import { Banner, Button, Field, Screen, Text } from '@/components/ui';
 import { errorMessage } from '@/lib/errors';
 import { supabase } from '@/lib/supabase';
+import { useLeaveWhenSignedIn } from '@/lib/use-leave-when-signed-in';
 
 export default function Verify() {
+  useLeaveWhenSignedIn();
   const { phone, email } = useLocalSearchParams<{ phone?: string; email?: string }>();
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);

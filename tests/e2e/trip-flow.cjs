@@ -62,6 +62,7 @@ async function signIn(page, local, name) {
   try {
     console.log('1. Maya signs up with her phone number and creates a trip');
     await maya.goto(BASE);
+    await maya.getByTestId('nav-login').click();
     await maya.getByTestId('phone-input').waitFor();
     await shot(maya, 'sign-in');
     await signIn(maya, '5550000001', 'Maya');
@@ -83,7 +84,7 @@ async function signIn(page, local, name) {
     await sam.goto(`${BASE}/join/${code}`);
     await sam.getByText('Goa trip').waitFor();
     await shot(sam, 'join-preview');
-    await sam.getByText('I have an account, sign in').click();
+    await sam.getByTestId('join-trip').click();
     await signIn(sam, '5550000002', 'Sam');
     // After signing up, Tripley finishes joining the invite he opened.
     await sam.getByText("Who's where").waitFor({ timeout: 20000 });
@@ -98,7 +99,7 @@ async function signIn(page, local, name) {
     expect(true, 'Priya joined as a guest without phone or email');
 
     console.log('3. Lee signs up; Maya invites Lee by phone; Lee accepts in the app');
-    await lee.goto(BASE);
+    await lee.goto(`${BASE}/sign-in`);
     await signIn(lee, '5550000003', 'Lee');
     await lee.getByText('Hi Lee').waitFor();
     await maya.getByTestId('phone-input').fill('5550000003');

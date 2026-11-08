@@ -1,11 +1,14 @@
 /**
  * Which sign-in methods the app offers, from EXPO_PUBLIC_AUTH_METHODS
- * (comma-separated: phone, email, google, apple, guest). Turn a method on only
- * once its provider is set up in Supabase (e.g. phone needs Twilio Verify).
+ * (comma-separated: password, phone, email, google, apple, guest).
+ * - password: email + password accounts (sign up, log in, reset password)
+ * - email: a 6-digit code by email instead of a password
+ * Turn a method on only once its provider is set up in Supabase (e.g. phone
+ * needs Twilio Verify; email codes and password resets need SMTP).
  */
-export type AuthMethod = 'phone' | 'email' | 'google' | 'apple' | 'guest';
+export type AuthMethod = 'password' | 'phone' | 'email' | 'google' | 'apple' | 'guest';
 
-const ALL: AuthMethod[] = ['phone', 'email', 'google', 'apple', 'guest'];
+const ALL: AuthMethod[] = ['password', 'phone', 'email', 'google', 'apple', 'guest'];
 
 export function parseAuthMethods(raw: string | undefined | null): Set<AuthMethod> {
   const list = (raw ?? '')

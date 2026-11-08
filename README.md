@@ -2,12 +2,13 @@
 
 Group trips without the "where are you?" texts and the spreadsheet at the end.
 
-**Live:** https://web-production-f080e3.up.railway.app (guest sign-in: type a name and go)
+**Live:** https://web-production-f080e3.up.railway.app (sign up with email and password, or try it as a guest)
 
 - **Live map.** Everyone on the trip sees each other, even with the app closed (iPhone & Android). Pause anytime; sharing stops by itself when the trip ends.
 - **Invite by link or in the app.** The organizer shares a link or QR code (WhatsApp, SMS…), or invites people already on Tripley by phone number or email. They tap Accept.
 - **Bills split for you.** Whoever paid adds the bill, taps who had which item, and Tripley works out every share: shared items, tax, service, tip, discounts, other currencies. No maths.
 - **Settle up.** "You owe Maya ₹1,240" → **Pay** opens UPI / Venmo / PayPal / Revolut / Cash App / Wise with the amount filled in → **Mark as paid** → Maya taps **Got it**.
+- **Accounts.** Sign up with email and password, log in on any device, reset a forgotten password by email. Guests can try it with just a name and save their account later without losing their trips.
 - **Free + Pro.** Everything is free except **AI receipt reading** (Tripley Pro): snap the receipt and the items, prices, tax and tip are filled in.
 
 One codebase (Expo / React Native) runs on iPhone, Android and the web. Backend is Supabase (Postgres, Auth, Realtime, Storage, Edge Functions).
@@ -72,6 +73,7 @@ public/.well-known/      iOS universal links + Android app links (fill in your I
 | Resource | What for | Cost (approx., check current pricing) |
 |---|---|---|
 | Supabase project | Database, login, realtime, storage, functions | Free tier to build; Pro ~$25/month at launch |
+| Email sending (SMTP): Gmail app password, Brevo, Resend, Postmark… | Password-reset emails (and email codes / confirmations if turned on) | Free tiers cover early use |
 | Twilio account + **Verify** service | SMS login codes | Pay per verification (~$0.05, varies by country) |
 | Apple Developer Program | iPhone app, TestFlight, Sign in with Apple, push | $99/year |
 | Google Play Console | Android app | $25 one-time |
@@ -188,7 +190,7 @@ Tripley runs in the Railway project **tripley**: the open-source Supabase stack 
 | `DATABASE_URL` | `postgresql://postgres:${{db.POSTGRES_PASSWORD}}@${{db.RAILWAY_PRIVATE_DOMAIN}}:5432/postgres` (server-side, migrations only) |
 | `EXPO_PUBLIC_SUPABASE_URL` | `https://${{supabase.RAILWAY_PUBLIC_DOMAIN}}` |
 | `EXPO_PUBLIC_SUPABASE_ANON_KEY` | Public anon key, printed in the `supabase` gateway's deploy logs |
-| `EXPO_PUBLIC_AUTH_METHODS` | `guest` |
+| `EXPO_PUBLIC_AUTH_METHODS` | `password,guest` |
 | `EXPO_PUBLIC_APP_DOMAIN` | `${{RAILWAY_PUBLIC_DOMAIN}}` |
 | `NODE_ENV` | `production` |
 
@@ -196,10 +198,26 @@ Tripley runs in the Railway project **tripley**: the open-source Supabase stack 
 
 | Variable | Value |
 |---|---|
-| `GOTRUE_EXTERNAL_ANONYMOUS_USERS_ENABLED` | `true` |
-| `GOTRUE_EXTERNAL_EMAIL_ENABLED` | `false` |
+| `GOTRUE_EXTERNAL_ANONYMOUS_USERS_ENABLED` | `true` (guests) |
+| `GOTRUE_EXTERNAL_EMAIL_ENABLED` | `true` (email + password accounts) |
+| `GOTRUE_DISABLE_SIGNUP` | `false` |
+| `GOTRUE_PASSWORD_MIN_LENGTH` | `8` |
+| `GOTRUE_MAILER_AUTOCONFIRM` | `true` for now: accounts work without confirming the email. Set `false` once SMTP works to require confirmation |
+| `GOTRUE_MAILER_URLPATHS_RECOVERY` | `https://${{web.RAILWAY_PUBLIC_DOMAIN}}/reset-password`: the reset email links straight to the website with a one-time token, so it works on any device |
+| `GOTRUE_MAILER_SUBJECTS_RECOVERY` | `Reset your Tripley password` |
+| `GOTRUE_SMTP_SENDER_NAME` | `Tripley` |
 | `GOTRUE_SITE_URL` | The `web` URL |
 | `GOTRUE_URI_ALLOW_LIST` | `https://<web>/**,tripley://**,http://localhost:8081/**` |
+
+**Password-reset emails need SMTP.** Until `GOTRUE_SMTP_HOST` is set, the auth server accepts reset requests but sends nothing. Add these to the `auth` service (put the password in yourself; it's a secret):
+
+| Variable | Gmail (app password) | Brevo |
+|---|---|---|
+| `GOTRUE_SMTP_HOST` | `smtp.gmail.com` | `smtp-relay.brevo.com` |
+| `GOTRUE_SMTP_PORT` | `587` | `587` |
+| `GOTRUE_SMTP_USER` | your Gmail address | your Brevo SMTP login |
+| `GOTRUE_SMTP_PASS` | a 16-character app password (Google Account → Security → 2-Step Verification → App passwords) | your Brevo SMTP key |
+| `GOTRUE_SMTP_ADMIN_EMAIL` | the same Gmail address (the "from" address) | a sender address verified in Brevo |
 
 To add phone sign-in later, set the `GOTRUE_EXTERNAL_PHONE_ENABLED` and `GOTRUE_SMS_*` (Twilio Verify) variables there, then add `phone` to `EXPO_PUBLIC_AUTH_METHODS`.
 
@@ -242,12 +260,13 @@ npm run export:web       # production web build into dist/
 
 1. Maya signs up with her phone number and creates a trip in INR.
 2. Sam opens the invite link signed out, signs up, and lands back on the invite to join.
-3. Maya invites Lee by phone number, and Lee accepts in the app.
-4. All three share location, and Maya's map shows all three.
-5. Maya adds a dinner bill (pizza for everyone, beer for Sam, tax). The preview shows Sam owes ₹1,854.54.
-6. Sam taps Pay → Mark as paid.
-7. Maya taps Got it. Maya is still owed ₹872.73 by Lee.
-8. Sam is notified that Maya confirmed.
+3. Priya joins from the same link as a guest, with just her name.
+4. Maya invites Lee by phone number, and Lee accepts in the app.
+5. All four share location, and Maya's map shows all four.
+6. Maya adds a dinner bill (pizza for everyone, beer for Sam, tax). The preview shows Sam owes ₹1,636.36.
+7. Sam taps Pay → Mark as paid.
+8. Maya taps Got it. Maya is still owed ₹1,309.09 by Lee and Priya.
+9. Sam is notified that Maya confirmed.
 
 To run it locally:
 
@@ -261,7 +280,9 @@ To run it locally:
    Then set dummy Twilio values (`TWILIO_ACCOUNT_SID`, `TWILIO_VERIFY_SERVICE_SID`, `SUPABASE_AUTH_SMS_TWILIO_AUTH_TOKEN`) in your shell.
 2. Run `npx supabase start`.
 3. Run `npx expo start --web` with `EXPO_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321` and the local publishable key.
-4. Run `npm run test:e2e`.
+4. Run `npm run test:e2e`. The test signs up fixed phone numbers, so delete those users (and their trips) before running it again.
+
+`tests/e2e/accounts.cjs` (`npm run test:e2e:accounts`) covers accounts against a web build with `EXPO_PUBLIC_AUTH_METHODS=password,guest`: the landing page; sign up; log out and back in; forgot password, with the reset link (read from the local mail catcher on :54324) opened in a different browser; a guest saving their account and logging in elsewhere with their trip intact; signing up from an invite; and a duplicate email.
 
 ---
 

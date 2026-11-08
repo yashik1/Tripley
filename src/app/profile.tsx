@@ -2,9 +2,11 @@ import { useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { useState } from 'react';
 
+import { ChangePasswordCard, SaveAccountCard } from '@/components/AccountCards';
 import { CurrencyPicker } from '@/components/CurrencyPicker';
 import { Avatar, Banner, Button, Card, Field, Row, Screen, SectionTitle, Stack, Text } from '@/components/ui';
 import { isPro, updateProfile } from '@/lib/api';
+import { hasAuth } from '@/lib/auth-methods';
 import { confirm } from '@/lib/confirm';
 import { errorMessage } from '@/lib/errors';
 import { isGuest } from '@/lib/guest';
@@ -34,6 +36,7 @@ export default function Profile() {
   const [handles, setHandles] = useState<PaymentHandles>(profile?.payment_handles ?? {});
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ tone: 'success' | 'danger'; text: string } | null>(null);
+  const [accountSaved, setAccountSaved] = useState(false);
 
   const save = async () => {
     if (!name.trim()) return setMessage({ tone: 'danger', text: 'Your name can’t be empty.' });
@@ -65,9 +68,16 @@ export default function Profile() {
         </Stack>
       </Row>
 
-      {guest ? (
+      {guest && hasAuth('password') ? (
+        <SaveAccountCard onSaved={() => setAccountSaved(true)} />
+      ) : guest ? (
         <Banner tone="warning" title="Guest account" icon="person">
           Your account lives in this browser. If you sign out or clear this site&apos;s data, you won&apos;t be able to get back into your trips.
+        </Banner>
+      ) : null}
+      {accountSaved && !guest ? (
+        <Banner tone="success" title="Account saved" icon="check">
+          {`You can now log in as ${user?.email ?? 'your email'} on any device. Your trips are all still here.`}
         </Banner>
       ) : null}
 
@@ -97,6 +107,8 @@ export default function Profile() {
         </Card>
       </Stack>
 
+      {!guest && user?.email && hasAuth('password') ? <ChangePasswordCard /> : null}
+
       <Stack gap={space.sm}>
         <SectionTitle>Plan</SectionTitle>
         <Card>
@@ -120,12 +132,16 @@ export default function Profile() {
           const ok = guest
             ? await confirm(
                 'Sign out of a guest account?',
-                "Guest accounts can't sign back in. You'll lose access to your trips and balances on this device.",
+                hasAuth('password')
+                  ? "Guest accounts can't sign back in. Save your account with an email and password first, or you'll lose your trips and balances."
+                  : "Guest accounts can't sign back in. You'll lose access to your trips and balances on this device.",
                 'Sign out anyway',
                 true,
               )
             : await confirm('Sign out?', 'Location sharing stops on this device until you sign in again.', 'Sign out');
           if (ok) {
+            // Go home first so signing out lands on the home page, not the log-in page.
+            router.replace('/');
             await signOut();
           }
         }}

@@ -1,19 +1,39 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { router, Stack as RouterStack } from 'expo-router';
+import { Redirect, router, Stack as RouterStack } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { RefreshControl, View } from 'react-native';
 
-import { Avatar, Banner, Button, Card, EmptyState, IconButton, Row, Screen, SectionTitle, Stack, Text } from '@/components/ui';
+import { Landing } from '@/components/Landing';
+import { Avatar, Banner, Button, Card, EmptyState, IconButton, Loading, Row, Screen, SectionTitle, Stack, Text } from '@/components/ui';
+import { isConfigured } from '@/config';
 import { isTripActive, respondToInvitation } from '@/lib/api';
 import { errorMessage } from '@/lib/errors';
 import { formatDateRange } from '@/lib/format';
+import { isGuest } from '@/lib/guest';
 import { takePendingJoin } from '@/lib/pending-join';
 import { keys, useInvitations, useNotifications, useTrips } from '@/lib/queries';
 import type { TripWithCount } from '@/lib/types';
 import { useAuth } from '@/providers/AuthProvider';
 import { space, useTheme } from '@/theme';
 
-export default function TripsHome() {
+/** "/" is the public home page when signed out, and your trips when signed in. */
+export default function Home() {
+  const { session, profile, profileLoading } = useAuth();
+  if (!isConfigured) return <Redirect href="/setup" />;
+  if (!session) {
+    return (
+      <>
+        <RouterStack.Screen options={{ headerShown: false, title: 'Tripley' }} />
+        <Landing />
+      </>
+    );
+  }
+  if (profileLoading) return <Loading />;
+  if (profile && !profile.display_name.trim()) return <Redirect href="/welcome" />;
+  return <TripsHome />;
+}
+
+function TripsHome() {
   const t = useTheme();
   const qc = useQueryClient();
   const { profile, user } = useAuth();
@@ -56,6 +76,7 @@ export default function TripsHome() {
     <>
       <RouterStack.Screen
         options={{
+          headerShown: true,
           title: 'Tripley',
           headerRight: () => (
             <Row gap={space.xs}>
@@ -88,6 +109,15 @@ export default function TripsHome() {
         }
         footer={<Button title="Start a new trip" icon="add" onPress={() => router.push('/trips/new')} testID="new-trip" />}>
         <Text variant="title">Hi {profile?.display_name?.split(' ')[0] ?? 'there'}</Text>
+        {isGuest(user) ? (
+          <Banner
+            tone="warning"
+            title="Save your account"
+            icon="person"
+            action={<Button title="Save my account" small onPress={() => router.push('/profile')} testID="home-save-account" style={{ alignSelf: 'flex-start' }} />}>
+            You&apos;re using a guest account, which only lives in this browser. Add an email and password to keep your trips and log in anywhere.
+          </Banner>
+        ) : null}
         {error ? <Banner tone="danger">{error}</Banner> : null}
 
         {(invitations.data ?? []).length > 0 ? (
