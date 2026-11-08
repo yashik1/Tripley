@@ -368,6 +368,16 @@ describe('settling up', () => {
     expect(note.rows[0].body).toBe('Maya R confirmed your payment of 872.73 INR');
   });
 
+  it('the receiver can record a cash payment, which counts as confirmed', async () => {
+    const r = await as(maya, (q) => q(`select public.record_payment_received($1, $2, 500_00, 'cash') as id`, [tripId, sam]));
+    const row = await as(sam, (q) => q('select from_user, to_user, status from public.settlements where id = $1', [r.rows[0].id]));
+    expect(row.rows[0]).toEqual({ from_user: sam, to_user: maya, status: 'confirmed' });
+    const note = await as(sam, (q) => q(`select body from public.notifications where kind = 'settlement_recorded'`));
+    expect(note.rows[0].body).toBe('Maya R recorded that you paid them 500.00 INR');
+    await expect(as(stranger, (q) => q(`select public.record_payment_received($1, $2, 100)`, [tripId, sam]))).rejects.toThrow(/not in this trip/);
+    await expect(as(maya, (q) => q(`select public.record_payment_received($1, $2, 100)`, [tripId, stranger]))).rejects.toThrow(/must be in the trip/);
+  });
+
   it('a confirmed payment can no longer be undone by the payer', async () => {
     const r = await as(lee, (q) => q('delete from public.settlements where id = $1', [settlementId]));
     expect(r.rowCount).toBe(0);

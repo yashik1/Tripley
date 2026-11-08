@@ -538,7 +538,14 @@ declare
 begin
   select * into v_trip from public.trips where id = new.trip_id;
   v_amount := public.format_minor(new.amount_base_minor, v_trip.base_currency);
-  if tg_op = 'INSERT' then
+  if tg_op = 'INSERT' and new.status = 'confirmed' then
+    -- Recorded by the person who received the money (e.g. cash).
+    perform public.notify(
+      new.from_user, new.trip_id, 'settlement_recorded', v_trip.name,
+      public.display_name_of(new.to_user) || ' recorded that you paid them ' || v_amount,
+      jsonb_build_object('trip_id', new.trip_id, 'settlement_id', new.id)
+    );
+  elsif tg_op = 'INSERT' then
     perform public.notify(
       new.to_user, new.trip_id, 'settlement_paid', v_trip.name,
       public.display_name_of(new.from_user) || ' marked ' || v_amount || ' as paid to you. Tap to confirm.',
@@ -1020,6 +1027,34 @@ begin
   if not found then
     raise exception 'Payment not found.' using errcode = 'P0002';
   end if;
+end;
+$$;
+
+-- The person who was owed records money they received (cash, bank transfer...).
+create or replace function public.record_payment_received(
+  p_trip uuid, p_from uuid, p_amount bigint, p_method text default null, p_note text default null
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_id uuid;
+begin
+  if not public.is_trip_member(p_trip) then
+    raise exception 'You are not in this trip.' using errcode = '42501';
+  end if;
+  if p_from = auth.uid() then
+    raise exception 'Choose who paid you.' using errcode = '22023';
+  end if;
+  if coalesce(p_amount, 0) <= 0 then
+    raise exception 'Enter an amount.' using errcode = '22023';
+  end if;
+  insert into public.settlements (trip_id, from_user, to_user, amount_base_minor, method, note, status, responded_at)
+  values (p_trip, p_from, auth.uid(), p_amount, left(p_method, 40), left(p_note, 300), 'confirmed', now())
+  returning id into v_id;
+  return v_id;
 end;
 $$;
 

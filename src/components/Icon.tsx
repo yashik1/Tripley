@@ -1,0 +1,52 @@
+import { SymbolView, type AndroidSymbol, type SFSymbol } from 'expo-symbols';
+
+// Semantic icon names -> SF Symbol (iOS) and Material Symbol (Android/web).
+const ICONS = {
+  map: ['map', 'map'],
+  bills: ['receipt', 'receipt_long'],
+  balances: ['arrow.left.arrow.right', 'account_balance_wallet'],
+  people: ['person.2', 'group'],
+  person: ['person.crop.circle', 'person'],
+  add: ['plus', 'add'],
+  bell: ['bell', 'notifications'],
+  share: ['square.and.arrow.up', 'share'],
+  qr: ['qrcode', 'qr_code'],
+  location: ['location.fill', 'location_on'],
+  pause: ['pause.fill', 'pause'],
+  play: ['play.fill', 'play_arrow'],
+  camera: ['camera', 'photo_camera'],
+  photo: ['photo', 'image'],
+  check: ['checkmark', 'check'],
+  close: ['xmark', 'close'],
+  chevron: ['chevron.right', 'chevron_right'],
+  sparkles: ['sparkles', 'auto_awesome'],
+  directions: ['arrow.triangle.turn.up.right.diamond', 'directions'],
+  logout: ['rectangle.portrait.and.arrow.right', 'logout'],
+  copy: ['doc.on.doc', 'content_copy'],
+  phone: ['phone', 'phone'],
+  mail: ['envelope', 'mail'],
+  contacts: ['person.crop.rectangle.stack', 'contacts'],
+  settings: ['gearshape', 'settings'],
+  trash: ['trash', 'delete'],
+  edit: ['pencil', 'edit'],
+  personAdd: ['person.badge.plus', 'person_add'],
+  myLocation: ['location.circle', 'my_location'],
+  back: ['chevron.left', 'arrow_back'],
+  trip: ['airplane', 'flight_takeoff'],
+  link: ['link', 'link'],
+  refresh: ['arrow.clockwise', 'refresh'],
+} as const satisfies Record<string, readonly [string, AndroidSymbol]>;
+
+export type IconName = keyof typeof ICONS;
+
+export function Icon({ name, size = 20, color }: { name: IconName; size?: number; color: string }) {
+  const [ios, material] = ICONS[name];
+  return (
+    <SymbolView
+      name={{ ios: ios as SFSymbol, android: material, web: material }}
+      size={size}
+      tintColor={color}
+      resizeMode="scaleAspectFit"
+    />
+  );
+}
