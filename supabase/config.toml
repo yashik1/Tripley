@@ -438,13 +438,10 @@ enabled = true
 [functions.scan-receipt]
 verify_jwt = true
 
-# These are called by RevenueCat, a Database Webhook and a cron job. They check
-# their own shared secret header instead of a user JWT.
+# These are called by RevenueCat and a Database Webhook. They check their own
+# shared secret header instead of a user JWT.
 [functions.revenuecat-webhook]
 verify_jwt = false
 
 [functions.send-push]
-verify_jwt = false
-
-[functions.stale-location-nudge]
 verify_jwt = false

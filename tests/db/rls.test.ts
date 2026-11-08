@@ -430,3 +430,31 @@ describe('ending a trip', () => {
     await expect(as(stranger, (q) => q('select public.join_trip_by_code($1)', [code]))).rejects.toThrow(/not valid/);
   });
 });
+
+describe('stale location reminders', () => {
+  it('reminds people whose dot has gone stale, at most once every few hours', async () => {
+    const t = await as(maya, (q) => q(`insert into public.trips (name, base_currency) values ('Lisbon', 'EUR') returning id, invite_code`));
+    const lisbon = t.rows[0].id;
+    await as(sam, (q) => q('select public.join_trip_by_code($1)', [t.rows[0].invite_code]));
+    await as(sam, (q) => q('insert into public.member_locations (trip_id, user_id, lat, lng) values ($1, $2, 38.7, -9.1)', [lisbon, sam]));
+    await as(maya, (q) => q('insert into public.member_locations (trip_id, user_id, lat, lng) values ($1, $2, 38.7, -9.1)', [lisbon, maya]));
+    // Sam's dot is 3 hours old; Maya's is fresh.
+    await db.query(`update public.member_locations set updated_at = now() - interval '3 hours' where trip_id = $1 and user_id = $2`, [lisbon, sam]);
+
+    const first = await db.query('select public.nudge_stale_sharers() as n');
+    expect(first.rows[0].n).toBe(1);
+    const note = await as(sam, (q) => q(`select body from public.notifications where kind = 'location_stale'`));
+    expect(note.rows[0].body).toBe('Your friends last saw you 3 h ago. Open Tripley to keep sharing your location.');
+    const again = await db.query('select public.nudge_stale_sharers() as n');
+    expect(again.rows[0].n).toBe(0);
+
+    // Battery saver mode tolerates longer gaps.
+    await db.query(`update public.trip_members set last_nudged_at = null, sharing_mode = 'saver' where trip_id = $1 and user_id = $2`, [lisbon, sam]);
+    const saver = await db.query('select public.nudge_stale_sharers() as n');
+    expect(saver.rows[0].n).toBe(0);
+  });
+
+  it('is not callable by app users', async () => {
+    await expect(as(maya, (q) => q('select public.nudge_stale_sharers()'))).rejects.toThrow(/permission denied/);
+  });
+});
