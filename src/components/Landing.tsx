@@ -1,9 +1,10 @@
 import { router } from 'expo-router';
-import type { ReactNode } from 'react';
+import { useRef, type ComponentRef, type ReactNode } from 'react';
 import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { hasAuth } from '@/lib/auth-methods';
+import { useAuth } from '@/providers/AuthProvider';
 import { radius, space, useTheme } from '@/theme';
 import { Brand } from './AuthLayout';
 import { Icon, type IconName } from './Icon';
@@ -61,6 +62,7 @@ function Section({ children, alt }: { children: ReactNode; alt?: boolean }) {
 /** A small picture of the app: friends on a map and a bill split. Built from views, so it's crisp everywhere. */
 function Preview() {
   const t = useTheme();
+  const road = t.scheme === 'dark' ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.85)';
   const pins = [
     { id: 'maya', name: 'MR', x: '22%', y: '30%', color: '#0E7C66' },
     { id: 'sam', name: 'SK', x: '58%', y: '20%', color: '#3B6FD8' },
@@ -79,9 +81,9 @@ function Preview() {
           borderColor: t.border,
         }}>
         {/* roads and a park */}
-        <View style={[styles.road, { top: '42%', left: -20, right: -20, transform: [{ rotate: '-8deg' }] }]} />
-        <View style={[styles.roadV, { left: '46%', transform: [{ rotate: '12deg' }] }]} />
-        <View style={[styles.road, { top: '78%', left: -20, right: -20, height: 8, transform: [{ rotate: '4deg' }] }]} />
+        <View style={[styles.road, { backgroundColor: road, top: '42%', left: -20, right: -20, transform: [{ rotate: '-8deg' }] }]} />
+        <View style={[styles.roadV, { backgroundColor: road, left: '46%', transform: [{ rotate: '12deg' }] }]} />
+        <View style={[styles.road, { backgroundColor: road, top: '78%', left: -20, right: -20, height: 8, transform: [{ rotate: '4deg' }] }]} />
         <View style={{ position: 'absolute', left: '62%', top: '8%', width: 90, height: 60, borderRadius: 18, backgroundColor: t.scheme === 'dark' ? '#23402F' : '#C9E6CF' }} />
         <View style={{ position: 'absolute', left: '6%', top: '70%', width: 110, height: 70, borderRadius: 30, backgroundColor: t.scheme === 'dark' ? '#1B3341' : '#CFE4F4' }} />
         {pins.map((p) => (
@@ -135,26 +137,36 @@ function Preview() {
   );
 }
 
+/** The public home page. Signed-in visitors get "My trips" instead of sign up / log in. */
 export function Landing() {
   const t = useTheme();
+  const { session } = useAuth();
+  const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
   const { width } = useWindowDimensions();
   const wide = width >= 900;
   const cols = width >= 900 ? 3 : width >= 600 ? 2 : 1;
+  const signedIn = !!session;
   const accounts = hasAuth('password');
   const signUp = () => router.push(accounts ? '/sign-up' : '/sign-in');
   const logIn = () => router.push('/sign-in');
+  // Back to the trips page underneath if we came from it, else open it.
+  const myTrips = () => router.dismissTo('/');
 
   return (
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: t.bg }}>
-      <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
+      <ScrollView ref={scroll} contentContainerStyle={{ flexGrow: 1 }}>
         {/* Top bar */}
         <View style={{ paddingHorizontal: space.lg, paddingVertical: space.md, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: t.border, backgroundColor: t.surface }}>
           <Row style={[styles.container, { justifyContent: 'space-between' }]}>
-            <Brand />
-            <Row gap={space.sm}>
-              <Button title="Log in" kind="ghost" small onPress={logIn} testID="nav-login" />
-              {accounts ? <Button title="Sign up" small onPress={signUp} testID="nav-signup" /> : null}
-            </Row>
+            <Brand onPress={() => scroll.current?.scrollTo({ y: 0, animated: true })} />
+            {signedIn ? (
+              <Button title="My trips" icon="trip" small onPress={myTrips} testID="nav-trips" />
+            ) : (
+              <Row gap={space.sm}>
+                <Button title="Log in" kind="ghost" small onPress={logIn} testID="nav-login" />
+                {accounts ? <Button title="Sign up" small onPress={signUp} testID="nav-signup" /> : null}
+              </Row>
+            )}
           </Row>
         </View>
 
@@ -172,10 +184,17 @@ export function Landing() {
                 Tripley keeps your group together: a live map of your friends while the trip is on, and bills split by
                 who had what, so nobody does the maths or chases payments.
               </Text>
-              <Row gap={space.md} style={{ flexWrap: 'wrap' }}>
-                <Button title={accounts ? 'Create a free account' : 'Get started'} onPress={signUp} testID="hero-signup" style={{ paddingHorizontal: space.xl }} />
-                {accounts ? <Button title="Log in" kind="secondary" onPress={logIn} testID="hero-login" style={{ paddingHorizontal: space.xl }} /> : null}
-              </Row>
+              {signedIn ? (
+                <Row gap={space.md} style={{ flexWrap: 'wrap' }}>
+                  <Button title="Go to my trips" onPress={myTrips} testID="hero-trips" style={{ paddingHorizontal: space.xl }} />
+                  <Button title="Start a new trip" kind="secondary" onPress={() => router.push('/trips/new')} style={{ paddingHorizontal: space.xl }} />
+                </Row>
+              ) : (
+                <Row gap={space.md} style={{ flexWrap: 'wrap' }}>
+                  <Button title={accounts ? 'Create a free account' : 'Get started'} onPress={signUp} testID="hero-signup" style={{ paddingHorizontal: space.xl }} />
+                  {accounts ? <Button title="Log in" kind="secondary" onPress={logIn} testID="hero-login" style={{ paddingHorizontal: space.xl }} /> : null}
+                </Row>
+              )}
               <Text variant="caption" faint>Free to use. Works in any browser. No card needed.</Text>
             </Stack>
             <View style={{ flex: wide ? 1 : undefined, width: '100%' }}>
@@ -227,13 +246,19 @@ export function Landing() {
         <Section alt>
           <View style={{ alignItems: 'center', gap: space.lg }}>
             <Text variant="title" center style={{ fontSize: 32 }}>Ready for your next trip?</Text>
-            <Text muted center style={{ fontSize: 17, maxWidth: 560 }}>
-              Make an account to keep your trips, bills and balances safe, and log in from your phone or laptop.
-            </Text>
-            <Row gap={space.md} style={{ flexWrap: 'wrap', justifyContent: 'center' }}>
-              <Button title={accounts ? 'Sign up free' : 'Get started'} onPress={signUp} testID="footer-signup" style={{ paddingHorizontal: space.xl }} />
-              {accounts ? <Button title="I have an account" kind="secondary" onPress={logIn} style={{ paddingHorizontal: space.xl }} /> : null}
-            </Row>
+            {signedIn ? (
+              <Button title="Go to my trips" onPress={myTrips} style={{ paddingHorizontal: space.xl }} />
+            ) : (
+              <>
+                <Text muted center style={{ fontSize: 17, maxWidth: 560 }}>
+                  Make an account to keep your trips, bills and balances safe, and log in from your phone or laptop.
+                </Text>
+                <Row gap={space.md} style={{ flexWrap: 'wrap', justifyContent: 'center' }}>
+                  <Button title={accounts ? 'Sign up free' : 'Get started'} onPress={signUp} testID="footer-signup" style={{ paddingHorizontal: space.xl }} />
+                  {accounts ? <Button title="I have an account" kind="secondary" onPress={logIn} style={{ paddingHorizontal: space.xl }} /> : null}
+                </Row>
+              </>
+            )}
           </View>
         </Section>
 
@@ -252,6 +277,6 @@ export function Landing() {
 
 const styles = StyleSheet.create({
   container: { width: '100%', maxWidth: 1100, alignSelf: 'center' },
-  road: { position: 'absolute', height: 12, backgroundColor: 'rgba(255,255,255,0.85)', borderRadius: 6 },
-  roadV: { position: 'absolute', top: -20, bottom: -20, width: 14, backgroundColor: 'rgba(255,255,255,0.85)', borderRadius: 7 },
+  road: { position: 'absolute', height: 12, borderRadius: 6 },
+  roadV: { position: 'absolute', top: -20, bottom: -20, width: 14, borderRadius: 7 },
 });

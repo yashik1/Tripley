@@ -6,11 +6,17 @@ import { space, useTheme } from '@/theme';
 import { Icon } from './Icon';
 import { Field, Row, Screen, Stack, Text } from './ui';
 
-/** The Tripley name with its pin, linking home. */
-export function Brand({ size = 20 }: { size?: number }) {
+/** The Tripley name with its pin, linking to the home page. */
+export function Brand({ size = 20, onPress, testID }: { size?: number; onPress?: () => void; testID?: string }) {
   const t = useTheme();
   return (
-    <Pressable accessibilityRole="link" accessibilityLabel="Tripley home" onPress={() => router.replace('/')} hitSlop={8}>
+    <Pressable
+      accessibilityRole="link"
+      accessibilityLabel="Tripley home page"
+      onPress={onPress ?? (() => router.replace('/'))}
+      hitSlop={8}
+      testID={testID}
+      style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}>
       <Row gap={6}>
         <View
           style={{

@@ -86,6 +86,7 @@ function AppNavigator() {
       </Stack.Protected>
       {/* Public home: the landing page when signed out, your trips when signed in. */}
       <Stack.Screen name="index" options={{ title: 'Tripley' }} />
+      <Stack.Screen name="home" options={{ headerShown: false, title: 'Tripley' }} />
       {/* Log in / sign up screens go back by themselves once you're signed in (useLeaveWhenSignedIn). */}
       <Stack.Screen name="sign-in" options={{ headerShown: false, title: 'Log in' }} />
       <Stack.Screen name="sign-up" options={{ headerShown: false, title: 'Create your account' }} />

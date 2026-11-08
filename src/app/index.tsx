@@ -3,6 +3,7 @@ import { Redirect, router, Stack as RouterStack } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { RefreshControl, View } from 'react-native';
 
+import { Brand } from '@/components/AuthLayout';
 import { Landing } from '@/components/Landing';
 import { Avatar, Banner, Button, Card, EmptyState, IconButton, Loading, Row, Screen, SectionTitle, Stack, Text } from '@/components/ui';
 import { isConfigured } from '@/config';
@@ -78,6 +79,7 @@ function TripsHome() {
         options={{
           headerShown: true,
           title: 'Tripley',
+          headerTitle: () => <Brand size={18} onPress={() => router.push('/home')} testID="header-home" />,
           headerRight: () => (
             <Row gap={space.xs}>
               <View>

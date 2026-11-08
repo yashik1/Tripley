@@ -173,6 +173,12 @@ async function latestEmailTo(address) {
     await logIn(g2, gus.email, gus.pw);
     await g2.getByText('Gus road trip').waitFor({ timeout: 15000 });
     expect(!(await g2.getByText('Save your account').count()), 'logged in elsewhere: same trip, no guest warning');
+    await g2.getByTestId('header-home').click();
+    await g2.getByText('Know where everyone is. Split every bill fairly.').waitFor();
+    expect(!(await g2.getByTestId('nav-login').count()), 'the Tripley logo opens the home page, with "My trips" instead of log in');
+    await g2.getByTestId('nav-trips').click();
+    await g2.getByText('Gus road trip').waitFor();
+    ok('"My trips" goes back to the trips page');
 
     console.log('6. Ben opens Ana’s invite, signs up, and lands in the trip');
     const b = await newPage(browser);
