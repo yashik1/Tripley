@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { RefreshControl, View } from 'react-native';
 
@@ -10,11 +10,12 @@ import { formatMoney } from '@/lib/currency';
 import { errorMessage } from '@/lib/errors';
 import { timeAgo } from '@/lib/format';
 import { keys, useSettlements, useShareRows } from '@/lib/queries';
+import { useTripId } from '@/lib/trip-context';
 import { useTripData } from '@/lib/trip-hooks';
 import { space, useTheme } from '@/theme';
 
 export default function BalancesTab() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const id = useTripId();
   const t = useTheme();
   const qc = useQueryClient();
   const { trip, me, nameOf, byId } = useTripData(id);

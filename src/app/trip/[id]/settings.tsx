@@ -1,39 +1,37 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { router } from 'expo-router';
+import { useState } from 'react';
 import { Switch, View } from 'react-native';
 
-import { Banner, Button, Card, Field, Row, Screen, SectionTitle, Stack, Text } from '@/components/ui';
+import { Banner, Button, Card, Field, Loading, Row, Screen, SectionTitle, Stack, Text } from '@/components/ui';
 import { deleteTrip, leaveTrip, regenerateInviteCode, updateTrip } from '@/lib/api';
 import { confirm } from '@/lib/confirm';
 import { errorMessage } from '@/lib/errors';
 import { isISODate } from '@/lib/format';
 import { keys } from '@/lib/queries';
+import { useTripId } from '@/lib/trip-context';
 import { useTripData } from '@/lib/trip-hooks';
+import type { Trip } from '@/lib/types';
 import { useSharing } from '@/providers/SharingProvider';
 import { space, useTheme } from '@/theme';
 
 export default function TripSettings() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const id = useTripId();
+  const data = useTripData(id);
+  if (!data.trip) return <Loading />;
+  return <TripSettingsForm key={data.trip.id} id={id} trip={data.trip} isOrganizer={data.isOrganizer} active={data.active} />;
+}
+
+function TripSettingsForm({ id, trip, isOrganizer, active }: { id: string; trip: Trip; isOrganizer: boolean; active: boolean }) {
   const t = useTheme();
   const qc = useQueryClient();
   const sharing = useSharing();
-  const { trip, isOrganizer, active } = useTripData(id);
-  const [name, setName] = useState('');
-  const [start, setStart] = useState('');
-  const [end, setEnd] = useState('');
+  const [name, setName] = useState(trip.name);
+  const [start, setStart] = useState(trip.starts_on ?? '');
+  const [end, setEnd] = useState(trip.ends_on ?? '');
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
-
-  useEffect(() => {
-    if (!trip) return;
-    setName(trip.name);
-    setStart(trip.starts_on ?? '');
-    setEnd(trip.ends_on ?? '');
-  }, [trip]);
-
-  if (!trip) return null;
 
   const refresh = async () => {
     await Promise.all([

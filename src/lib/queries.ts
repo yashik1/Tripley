@@ -9,6 +9,11 @@ import * as api from './api';
 import { supabase } from './supabase';
 import type { MemberLocation } from './types';
 
+// Each subscriber gets its own channel name: supabase.channel() returns an
+// existing channel for a repeated name, which can't take new listeners.
+let channelSeq = 0;
+const channelName = (base: string) => `${base}:${Date.now().toString(36)}${(channelSeq++).toString(36)}`;
+
 export const keys = {
   trips: ['trips'] as const,
   trip: (id: string) => ['trip', id] as const,
@@ -54,7 +59,7 @@ export function useTripRealtime(tripId: string) {
     if (!tripId) return;
     const filter = `trip_id=eq.${tripId}`;
     const channel = supabase
-      .channel(`trip:${tripId}`)
+      .channel(channelName(`trip:${tripId}`))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'member_locations', filter }, (payload) => {
         qc.setQueryData<MemberLocation[]>(keys.locations(tripId), (prev = []) => {
           if (payload.eventType === 'DELETE') {
@@ -90,7 +95,7 @@ export function useNotificationsRealtime(userId: string | undefined) {
   useEffect(() => {
     if (!userId) return;
     const channel = supabase
-      .channel(`notifications:${userId}`)
+      .channel(channelName(`notifications:${userId}`))
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` },

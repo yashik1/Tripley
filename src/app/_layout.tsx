@@ -75,17 +75,17 @@ function AppNavigator() {
         contentStyle: { backgroundColor: t.bg },
         headerBackButtonDisplayMode: 'minimal',
       }}>
-      <Stack.Protected guard={!isConfigured}>
+      <Stack.Protected guard={!isConfigured} redirectTo="/">
         <Stack.Screen name="setup" options={{ title: 'Set up Tripley' }} />
       </Stack.Protected>
-      <Stack.Protected guard={isConfigured && !signedIn}>
+      <Stack.Protected guard={isConfigured && !signedIn} redirectTo="/">
         <Stack.Screen name="sign-in" options={{ headerShown: false }} />
         <Stack.Screen name="verify" options={{ title: 'Enter your code' }} />
       </Stack.Protected>
-      <Stack.Protected guard={needsName}>
+      <Stack.Protected guard={needsName} redirectTo="/">
         <Stack.Screen name="welcome" options={{ headerShown: false }} />
       </Stack.Protected>
-      <Stack.Protected guard={signedIn && !needsName}>
+      <Stack.Protected guard={signedIn && !needsName} redirectTo={!isConfigured ? '/setup' : !signedIn ? '/sign-in' : '/welcome'}>
         <Stack.Screen name="index" options={{ title: 'Tripley' }} />
         <Stack.Screen name="trips/new" options={{ title: 'New trip', presentation: 'modal' }} />
         <Stack.Screen name="trip/[id]" options={{ headerShown: false }} />

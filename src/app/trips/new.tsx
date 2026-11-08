@@ -39,8 +39,7 @@ export default function NewTrip() {
         qc.invalidateQueries({ queryKey: keys.trips }),
         qc.invalidateQueries({ queryKey: keys.sharing }),
       ]);
-      router.dismissTo(`/trip/${trip.id}/map`);
-      router.push(`/trip/${trip.id}/invite`);
+      router.replace(`/trip/${trip.id}/invite`);
     } catch (e) {
       setError(errorMessage(e));
       setBusy(false);

@@ -2,7 +2,11 @@ import { router, Stack, useLocalSearchParams } from 'expo-router';
 
 import { IconButton, Row } from '@/components/ui';
 import { useTrip, useTripRealtime } from '@/lib/queries';
+import { TripIdContext } from '@/lib/trip-context';
 import { space, useTheme } from '@/theme';
+
+// Deep links (notifications, /trip/x/invite) open on top of the trip tabs.
+export const unstable_settings = { initialRouteName: '(tabs)' };
 
 export default function TripLayout() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -11,6 +15,7 @@ export default function TripLayout() {
   useTripRealtime(id);
 
   return (
+    <TripIdContext.Provider value={id}>
     <Stack
       screenOptions={{
         headerStyle: { backgroundColor: t.surface },
@@ -46,5 +51,6 @@ export default function TripLayout() {
       <Stack.Screen name="settle/[userId]" options={{ title: 'Settle up' }} />
       <Stack.Screen name="settings" options={{ title: 'Trip settings' }} />
     </Stack>
+    </TripIdContext.Provider>
   );
 }

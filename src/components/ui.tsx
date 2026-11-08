@@ -2,7 +2,7 @@
  * Tripley's small UI kit: consistent spacing, type and colors in light and dark mode.
  */
 import { Image } from 'expo-image';
-import type { ReactNode } from 'react';
+import { Children, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -376,6 +376,12 @@ export function Avatar({
 
 // ------------------------------------------------------------------ feedback
 
+/** True when children are only strings/numbers (which must sit inside <Text> on native). */
+function isTextOnly(children: ReactNode): boolean {
+  const list = Children.toArray(children);
+  return list.length > 0 && list.every((c) => typeof c === 'string' || typeof c === 'number');
+}
+
 export function Banner({
   tone = 'info',
   title,
@@ -403,7 +409,7 @@ export function Banner({
         {icon ? <Icon name={icon} size={18} color={fg} /> : null}
         <View style={{ flex: 1, gap: 2 }}>
           {title ? <Text variant="label" color={fg}>{title}</Text> : null}
-          {typeof children === 'string' ? <Text variant="caption" color={t.text}>{children}</Text> : children}
+          {isTextOnly(children) ? <Text variant="caption" color={t.text}>{children}</Text> : children}
         </View>
       </Row>
       {action ? <View style={{ marginTop: space.sm }}>{action}</View> : null}

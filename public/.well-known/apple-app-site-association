@@ -1,0 +1,13 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["YOUR_APPLE_TEAM_ID.app.tripley"],
+        "components": [{ "/": "/join/*", "comment": "Trip invite links open the app" }]
+      }
+    ]
+  },
+  "webcredentials": {
+    "apps": ["YOUR_APPLE_TEAM_ID.app.tripley"]
+  }
+}

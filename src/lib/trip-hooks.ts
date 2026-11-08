@@ -23,7 +23,8 @@ export function useTripData(tripId: string) {
       nameOf,
       myMembership: byId.get(me) ?? null,
       isOrganizer: trip.data?.organizer_id === me,
-      active: trip.data ? isTripActive(trip.data) : false,
+      // Treat the trip as active until it has loaded, so nothing flashes "ended".
+      active: trip.data ? isTripActive(trip.data) : true,
       loading: trip.isLoading || members.isLoading,
       error: trip.error ?? members.error,
       refetch: async () => {

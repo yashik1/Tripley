@@ -11,11 +11,13 @@ import { formatMoney } from '@/lib/currency';
 import { errorMessage } from '@/lib/errors';
 import { formatDate } from '@/lib/format';
 import { keys, useBill } from '@/lib/queries';
+import { useTripId } from '@/lib/trip-context';
 import { useTripData } from '@/lib/trip-hooks';
 import { radius, space, useTheme } from '@/theme';
 
 export default function BillDetail() {
-  const { id, billId } = useLocalSearchParams<{ id: string; billId: string }>();
+  const id = useTripId();
+  const { billId } = useLocalSearchParams<{ billId: string }>();
   const t = useTheme();
   const qc = useQueryClient();
   const { trip, me, byId, nameOf, isOrganizer } = useTripData(id);

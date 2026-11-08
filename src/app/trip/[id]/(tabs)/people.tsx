@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { RefreshControl } from 'react-native';
 
@@ -9,11 +9,12 @@ import { confirm } from '@/lib/confirm';
 import { errorMessage } from '@/lib/errors';
 import { timeAgo } from '@/lib/format';
 import { keys, useSentInvitations } from '@/lib/queries';
+import { useTripId } from '@/lib/trip-context';
 import { useTripData } from '@/lib/trip-hooks';
 import { space, useTheme } from '@/theme';
 
 export default function PeopleTab() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const id = useTripId();
   const t = useTheme();
   const qc = useQueryClient();
   const { members, me, isOrganizer, refetch, loading } = useTripData(id);

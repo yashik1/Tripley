@@ -1,6 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
-import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Linking, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
@@ -12,6 +11,7 @@ import { updateMySharing } from '@/lib/api';
 import { errorMessage } from '@/lib/errors';
 import { isStale, timeAgo } from '@/lib/format';
 import { keys, useLocations } from '@/lib/queries';
+import { useTripId } from '@/lib/trip-context';
 import { useTripData } from '@/lib/trip-hooks';
 import type { Member } from '@/lib/types';
 import { useSharing } from '@/providers/SharingProvider';
@@ -39,13 +39,13 @@ function directionsUrl(lat: number, lng: number): string {
 }
 
 export default function TripMapScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const id = useTripId();
   const t = useTheme();
   const qc = useQueryClient();
   const { me, members, byId, myMembership, active } = useTripData(id);
   const locations = useLocations(id);
   const sharing = useSharing();
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState(() => Date.now());
   const [focusId, setFocusId] = useState<string | null>(null);
   const [fitToken, setFitToken] = useState(0);
   const [keepAwake, setKeepAwake] = useState(false);

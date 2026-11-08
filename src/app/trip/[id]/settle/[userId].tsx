@@ -11,13 +11,15 @@ import { formatMoney, minorToInput, parseAmount } from '@/lib/currency';
 import { errorMessage } from '@/lib/errors';
 import { paymentOptions } from '@/lib/payment-links';
 import { keys, useSettlements, useShareRows } from '@/lib/queries';
+import { useTripId } from '@/lib/trip-context';
 import { useTripData } from '@/lib/trip-hooks';
 import { space, useTheme } from '@/theme';
 
 const METHODS = ['UPI', 'Venmo', 'PayPal', 'Revolut', 'Cash App', 'Wise', 'Bank transfer', 'Cash', 'Other'];
 
 export default function SettleUp() {
-  const { id, userId } = useLocalSearchParams<{ id: string; userId: string }>();
+  const id = useTripId();
+  const { userId } = useLocalSearchParams<{ userId: string }>();
   const t = useTheme();
   const qc = useQueryClient();
   const { trip, me, byId, nameOf } = useTripData(id);

@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 import { CurrencyPicker } from '@/components/CurrencyPicker';
 import { Avatar, Banner, Button, Card, Field, Row, Screen, SectionTitle, Stack, Text } from '@/components/ui';
@@ -8,7 +8,7 @@ import { isPro, updateProfile } from '@/lib/api';
 import { confirm } from '@/lib/confirm';
 import { errorMessage } from '@/lib/errors';
 import { normalizeHandles, type PaymentHandles } from '@/lib/payment-links';
-import { keys, useAccount } from '@/lib/queries';
+import { useAccount } from '@/lib/queries';
 import { useAuth } from '@/providers/AuthProvider';
 import { space, useTheme } from '@/theme';
 
@@ -27,18 +27,12 @@ export default function Profile() {
   const qc = useQueryClient();
   const { profile, user, signOut, refreshProfile } = useAuth();
   const account = useAccount();
-  const [name, setName] = useState('');
-  const [currency, setCurrency] = useState('USD');
-  const [handles, setHandles] = useState<PaymentHandles>({});
+  // The profile is loaded before signed-in screens render.
+  const [name, setName] = useState(profile?.display_name ?? '');
+  const [currency, setCurrency] = useState(profile?.default_currency ?? 'USD');
+  const [handles, setHandles] = useState<PaymentHandles>(profile?.payment_handles ?? {});
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ tone: 'success' | 'danger'; text: string } | null>(null);
-
-  useEffect(() => {
-    if (!profile) return;
-    setName(profile.display_name);
-    setCurrency(profile.default_currency);
-    setHandles(profile.payment_handles ?? {});
-  }, [profile]);
 
   const save = async () => {
     if (!name.trim()) return setMessage({ tone: 'danger', text: 'Your name can’t be empty.' });

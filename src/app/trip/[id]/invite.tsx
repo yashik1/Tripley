@@ -1,7 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import * as Clipboard from 'expo-clipboard';
 import { Contact } from 'expo-contacts';
-import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Linking, Platform, Share, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
@@ -12,13 +11,14 @@ import { inviteUrl } from '@/config';
 import { inviteByEmail, inviteByPhone, inviteUser } from '@/lib/api';
 import { errorMessage } from '@/lib/errors';
 import { keys, useFriends } from '@/lib/queries';
+import { useTripId } from '@/lib/trip-context';
 import { useTripData } from '@/lib/trip-hooks';
 import type { InviteResult } from '@/lib/types';
 import { useAuth } from '@/providers/AuthProvider';
 import { space, useTheme } from '@/theme';
 
 export default function Invite() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const id = useTripId();
   const t = useTheme();
   const qc = useQueryClient();
   const { profile } = useAuth();

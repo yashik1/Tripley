@@ -7,6 +7,14 @@ import { View } from 'react-native';
 import { config } from '@/config';
 import { boundsOf, type MapPerson, type TripMapProps } from './TripMap.types';
 
+// Plain background used if the map tiles can't load (offline, blocked), so
+// people's pins still show where everyone is relative to each other.
+const FALLBACK_STYLE: maplibregl.StyleSpecification = {
+  version: 8,
+  sources: {},
+  layers: [{ id: 'background', type: 'background', paint: { 'background-color': '#E8EEF2' } }],
+};
+
 function pinElement(p: MapPerson, onSelect?: (id: string) => void): HTMLElement {
   const root = document.createElement('div');
   root.style.cssText = 'display:flex;flex-direction:column;align-items:center;cursor:pointer;';
@@ -30,7 +38,7 @@ function pinElement(p: MapPerson, onSelect?: (id: string) => void): HTMLElement 
 function updatePin(root: HTMLElement, p: MapPerson) {
   const dot = root.querySelector('.tripley-dot') as HTMLElement;
   const label = root.querySelector('.tripley-label') as HTMLElement;
-  dot.style.cssText = `width:40px;height:40px;border-radius:20px;border:3px solid ${p.isMe ? '#2F80ED' : '#fff'};background:${p.color};opacity:${p.stale ? 0.45 : 1};display:flex;align-items:center;justify-content:center;color:#fff;font:700 14px system-ui,sans-serif;box-shadow:0 2px 6px rgba(0,0,0,.3);`;
+  dot.style.cssText = `box-sizing:border-box;width:42px;height:42px;border-radius:50%;border:3px solid ${p.isMe ? '#2F80ED' : '#fff'};background:${p.color};opacity:${p.stale ? 0.45 : 1};display:flex;align-items:center;justify-content:center;color:#fff;font:700 14px system-ui,sans-serif;box-shadow:0 2px 6px rgba(0,0,0,.3);`;
   dot.textContent = p.initials;
   label.textContent = `${p.isMe ? 'You' : p.name.split(' ')[0]} · ${p.ago}`;
 }
@@ -41,7 +49,9 @@ export function TripMap({ people, focusId, onSelect, fitToken = 0 }: TripMapProp
   const markers = useRef(new globalThis.Map<string, maplibregl.Marker>());
   const fitted = useRef(-1);
   const selectRef = useRef(onSelect);
-  selectRef.current = onSelect;
+  useEffect(() => {
+    selectRef.current = onSelect;
+  }, [onSelect]);
 
   useEffect(() => {
     if (!container.current) return;
@@ -52,7 +62,14 @@ export function TripMap({ people, focusId, onSelect, fitToken = 0 }: TripMapProp
       zoom: 1.3,
       attributionControl: { compact: true },
     });
-    m.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+    m.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
+    let fellBack = false;
+    m.on('error', () => {
+      if (!fellBack && !m.isStyleLoaded()) {
+        fellBack = true;
+        m.setStyle(FALLBACK_STYLE);
+      }
+    });
     map.current = m;
     const current = markers.current;
     return () => {
@@ -95,7 +112,7 @@ export function TripMap({ people, focusId, onSelect, fitToken = 0 }: TripMapProp
             [b[0], b[1]],
             [b[2], b[3]],
           ],
-          { padding: { top: 80, bottom: 260, left: 60, right: 60 }, duration: 600, maxZoom: 15 },
+          { padding: { top: 170, bottom: 300, left: 70, right: 70 }, duration: 600, maxZoom: 15 },
         );
       }
     }

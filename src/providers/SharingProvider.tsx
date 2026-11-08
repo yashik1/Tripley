@@ -46,8 +46,14 @@ export function SharingProvider({ children, userId }: { children: ReactNode; use
   }, [plan]);
 
   useEffect(() => {
-    apply();
-  }, [apply]);
+    let cancelled = false;
+    applySharing(plan)
+      .then((s) => !cancelled && setStatus(s))
+      .catch(() => !cancelled && setStatus('unavailable'));
+    return () => {
+      cancelled = true;
+    };
+  }, [plan]);
 
   // Permissions can change in system settings while we're away.
   useEffect(() => {

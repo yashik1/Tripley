@@ -14,7 +14,7 @@ export function TripMap({ people, focusId, onSelect, fitToken = 0 }: TripMapProp
     const b = boundsOf(people);
     if (!b) return;
     fitted.current = fitToken;
-    camera.current?.fitBounds(b, { padding: { top: 80, bottom: 260, left: 60, right: 60 }, duration: 600 });
+    camera.current?.fitBounds(b, { padding: { top: 170, bottom: 300, left: 70, right: 70 }, duration: 600 });
   }, [people, fitToken]);
 
   useEffect(() => {

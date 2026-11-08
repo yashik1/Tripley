@@ -1,15 +1,16 @@
-import { router, useLocalSearchParams } from 'expo-router';
+import { router } from 'expo-router';
 import { RefreshControl, View } from 'react-native';
 
 import { Avatar, Button, Card, EmptyState, Row, Screen, SectionTitle, Stack, Text } from '@/components/ui';
 import { formatMoney } from '@/lib/currency';
 import { formatDate } from '@/lib/format';
 import { useBills } from '@/lib/queries';
+import { useTripId } from '@/lib/trip-context';
 import { useTripData } from '@/lib/trip-hooks';
 import { space, useTheme } from '@/theme';
 
 export default function BillsTab() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const id = useTripId();
   const t = useTheme();
   const { trip, me, nameOf, byId } = useTripData(id);
   const bills = useBills(id);

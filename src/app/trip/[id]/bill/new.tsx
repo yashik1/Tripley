@@ -21,8 +21,9 @@ import { firstName, isISODate, todayISO } from '@/lib/format';
 import { keys, useAccount, useBill } from '@/lib/queries';
 import { receiptToDraft } from '@/lib/receipt';
 import { computeSplit, convertShares, describeIssue, type SplitResult } from '@/lib/split';
+import { useTripId } from '@/lib/trip-context';
 import { useTripData } from '@/lib/trip-hooks';
-import type { Member } from '@/lib/types';
+import type { BillDetail, Member, Trip } from '@/lib/types';
 import { radius, space, useTheme } from '@/theme';
 
 type DraftItem = { key: string; name: string; priceText: string; assignees: Record<string, number> };
@@ -32,120 +33,135 @@ const newKey = () => `i${Date.now().toString(36)}${(keySeq++).toString(36)}`;
 const emptyItem = (): DraftItem => ({ key: newKey(), name: '', priceText: '', assignees: {} });
 
 export default function BillEditor() {
-  const { id, billId } = useLocalSearchParams<{ id: string; billId?: string }>();
-  const t = useTheme();
-  const qc = useQueryClient();
+  const id = useTripId();
+  const { billId } = useLocalSearchParams<{ billId?: string }>();
   const { trip, me, members, loading } = useTripData(id);
   const account = useAccount();
   const existing = useBill(billId ?? '');
-  const pro = isPro(account.data);
-  const base = trip?.base_currency ?? 'USD';
 
-  const [title, setTitle] = useState('');
-  const [paidBy, setPaidBy] = useState(me);
-  const [date, setDate] = useState(todayISO());
-  const [currency, setCurrency] = useState(base);
-  const [rateText, setRateText] = useState('1');
+  if (loading || !trip || (billId && existing.isLoading)) return <Loading />;
+  return (
+    <BillForm
+      key={billId ?? 'new'}
+      tripId={id}
+      billId={billId}
+      trip={trip}
+      me={me}
+      members={members}
+      pro={isPro(account.data)}
+      initial={billId ? existing.data ?? null : null}
+    />
+  );
+}
+
+function BillForm({
+  tripId: id,
+  billId,
+  trip,
+  me,
+  members,
+  pro,
+  initial: b,
+}: {
+  tripId: string;
+  billId?: string;
+  trip: Trip;
+  me: string;
+  members: Member[];
+  pro: boolean;
+  initial: BillDetail | null;
+}) {
+  const t = useTheme();
+  const qc = useQueryClient();
+  const base = trip.base_currency;
+  const itemized = !b || b.split_mode === 'itemized';
+  const initialMoney = (minor: number | undefined) => (b && minor ? minorToInput(minor, b.currency) : '');
+
+  const [title, setTitle] = useState(b?.title ?? '');
+  const [paidBy, setPaidBy] = useState(b?.paid_by ?? me);
+  const [date, setDate] = useState(b?.bill_date ?? todayISO());
+  const [currency, setCurrencyState] = useState(b?.currency ?? base);
+  const [rateText, setRateText] = useState(b ? String(b.fx_rate) : '1');
   const [rateNote, setRateNote] = useState<string | null>(null);
-  const [mode, setMode] = useState<'itemized' | 'equal'>('itemized');
-  const [items, setItems] = useState<DraftItem[]>([emptyItem()]);
-  const [taxText, setTaxText] = useState('');
-  const [serviceText, setServiceText] = useState('');
-  const [tipText, setTipText] = useState('');
-  const [discountText, setDiscountText] = useState('');
-  const [equalTotalText, setEqualTotalText] = useState('');
-  const [equalPeople, setEqualPeople] = useState<string[] | null>(null);
-  const [photoUri, setPhotoUri] = useState<string | null>(null);
-  const [receiptPath, setReceiptPath] = useState<string | null>(null);
-  const [source, setSource] = useState<'manual' | 'ai'>('manual');
-  const [receiptTotal, setReceiptTotal] = useState<number | null>(null);
-  const [notes, setNotes] = useState('');
-  const [scanning, setScanning] = useState(false);
-  const [scanInfo, setScanInfo] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const loadedRef = useRef(false);
-  const defaultsRef = useRef(false);
-
-  // Defaults once the trip loads (new bills only).
-  useEffect(() => {
-    if (trip && !billId && !defaultsRef.current) {
-      defaultsRef.current = true;
-      setCurrency(trip.base_currency);
-      setPaidBy(me);
-    }
-  }, [trip, billId, me]);
-
-  // Editing: fill the form from the saved bill once.
-  useEffect(() => {
-    const b = existing.data;
-    if (!b || loadedRef.current) return;
-    loadedRef.current = true;
-    setTitle(b.title);
-    setPaidBy(b.paid_by);
-    setDate(b.bill_date);
-    setCurrency(b.currency);
-    setRateText(String(b.fx_rate));
-    setMode(b.split_mode);
-    setReceiptPath(b.receipt_path);
-    setSource(b.source);
-    setNotes(b.notes ?? '');
-    if (b.split_mode === 'itemized') {
-      setItems(
-        b.bill_items.map((it) => ({
+  const [mode, setMode] = useState<'itemized' | 'equal'>(b?.split_mode ?? 'itemized');
+  const [items, setItems] = useState<DraftItem[]>(() =>
+    b && b.split_mode === 'itemized'
+      ? b.bill_items.map((it) => ({
           key: newKey(),
           name: it.name,
           priceText: minorToInput(it.line_total_minor, b.currency),
           assignees: Object.fromEntries(it.bill_item_shares.map((s) => [s.user_id, s.weight])),
-        })),
-      );
-      setTaxText(b.tax_minor ? minorToInput(b.tax_minor, b.currency) : '');
-      setServiceText(b.service_minor ? minorToInput(b.service_minor, b.currency) : '');
-      setTipText(b.tip_minor ? minorToInput(b.tip_minor, b.currency) : '');
-      setDiscountText(b.discount_minor ? minorToInput(b.discount_minor, b.currency) : '');
-    } else {
-      setEqualTotalText(minorToInput(b.total_minor, b.currency));
-      setEqualPeople(b.bill_shares.map((s) => s.user_id));
-    }
-    if (b.receipt_path) receiptUrl(b.receipt_path).then((u) => u && setPhotoUri(u));
-  }, [existing.data]);
+        }))
+      : [emptyItem()],
+  );
+  const [taxText, setTaxText] = useState(itemized ? initialMoney(b?.tax_minor) : '');
+  const [serviceText, setServiceText] = useState(itemized ? initialMoney(b?.service_minor) : '');
+  const [tipText, setTipText] = useState(itemized ? initialMoney(b?.tip_minor) : '');
+  const [discountText, setDiscountText] = useState(itemized ? initialMoney(b?.discount_minor) : '');
+  const [equalTotalText, setEqualTotalText] = useState(!itemized && b ? minorToInput(b.total_minor, b.currency) : '');
+  const [equalPeople, setEqualPeople] = useState<string[] | null>(!itemized && b ? b.bill_shares.map((s) => s.user_id) : null);
+  const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [receiptPath, setReceiptPath] = useState<string | null>(b?.receipt_path ?? null);
+  const [source, setSource] = useState<'manual' | 'ai'>(b?.source ?? 'manual');
+  const [receiptTotal, setReceiptTotal] = useState<number | null>(null);
+  const [notes, setNotes] = useState(b?.notes ?? '');
+  const [scanning, setScanning] = useState(false);
+  const [scanInfo, setScanInfo] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const rateRequest = useRef(0);
 
-  // Exchange rate when the bill currency differs from the trip currency.
+  // Show the saved receipt photo when editing.
   useEffect(() => {
-    if (!trip) return;
-    if (currency === base) {
-      setRateText('1');
-      setRateNote(null);
-      return;
-    }
-    if (billId && existing.data && existing.data.currency === currency) return;
+    if (!b?.receipt_path) return;
     let cancelled = false;
-    setRateNote('Looking up the exchange rate…');
-    fetchExchangeRate(currency, base, isISODate(date) ? date : undefined).then((rate) => {
-      if (cancelled) return;
-      if (rate) {
-        setRateText(String(Number(rate.toFixed(6))));
-        setRateNote(`European Central Bank rate for ${isISODate(date) ? date : 'today'}. Change it to match what you actually paid.`);
-      } else {
-        setRateText('');
-        setRateNote(`We couldn't find a rate for ${currency}. Enter how many ${base} one ${currency} was.`);
-      }
+    receiptUrl(b.receipt_path).then((u) => {
+      if (!cancelled && u) setPhotoUri((current) => current ?? u);
     });
     return () => {
       cancelled = true;
     };
-  }, [currency, base, date, trip, billId, existing.data]);
+  }, [b?.receipt_path]);
+
+  /** Look up the exchange rate for a foreign-currency bill (ECB rates). */
+  const lookupRate = (code: string, day: string) => {
+    if (code === base) return;
+    const request = ++rateRequest.current;
+    setRateNote('Looking up the exchange rate…');
+    fetchExchangeRate(code, base, isISODate(day) ? day : undefined).then((rate) => {
+      if (request !== rateRequest.current) return;
+      if (rate) {
+        setRateText(String(Number(rate.toFixed(6))));
+        setRateNote(`European Central Bank rate for ${isISODate(day) ? day : 'today'}. Change it to match what you actually paid.`);
+      } else {
+        setRateText('');
+        setRateNote(`We couldn't find a rate for ${code}. Enter how many ${base} one ${code} was.`);
+      }
+    });
+  };
+  const setCurrency = (code: string, day = date) => {
+    setCurrencyState(code);
+    lookupRate(code, day);
+  };
+  const changeDate = (value: string) => {
+    setDate(value);
+    if (isISODate(value) && currency !== base) lookupRate(currency, value);
+  };
 
   const everyone = members.map((m) => m.user_id);
   const participants = equalPeople ?? everyone;
+  const participantsKey = participants.join(',');
   const rate = Number(rateText.replace(',', '.'));
   const rateOk = currency === base || (Number.isFinite(rate) && rate > 0);
 
-  const money = (text: string) => (text.trim() ? parseAmount(text, currency) : 0);
-
   const split: SplitResult = useMemo(() => {
+    const money = (text: string) => (text.trim() ? parseAmount(text, currency) : 0);
     if (mode === 'equal') {
-      return computeSplit({ mode: 'equal', totalMinor: money(equalTotalText) ?? -1, participants });
+      return computeSplit({
+        mode: 'equal',
+        totalMinor: money(equalTotalText) ?? -1,
+        participants: participantsKey ? participantsKey.split(',') : [],
+      });
     }
     return computeSplit({
       mode: 'itemized',
@@ -163,8 +179,8 @@ export default function BillEditor() {
       tipMinor: money(tipText) ?? 0,
       discountMinor: money(discountText) ?? 0,
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, items, taxText, serviceText, tipText, discountText, equalTotalText, participants.join(','), currency]);
+  }, [mode, items, taxText, serviceText, tipText, discountText, equalTotalText, participantsKey, currency]);
+  const money = (text: string) => (text.trim() ? parseAmount(text, currency) : 0);
 
   const totalBase = rateOk ? convertMinor(split.totalMinor, currency, base, currency === base ? 1 : rate) : 0;
   const converted = split.ok && rateOk ? convertShares(split.shares, totalBase) : [];
@@ -247,7 +263,7 @@ export default function BillEditor() {
       const draft = receiptToDraft(receipt, currency);
       if (!title.trim() && draft.title) setTitle(draft.title);
       if (draft.date) setDate(draft.date);
-      if (draft.currency !== currency) setCurrency(draft.currency);
+      if (draft.currency !== currency) setCurrency(draft.currency, draft.date ?? date);
       if (draft.items.length > 0) {
         setMode('itemized');
         setItems(
@@ -338,9 +354,6 @@ export default function BillEditor() {
     }
   };
 
-  if (loading || (billId && existing.isLoading)) return <Loading />;
-  if (!trip) return null;
-
   const nameFor = (m: Member) => (m.user_id === me ? 'Me' : firstName(m.profile.display_name || 'Friend'));
   const mismatch = receiptTotal != null && split.totalMinor > 0 && Math.abs(receiptTotal - split.totalMinor) > 1;
 
@@ -402,9 +415,9 @@ export default function BillEditor() {
 
       <Row gap={space.md} align="flex-start">
         <View style={{ flex: 1 }}>
-          <CurrencyPicker label="Currency" value={currency} onChange={setCurrency} />
+          <CurrencyPicker label="Currency" value={currency} onChange={(code) => setCurrency(code)} />
         </View>
-        <Field label="Date" value={date} onChangeText={setDate} placeholder="YYYY-MM-DD" style={{ flex: 1 }} autoCapitalize="none" />
+        <Field label="Date" value={date} onChangeText={changeDate} placeholder="YYYY-MM-DD" style={{ flex: 1 }} autoCapitalize="none" />
       </Row>
       {currency !== base ? (
         <Field
@@ -452,12 +465,12 @@ export default function BillEditor() {
           <Card>
             <Text variant="label">Tax, service, tip &amp; discounts</Text>
             <Row gap={space.md}>
-              <Field label="Tax" value={taxText} onChangeText={setTaxText} keyboardType="decimal-pad" placeholder="0" style={{ flex: 1 }} />
-              <Field label="Service" value={serviceText} onChangeText={setServiceText} keyboardType="decimal-pad" placeholder="0" style={{ flex: 1 }} />
+              <Field label="Tax" testID="tax-input" value={taxText} onChangeText={setTaxText} keyboardType="decimal-pad" placeholder="0" style={{ flex: 1 }} />
+              <Field label="Service" testID="service-input" value={serviceText} onChangeText={setServiceText} keyboardType="decimal-pad" placeholder="0" style={{ flex: 1 }} />
             </Row>
             <Row gap={space.md}>
-              <Field label="Tip" value={tipText} onChangeText={setTipText} keyboardType="decimal-pad" placeholder="0" style={{ flex: 1 }} />
-              <Field label="Discount" value={discountText} onChangeText={setDiscountText} keyboardType="decimal-pad" placeholder="0" style={{ flex: 1 }} />
+              <Field label="Tip" testID="tip-input" value={tipText} onChangeText={setTipText} keyboardType="decimal-pad" placeholder="0" style={{ flex: 1 }} />
+              <Field label="Discount" testID="discount-input" value={discountText} onChangeText={setDiscountText} keyboardType="decimal-pad" placeholder="0" style={{ flex: 1 }} />
             </Row>
             <Text variant="caption" faint>Shared in proportion to what each person had.</Text>
           </Card>
