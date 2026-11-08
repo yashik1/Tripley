@@ -158,7 +158,50 @@ Fill in `public/.well-known/apple-app-site-association` (your Apple Team ID) and
 
 ### 7. Deploy the web app
 
-`vercel.json` is included: import the repo in Vercel, add the `EXPO_PUBLIC_*` variables, deploy, and point your domain at it.
+`vercel.json` is included: import the repo in Vercel, add the `EXPO_PUBLIC_*` variables, deploy, and point your domain at it. Or host everything on Railway (next section).
+
+---
+
+## Hosting on Railway (current live setup)
+
+Tripley runs in the Railway project **tripley**: the open-source Supabase stack plus the website, all in one project.
+
+| Service | What it is |
+|---|---|
+| `db` | Postgres (Supabase image) with a volume |
+| `auth`, `rest`, `realtime`, `storage`, `meta`, `functions` | Supabase's sign-in, REST API, live updates, file storage (volume), dashboard backend, edge runtime |
+| `studio` | The Supabase dashboard |
+| `supabase` | Gateway: the public API URL (`https://supabase-production-….up.railway.app`), and Studio behind a login |
+| `web` | This repo: built with `npx expo export --platform web`, served by `scripts/serve-web.cjs` |
+
+**How a deploy works.** Pushing to the deployed branch rebuilds `web`. Before the new version goes live, Railway runs the pre-deploy command `node scripts/migrate.cjs`. It applies any new file in `supabase/migrations/` once, recorded in `supabase_migrations.schema_migrations` (the Supabase CLI's table). If a migration fails, the deploy stops and the old version keeps running.
+
+**`web` variables:**
+
+| Variable | Value |
+|---|---|
+| `DATABASE_URL` | `postgresql://postgres:${{db.POSTGRES_PASSWORD}}@${{db.RAILWAY_PRIVATE_DOMAIN}}:5432/postgres` (server-side, migrations only) |
+| `EXPO_PUBLIC_SUPABASE_URL` | `https://${{supabase.RAILWAY_PUBLIC_DOMAIN}}` |
+| `EXPO_PUBLIC_SUPABASE_ANON_KEY` | Public anon key, printed in the `supabase` gateway's deploy logs |
+| `EXPO_PUBLIC_AUTH_METHODS` | `guest` |
+| `EXPO_PUBLIC_APP_DOMAIN` | `${{RAILWAY_PUBLIC_DOMAIN}}` |
+
+**`auth` variables:**
+
+| Variable | Value |
+|---|---|
+| `GOTRUE_EXTERNAL_ANONYMOUS_USERS_ENABLED` | `true` |
+| `GOTRUE_EXTERNAL_EMAIL_ENABLED` | `false` |
+| `GOTRUE_SITE_URL` | The `web` URL |
+| `GOTRUE_URI_ALLOW_LIST` | `https://<web>/**,tripley://**,http://localhost:8081/**` |
+
+To add phone sign-in later, set the `GOTRUE_EXTERNAL_PHONE_ENABLED` and `GOTRUE_SMS_*` (Twilio Verify) variables there, then add `phone` to `EXPO_PUBLIC_AUTH_METHODS`.
+
+**Studio (database dashboard).** Open the `supabase` gateway URL and log in as `supabase` with `DASHBOARD_PASSWORD`, which is in that service's variables in Railway.
+
+**Cost.** Usage-based on Railway's Hobby plan. With all nine Supabase services the template's author estimates $20–40/month; light use is usually lower. Check *Usage* in the Railway dashboard.
+
+**Backups.** Self-hosted means backups are on you. Railway volume backups can be enabled on the `db` volume.
 
 ---
 

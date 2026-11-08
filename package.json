@@ -34,6 +34,7 @@
     "expo-task-manager": "~58.0.13",
     "expo-web-browser": "~58.0.7",
     "maplibre-gl": "^6.17.0",
+    "pg": "^8.23.1",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-native": "0.88.1",
@@ -55,7 +56,6 @@
     "deno": "^2.9.6",
     "eslint": "^9.39.5",
     "eslint-config-expo": "^58.0.4",
-    "pg": "^8.23.1",
     "typescript": "~6.0.3",
     "vitest": "^5.1.0"
   },
@@ -71,7 +71,12 @@
     "typecheck": "tsc --noEmit",
     "functions:check": "for f in scan-receipt revenuecat-webhook send-push; do deno check --config supabase/functions/$f/deno.json supabase/functions/$f/index.ts || exit 1; done",
     "export:web": "expo export --platform web",
-    "test:e2e": "node tests/e2e/trip-flow.cjs"
+    "test:e2e": "node tests/e2e/trip-flow.cjs",
+    "start:web": "node scripts/serve-web.cjs",
+    "db:migrate": "node scripts/migrate.cjs"
   },
-  "private": true
+  "private": true,
+  "engines": {
+    "node": ">=22"
+  }
 }
