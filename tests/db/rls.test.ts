@@ -427,10 +427,15 @@ describe('ending a trip', () => {
         ),
       ),
     ).rejects.toThrow(/row-level security/);
-    // Locations are purged 24h after the trip ends.
-    await db.query(`update public.trips set ended_at = now() - interval '2 days' where id = $1`, [tripId]);
+    // Ending the trip deletes everyone's last position straight away.
+    const left = await db.query('select count(*)::int as n from public.member_locations where trip_id = $1', [tripId]);
+    expect(left.rows[0].n).toBe(0);
+    // Trips that just run past their end date are cleaned up by the scheduled job.
+    await db.query(`update public.trips set ended_at = null, ends_on = current_date - 5 where id = $1`, [tripId]);
+    await db.query(`insert into public.member_locations (trip_id, user_id, lat, lng) values ($1, $2, 1, 1)`, [tripId, sam]);
     const { rows } = await db.query('select public.purge_ended_trip_locations() as n');
     expect(rows[0].n).toBe(1);
+    await db.query(`update public.trips set ended_at = now() - interval '2 days', ends_on = null where id = $1`, [tripId]);
   });
 
   it('the invite link stops working', async () => {

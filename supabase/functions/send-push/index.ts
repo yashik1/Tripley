@@ -5,7 +5,8 @@
 //   table public.notifications, event INSERT, type "Supabase Edge Functions",
 //   function send-push, HTTP header  x-webhook-secret: <PUSH_WEBHOOK_SECRET>
 
-import { errorResponse, json, requireEnv, safeEqual } from '../_shared/http.ts';
+import { requireEnv } from '../_shared/env.ts';
+import { errorResponse, json, safeEqual } from '../_shared/http.ts';
 import { adminClient, isUuid } from '../_shared/supabase.ts';
 
 type NotificationRow = {

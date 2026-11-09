@@ -51,3 +51,9 @@ example
 # local test database
 .pgtest/
 supabase/.temp/
+
+# end-to-end test screenshots
+acct-shots/
+roadmap-shots/
+e2e-shots/
+shots/

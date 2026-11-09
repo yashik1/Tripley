@@ -1,8 +1,6 @@
 // Defines the background location task as early as possible (native only).
 import '@/location/task';
 
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
 import { QueryClient } from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider, router } from 'expo-router';
@@ -12,6 +10,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { Loading } from '@/components/ui';
 import { isConfigured } from '@/config';
+import { persistOptions } from '@/lib/device-data';
 import { registerServiceWorker } from '@/lib/pwa';
 import { useNotificationsRealtime } from '@/lib/queries';
 import { useOutboxSync } from '@/lib/use-outbox-sync';
@@ -29,16 +28,16 @@ const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 20_000, retry: 1, gcTime: DAY } },
 });
 
-// A copy of trips, bills, balances and the map on the device, so they still
-// show without a connection (cleared on sign-out with the rest of the cache).
-const persister = createAsyncStoragePersister({ storage: AsyncStorage, key: 'tripley.cache.v1', throttleTime: 2000 });
+// A copy of trips, bills and balances is kept on the device so they still show
+// without a connection. Live positions and notifications are never saved, and
+// the copy is tied to one account (src/lib/device-data.ts, cache-policy.ts).
 
 registerServiceWorker();
 
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
-      <PersistQueryClientProvider client={queryClient} persistOptions={{ persister, maxAge: 7 * DAY, buster: 'v1' }}>
+      <PersistQueryClientProvider client={queryClient} persistOptions={persistOptions}>
         <AuthProvider>
           <AppNavigator />
         </AuthProvider>

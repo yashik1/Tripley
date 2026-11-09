@@ -6,6 +6,7 @@
  *   BASE_URL=http://localhost:8081 SHOTS=./shots node tests/e2e/trip-flow.cjs
  */
 const { chromium } = require('playwright');
+const { watchCsp } = require('./csp-watch.cjs');
 const fs = require('fs');
 
 const BASE = process.env.BASE_URL || 'http://localhost:8081';
@@ -42,6 +43,7 @@ async function signIn(page, local, name) {
 
 (async () => {
   const browser = await chromium.launch();
+  const csp = watchCsp(browser);
   const ctx = async (who) => {
     const c = await browser.newContext({
       viewport: { width: 390, height: 844 },
@@ -174,6 +176,7 @@ async function signIn(page, local, name) {
     expect(true, 'Sam was told Maya confirmed the payment');
     await shot(sam, 'notifications');
 
+    csp.assertNone();
     console.log('\nAll steps passed.');
   } catch (e) {
     console.error('\nFAILED:', e.message);

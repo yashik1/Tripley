@@ -7,6 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState } from 'react';
 
 import { saveBill, type SaveBillPayload } from './api';
+import { outboxItemExpired } from './cache-policy';
 import { errorMessage, isNetworkError } from './errors';
 
 const KEY = 'tripley.outbox.v1';
@@ -31,7 +32,10 @@ async function load(): Promise<QueuedBill[]> {
   if (cache) return cache;
   try {
     const raw = await AsyncStorage.getItem(KEY);
-    cache = raw ? (JSON.parse(raw) as QueuedBill[]) : [];
+    const all = raw ? (JSON.parse(raw) as QueuedBill[]) : [];
+    // Retention: bills that haven't synced in 30 days are dropped.
+    cache = all.filter((x) => !outboxItemExpired(x.queuedAt));
+    if (cache.length !== all.length) await AsyncStorage.setItem(KEY, JSON.stringify(cache));
   } catch {
     cache = [];
   }
@@ -51,6 +55,16 @@ async function save(list: QueuedBill[]): Promise<void> {
 export async function queueBill(item: Omit<QueuedBill, 'queuedAt'>): Promise<void> {
   const list = await load();
   await save([...list.filter((x) => x.clientId !== item.clientId), { ...item, queuedAt: new Date().toISOString() }]);
+}
+
+/** On sign-out: this person's unsynced bills leave the device (others' stay). */
+export async function clearOutboxFor(userId: string): Promise<void> {
+  await save((await load()).filter((x) => x.userId !== userId));
+}
+
+/** How many bills this person has waiting to sync. */
+export async function queuedCount(userId: string): Promise<number> {
+  return (await load()).filter((x) => x.userId === userId).length;
 }
 
 export async function discardQueuedBill(clientId: string): Promise<void> {

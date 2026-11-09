@@ -1,9 +1,10 @@
 import type { Session, User } from '@supabase/supabase-js';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import { isConfigured } from '@/config';
 import { getProfile } from '@/lib/api';
+import { adoptDeviceData, forgetDeviceData } from '@/lib/device-data';
 import { keys } from '@/lib/queries';
 import { supabase } from '@/lib/supabase';
 import type { Profile } from '@/lib/types';
@@ -39,6 +40,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const userId = session?.user.id;
+
+  // The device's saved copy belongs to one account: a different account signing
+  // in never sees it, and a session that ends (signed out here or elsewhere,
+  // or expired) takes it away.
+  const lastUser = useRef<string | null>(null);
+  useEffect(() => {
+    if (!ready) return;
+    if (userId) {
+      adoptDeviceData(qc, userId).catch(() => undefined);
+    } else if (lastUser.current) {
+      forgetDeviceData(qc, lastUser.current).catch(() => undefined);
+    }
+    lastUser.current = userId ?? null;
+  }, [ready, userId, qc]);
   const profileQuery = useQuery({
     queryKey: keys.profile(userId ?? 'none'),
     queryFn: () => getProfile(userId!),
@@ -54,8 +69,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       profileLoading: !!userId && profileQuery.isLoading,
       refreshProfile: () => profileQuery.refetch(),
       signOut: async () => {
-        await supabase.auth.signOut();
-        qc.clear();
+        // Even if the server can't be reached, the device forgets the account.
+        const { error } = await supabase.auth.signOut().catch((e: unknown) => ({ error: e }));
+        if (error) await supabase.auth.signOut({ scope: 'local' }).catch(() => undefined);
+        await forgetDeviceData(qc, userId ?? null);
       },
     }),
     [ready, session, userId, profileQuery, qc],

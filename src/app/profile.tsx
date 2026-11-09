@@ -6,6 +6,7 @@ import { ChangePasswordCard, SaveAccountCard } from '@/components/AccountCards';
 import { CurrencyPicker } from '@/components/CurrencyPicker';
 import { Avatar, Banner, Button, Card, Field, Row, Screen, SectionTitle, Stack, Text } from '@/components/ui';
 import { isPro, updateProfile } from '@/lib/api';
+import { queuedCount } from '@/lib/outbox';
 import { hasAuth } from '@/lib/auth-methods';
 import { confirm } from '@/lib/confirm';
 import { errorMessage } from '@/lib/errors';
@@ -139,16 +140,26 @@ export default function Profile() {
         icon="logout"
         kind="ghost"
         onPress={async () => {
+          const unsynced = user ? await queuedCount(user.id) : 0;
+          const lose =
+            unsynced > 0
+              ? ` ${unsynced === 1 ? '1 bill hasn’t' : `${unsynced} bills haven’t`} synced yet and will be deleted from this device.`
+              : '';
           const ok = guest
             ? await confirm(
                 'Sign out of a guest account?',
                 hasAuth('password')
-                  ? "Guest accounts can't sign back in. Save your account with an email and password first, or you'll lose your trips and balances."
-                  : "Guest accounts can't sign back in. You'll lose access to your trips and balances on this device.",
+                  ? `Guest accounts can't sign back in. Save your account with an email and password first, or you'll lose your trips and balances.${lose}`
+                  : `Guest accounts can't sign back in. You'll lose access to your trips and balances on this device.${lose}`,
                 'Sign out anyway',
                 true,
               )
-            : await confirm('Sign out?', 'Location sharing stops on this device until you sign in again.', 'Sign out');
+            : await confirm(
+                'Sign out?',
+                `Location sharing stops and your saved trip data is removed from this device.${lose}`,
+                'Sign out',
+                unsynced > 0,
+              );
           if (ok) {
             // Go home first so signing out lands on the home page, not the log-in page.
             router.replace('/');

@@ -324,8 +324,11 @@ export async function uploadReceipt(tripId: string, localUri: string): Promise<s
   return path;
 }
 
+/** Private receipt photos are shown through links that expire after 10 minutes. */
+export const SIGNED_URL_SECONDS = 600;
+
 export async function receiptUrl(path: string): Promise<string | null> {
-  const { data } = await supabase.storage.from('receipts').createSignedUrl(path, 3600);
+  const { data } = await supabase.storage.from('receipts').createSignedUrl(path, SIGNED_URL_SECONDS);
   return data?.signedUrl ?? null;
 }
 
@@ -338,22 +341,29 @@ export class ScanError extends Error {
   }
 }
 
+/**
+ * Reads a receipt photo with AI. `requestId` stays the same for the same photo,
+ * so a retry after a dropped connection returns the first result and isn't
+ * charged again. One automatic retry on a network error.
+ */
 export async function scanReceipt(
   path: string,
   tripId: string,
   currencyHint: string,
+  requestId: string,
 ): Promise<{ receipt: ScannedReceipt; scans_left: number }> {
-  const { data, error } = await supabase.functions.invoke('scan-receipt', {
-    body: { path, trip_id: tripId, currency_hint: currencyHint },
-  });
-  if (error) {
+  for (let attempt = 0; ; attempt++) {
+    const { data, error } = await supabase.functions.invoke('scan-receipt', {
+      body: { path, trip_id: tripId, currency_hint: currencyHint, request_id: requestId },
+    });
+    if (!error) return data as { receipt: ScannedReceipt; scans_left: number };
     if (error instanceof FunctionsHttpError) {
       const body = (await error.context.json().catch(() => null)) as { error?: { code: string; message: string } } | null;
       if (body?.error) throw new ScanError(body.error.code, body.error.message);
     }
-    throw new ScanError('network', 'Could not reach receipt reading. You can type the items in.');
+    if (attempt >= 1) throw new ScanError('network', 'Could not reach receipt reading. You can type the items in.');
+    await new Promise((r) => setTimeout(r, 1500));
   }
-  return data as { receipt: ScannedReceipt; scans_left: number };
 }
 
 // ---------------------------------------------------------------- balances
@@ -496,7 +506,7 @@ export async function uploadTripPhoto(tripId: string, localUri: string): Promise
 }
 
 export async function tripPhotoUrl(path: string): Promise<string | null> {
-  const { data } = await supabase.storage.from('trip-photos').createSignedUrl(path, 3600);
+  const { data } = await supabase.storage.from('trip-photos').createSignedUrl(path, SIGNED_URL_SECONDS);
   return data?.signedUrl ?? null;
 }
 
@@ -519,9 +529,16 @@ export async function createKitty(tripId: string, name: string, holderId: string
   return check(await supabase.rpc('create_kitty', { p_trip: tripId, p_name: name, p_holder: holderId })) as string;
 }
 
-export async function kittyAddCash(kittyId: string, fromUser: string, amountBaseMinor: number, note?: string): Promise<void> {
+/** `clientId` makes a retry safe: the same id is only ever recorded once. */
+export async function kittyAddCash(kittyId: string, fromUser: string, amountBaseMinor: number, clientId: string, note?: string): Promise<void> {
   check(
-    await supabase.rpc('kitty_add_cash', { p_kitty: kittyId, p_from: fromUser, p_amount: amountBaseMinor, p_note: note ?? null }),
+    await supabase.rpc('kitty_add_cash', {
+      p_kitty: kittyId,
+      p_from: fromUser,
+      p_amount: amountBaseMinor,
+      p_note: note ?? null,
+      p_client_id: clientId,
+    }),
   );
 }
 
@@ -529,9 +546,16 @@ export async function kittyHandover(kittyId: string, toUser: string): Promise<vo
   check(await supabase.rpc('kitty_handover', { p_kitty: kittyId, p_to: toUser }));
 }
 
-export async function kittyPayout(kittyId: string, toUser: string, amountBaseMinor: number, note?: string): Promise<void> {
+/** `clientId` makes a retry safe: the same id is only ever recorded once. */
+export async function kittyPayout(kittyId: string, toUser: string, amountBaseMinor: number, clientId: string, note?: string): Promise<void> {
   check(
-    await supabase.rpc('kitty_payout', { p_kitty: kittyId, p_to: toUser, p_amount: amountBaseMinor, p_note: note ?? null }),
+    await supabase.rpc('kitty_payout', {
+      p_kitty: kittyId,
+      p_to: toUser,
+      p_amount: amountBaseMinor,
+      p_note: note ?? null,
+      p_client_id: clientId,
+    }),
   );
 }
 

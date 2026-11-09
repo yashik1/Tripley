@@ -1,32 +1,29 @@
 // AI receipt reading (Tripley Pro).
 //
-// POST { path: "<trip_id>/<file>.jpg", trip_id: "<uuid>", currency_hint?: "INR" }
-// with the user's Authorization header. Downloads the receipt photo as the user
-// (so storage RLS checks trip membership), checks the Pro plan and monthly
-// quota, asks Claude to read it into structured JSON, and returns
-// { receipt, scans_left }.
+// POST { path: "<trip_id>/<file>.jpg", trip_id: "<uuid>", request_id: "<uuid>",
+//        currency_hint?: "INR" }
+// with the user's Authorization header. Reserves one scan from the monthly
+// quota (atomically, in the database), downloads the photo as the user (so
+// storage rules check trip membership), checks it really is an image, asks
+// Claude to read it into structured JSON, and returns { receipt, scans_left }.
+// If anything fails the scan is given back. Retrying with the same request_id
+// returns the same result without charging again.
+//
+// Logs never include the photo, the receipt's contents, or tokens.
 
 import Anthropic from '@anthropic-ai/sdk';
-import { corsHeaders, errorResponse, json, requireEnv } from '../_shared/http.ts';
+import { envNumber, requireEnv } from '../_shared/env.ts';
+import { clientIp, ipLimiter } from '../_shared/http.ts';
 import { RECEIPT_PROMPT, ReceiptSchema, receiptJsonSchema } from '../_shared/receipt.ts';
-import { adminClient, isUuid, userClient } from '../_shared/supabase.ts';
+import { handleScan, type ReadResult, type ReserveResult } from '../_shared/scan.ts';
+import { adminClient, userClient } from '../_shared/supabase.ts';
 
 const MODEL = Deno.env.get('ANTHROPIC_MODEL') ?? 'claude-opus-5-5';
 const EFFORT = (Deno.env.get('ANTHROPIC_EFFORT') ?? 'low') as 'low' | 'medium' | 'high';
-const MONTHLY_LIMIT = Number(Deno.env.get('AI_SCAN_MONTHLY_LIMIT') ?? '60');
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+const TIMEOUT_MS = envNumber('ANTHROPIC_TIMEOUT_MS', 60_000);
 
-const anthropic = new Anthropic({ apiKey: requireEnv('ANTHROPIC_API_KEY') });
-
-function mediaTypeFor(path: string, blobType: string): 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif' | null {
-  const t = blobType.toLowerCase();
-  if (t === 'image/jpeg' || t === 'image/png' || t === 'image/webp' || t === 'image/gif') return t;
-  const ext = path.toLowerCase().split('.').pop();
-  if (ext === 'jpg' || ext === 'jpeg') return 'image/jpeg';
-  if (ext === 'png') return 'image/png';
-  if (ext === 'webp') return 'image/webp';
-  return null;
-}
+const anthropic = new Anthropic({ apiKey: requireEnv('ANTHROPIC_API_KEY'), maxRetries: 1 });
+const ipAllowed = ipLimiter(envNumber('AI_SCAN_PER_IP_PER_MINUTE', 20));
 
 function toBase64(bytes: Uint8Array): string {
   let binary = '';
@@ -37,114 +34,99 @@ function toBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
-Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
-  if (req.method !== 'POST') return errorResponse(405, 'method_not_allowed', 'Use POST.');
-
-  const authorization = req.headers.get('Authorization') ?? '';
-  const jwt = authorization.replace(/^Bearer\s+/i, '');
-  if (!jwt) return errorResponse(401, 'unauthorized', 'Sign in first.');
-
-  const admin = adminClient();
-  const { data: userData, error: userError } = await admin.auth.getUser(jwt);
-  if (userError || !userData.user) return errorResponse(401, 'unauthorized', 'Sign in first.');
-  const userId = userData.user.id;
-
-  let body: { path?: unknown; trip_id?: unknown; currency_hint?: unknown };
-  try {
-    body = await req.json();
-  } catch {
-    return errorResponse(400, 'bad_request', 'Send JSON.');
-  }
-  const path = typeof body.path === 'string' ? body.path : '';
-  const tripId = body.trip_id;
-  const currencyHint = typeof body.currency_hint === 'string' && /^[A-Z]{3}$/.test(body.currency_hint)
-    ? body.currency_hint
-    : null;
-  if (!isUuid(tripId) || !path.startsWith(`${tripId}/`) || path.includes('..')) {
-    return errorResponse(400, 'bad_request', 'Missing receipt photo.');
-  }
-
-  // Plan and quota.
-  const { data: account } = await admin
-    .from('accounts')
-    .select('plan, plan_expires_at, ai_scans_used, ai_scans_period')
-    .eq('user_id', userId)
-    .maybeSingle();
-  const isPro =
-    account?.plan === 'pro' &&
-    (!account.plan_expires_at || new Date(account.plan_expires_at).getTime() > Date.now());
-  if (!isPro) {
-    return errorResponse(402, 'pro_required', 'Receipt scanning is part of Tripley Pro.');
-  }
-  const period = new Date().toISOString().slice(0, 7);
-  const used = account.ai_scans_period === period ? account.ai_scans_used : 0;
-  if (used >= MONTHLY_LIMIT) {
-    return errorResponse(429, 'quota_exceeded', `You've used all ${MONTHLY_LIMIT} scans this month. You can still type the items in.`);
-  }
-
-  // Download as the user: storage RLS only lets trip members read the trip folder.
-  const { data: blob, error: downloadError } = await userClient(authorization)
-    .storage.from('receipts')
-    .download(path);
-  if (downloadError || !blob) return errorResponse(404, 'not_found', 'Receipt photo not found.');
-  if (blob.size > MAX_IMAGE_BYTES) return errorResponse(413, 'too_large', 'That photo is too large. Try again with a smaller one.');
-  const mediaType = mediaTypeFor(path, blob.type);
-  if (!mediaType) return errorResponse(415, 'unsupported', 'Use a JPEG or PNG photo.');
-  const data = toBase64(new Uint8Array(await blob.arrayBuffer()));
-
+async function readReceipt(image: { data: Uint8Array; mediaType: 'image/jpeg' | 'image/png' | 'image/webp' }, currencyHint: string | null): Promise<ReadResult> {
   let response: Anthropic.Beta.Messages.BetaMessage;
   try {
-    response = await anthropic.beta.messages.create({
-      model: MODEL,
-      max_tokens: 16000,
-      betas: ['server-side-fallback-2026-07-01'],
-      fallbacks: 'default',
-      output_config: {
-        effort: EFFORT,
-        format: { type: 'json_schema', schema: receiptJsonSchema as unknown as Record<string, unknown> },
-      },
-      messages: [
-        {
-          role: 'user',
-          content: [
-            { type: 'image', source: { type: 'base64', media_type: mediaType, data } },
-            {
-              type: 'text',
-              text: `${RECEIPT_PROMPT}\n\nCurrency hint (the trip's currency): ${currencyHint ?? 'unknown'}.`,
-            },
-          ],
+    response = await anthropic.beta.messages.create(
+      {
+        model: MODEL,
+        max_tokens: 16000,
+        betas: ['server-side-fallback-2026-07-01'],
+        fallbacks: 'default',
+        output_config: {
+          effort: EFFORT,
+          format: { type: 'json_schema', schema: receiptJsonSchema as unknown as Record<string, unknown> },
         },
-      ],
-    });
+        messages: [
+          {
+            role: 'user',
+            content: [
+              { type: 'image', source: { type: 'base64', media_type: image.mediaType, data: toBase64(image.data) } },
+              {
+                type: 'text',
+                text: `${RECEIPT_PROMPT}\n\nCurrency hint (the trip's currency): ${currencyHint ?? 'unknown'}.`,
+              },
+            ],
+          },
+        ],
+      },
+      { timeout: TIMEOUT_MS },
+    );
   } catch (err) {
-    if (err instanceof Anthropic.RateLimitError) {
-      return errorResponse(503, 'busy', 'Receipt reading is busy. Try again in a minute.');
-    }
+    if (err instanceof Anthropic.RateLimitError) return { ok: false, reason: 'busy' };
+    if (err instanceof Anthropic.APIConnectionTimeoutError) return { ok: false, reason: 'timeout' };
+    if (err instanceof Anthropic.APIConnectionError) return { ok: false, reason: 'failed' };
     if (err instanceof Anthropic.APIError) {
-      console.error('anthropic error', err.status, err.message);
-      return errorResponse(502, 'ai_error', 'Could not read the receipt right now. You can type the items in.');
+      console.error(JSON.stringify({ event: 'anthropic_error', status: err.status ?? 0 }));
+      return { ok: false, reason: (err.status ?? 0) >= 500 ? 'busy' : 'failed' };
     }
     throw err;
   }
 
   if (response.stop_reason === 'refusal' || response.stop_reason === 'max_tokens') {
-    console.warn('receipt not read', response.stop_reason, response.stop_details);
-    return errorResponse(422, 'unreadable', "Couldn't read this receipt. You can type the items in.");
+    console.warn(JSON.stringify({ event: 'receipt_not_read', stop_reason: response.stop_reason }));
+    return { ok: false, reason: 'unreadable' };
   }
   const text = response.content.find((b) => b.type === 'text');
-  let parsed;
   try {
-    parsed = ReceiptSchema.parse(JSON.parse(text && text.type === 'text' ? text.text : ''));
+    return { ok: true, receipt: ReceiptSchema.parse(JSON.parse(text && text.type === 'text' ? text.text : '')) };
   } catch {
-    return errorResponse(422, 'unreadable', "Couldn't read this receipt. You can type the items in.");
+    return { ok: false, reason: 'unreadable' };
   }
+}
 
-  // Count the scan only once it worked.
-  await admin
-    .from('accounts')
-    .update({ ai_scans_used: used + 1, ai_scans_period: period, updated_at: new Date().toISOString() })
-    .eq('user_id', userId);
-
-  return json({ receipt: parsed, scans_left: Math.max(0, MONTHLY_LIMIT - used - 1) });
+Deno.serve((req) => {
+  const admin = adminClient();
+  return handleScan(
+    req,
+    {
+      monthlyLimit: envNumber('AI_SCAN_MONTHLY_LIMIT', 60),
+      perMinute: envNumber('AI_SCAN_PER_USER_PER_MINUTE', 6),
+      maxImageBytes: 5 * 1024 * 1024,
+      userIdFor: async (jwt) => {
+        const { data, error } = await admin.auth.getUser(jwt);
+        return error || !data.user ? null : data.user.id;
+      },
+      reserve: async (a) => {
+        const { data, error } = await admin.rpc('reserve_ai_scan', {
+          p_user: a.userId,
+          p_request: a.requestId,
+          p_trip: a.tripId,
+          p_path: a.path,
+          p_limit: a.limit,
+          p_per_minute: a.perMinute,
+        });
+        if (error) throw error;
+        return data as ReserveResult;
+      },
+      finish: async (userId, requestId, receipt) => {
+        const { error } = await admin.rpc('finish_ai_scan', { p_user: userId, p_request: requestId, p_result: receipt });
+        if (error) throw error;
+      },
+      release: async (userId, requestId) => {
+        const { error } = await admin.rpc('release_ai_scan', { p_user: userId, p_request: requestId });
+        if (error) throw error;
+      },
+      download: async (authorization, path) => {
+        const { data, error } = await userClient(authorization).storage.from('receipts').download(path);
+        if (error || !data) return null;
+        return new Uint8Array(await data.arrayBuffer());
+      },
+      read: readReceipt,
+      ipAllowed,
+      newRequestId: () => crypto.randomUUID(),
+      log: (event, fields) => console.log(JSON.stringify({ event, ...fields })),
+    },
+    clientIp(req),
+  );
 });

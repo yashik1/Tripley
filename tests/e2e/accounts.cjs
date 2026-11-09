@@ -12,6 +12,7 @@
  *   BASE_URL=http://localhost:8081 SHOTS=./shots node tests/e2e/accounts.cjs
  */
 const { chromium } = require('playwright');
+const { watchCsp } = require('./csp-watch.cjs');
 const fs = require('fs');
 
 const BASE = process.env.BASE_URL || 'http://localhost:8081';
@@ -62,6 +63,7 @@ async function latestEmailTo(address) {
 
 (async () => {
   const browser = await chromium.launch();
+  const csp = watchCsp(browser);
   try {
     console.log('1. Landing page explains the app, with sign up and log in');
     const phone = await newPage(browser, { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
@@ -203,6 +205,26 @@ async function latestEmailTo(address) {
     await d.getByText(/already an account with this email/).waitFor();
     ok('duplicate email gets "log in instead"');
 
+    console.log('8. One device, two accounts: nothing of Ana’s is left for Gus');
+    const shared = await newPage(browser);
+    const saved = () => shared.evaluate(() => ({ cache: localStorage.getItem('tripley.cache.v2') ?? '', owner: localStorage.getItem('tripley.cache.owner') }));
+    await logIn(shared, ana.email, ana.pw2);
+    await shared.getByText('Lisbon long weekend').waitFor({ timeout: 15000 });
+    await shared.waitForTimeout(2600); // the offline copy is written at most every 2 s
+    let s = await saved();
+    expect(s.cache.includes('Lisbon long weekend') && !!s.owner, 'the offline copy holds Ana’s trip, tagged with her account');
+    await signOut(shared);
+    await shared.waitForTimeout(500);
+    s = await saved();
+    expect(!s.cache.includes('Lisbon long weekend') && !s.owner, 'signing out removes it from the device');
+    await logIn(shared, gus.email, gus.pw);
+    await shared.getByText('Gus road trip').waitFor({ timeout: 15000 });
+    expect(!(await shared.getByText('Lisbon long weekend').count()), 'Gus sees only his own trip');
+    await shared.waitForTimeout(2600);
+    s = await saved();
+    expect(s.cache.includes('Gus road trip') && !s.cache.includes('Lisbon long weekend'), 'the device now holds only Gus’s data');
+
+    csp.assertNone();
     console.log('\nAll account checks passed.');
   } finally {
     await browser.close();
