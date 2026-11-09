@@ -11,6 +11,11 @@ Group trips without the "where are you?" texts and the spreadsheet at the end.
 - **Bills split for you.** Whoever paid adds the bill, taps who had which item, and Tripley works out every share: shared items, tax, service, tip, discounts, other currencies. No maths. People who were within 150 m of the payer are picked automatically ("Split between the 2 of you here"), with one tap to include everyone.
 - **Locked exchange rates.** A foreign-currency bill uses the European Central Bank rate for its date (or one you type), locked when saved and shown on the bill, so later swings never change anyone's share.
 - **Settle up.** "You owe Maya ₹1,240" → **Pay** opens UPI / PhonePe / Paytm, Venmo / Zelle / Cash App, Revolut / Monzo / Wise / PayPal, or shows a SEPA QR code for euro bank transfers, ordered for the trip's region → **Mark as paid** → Maya taps **Got it**.
+- **Trip home and dashboard.** A colourful dashboard with the trip that matters now (countdown, travellers, real planning progress), quick actions, reminders worked out from the group's plans, and recent activity. Each trip opens on an overview with a cover photo (or an illustrated postcard), what's next and a getting-ready checklist.
+- **Activity feed.** Updates, photos (private to the trip), places you found and organizer announcements, with emoji reactions and comments; the feed also tells the trip's story by itself (joined, pinned, planned). Everyone picks which notifications they get.
+- **Bucket list and polls.** Suggest places and things to do, vote, and turn the favourites into plans (once). Polls for "where should we eat?" with live results.
+- **Get ready.** A private packing list, shared group tasks with assignees, and optional light-hearted challenges.
+- **Travel passport and memories.** Badges earned from real activity (private unless you share them), and a recap after the trip where you choose what to share.
 - **Shared plan.** A day-by-day itinerary (Today / Day 1 / Day 2…): add the museum slot or the dinner booking with a time and place, say Going / Maybe / Not going, comment, see clashes, and get directions. The next day's stops show on the map.
 - **Cash kitty.** Pool cash with one person for taxis and street food. Put cash in, spend from it, hand it over; Tripley shows what's left and who holds it, and it flows into everyone's balances so leftovers come back on settling up.
 - **Works offline.** The web app installs to the home screen and opens without a connection (a service worker keeps the app and recent map tiles; trips, bills and balances are kept on the device). Bills added offline wait on the device and are sent once, exactly once, when you're back online.
@@ -261,6 +266,8 @@ npm run export:web       # production web build into dist/
 ```
 
 `npm run test:db` needs the Postgres 16 server binaries (`/usr/lib/postgresql/16/bin`, or set `PGBIN`). It starts a throwaway database, loads a small stand-in for Supabase's `auth`/`storage` schemas (`tests/db/supabase-stub.sql`) and the real migrations, then acts as different users.
+
+The interactive features are tested in `tests/db/{engagement,bucket-polls,preparation,passport}.test.ts` and end to end in `tests/e2e/engagement.cjs` (`npm run test:e2e:engagement`); see [docs/INTERACTIVE_REDESIGN.md](docs/INTERACTIVE_REDESIGN.md) for the redesign report and before/after screenshots.
 
 Security and money-integrity checks (two-connection race tests for the cash kitty, the AI scan quota and the subscription webhook; who can call which function; storage and location rules) are in `tests/db/security.test.ts`; the itinerary's rules in `tests/db/itinerary.test.ts`. See [docs/SECURITY_REVIEW.md](docs/SECURITY_REVIEW.md) for the review, results and deployment steps.
 
