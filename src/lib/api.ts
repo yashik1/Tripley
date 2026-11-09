@@ -655,6 +655,17 @@ export async function deletePoll(pollId: string): Promise<void> {
   check(await supabase.from('trip_polls').delete().eq('id', pollId));
 }
 
+// ---------------------------------------------------------------- passport
+
+/** Badges this person has earned (yours always; others' only if they share them with you). */
+export async function getAchievements(userId: string): Promise<{ key: string; earned_at: string }[]> {
+  return check(await supabase.rpc('user_achievements', { p_user: userId })) as { key: string; earned_at: string }[];
+}
+
+export async function setShowAchievements(userId: string, show: boolean): Promise<void> {
+  check(await supabase.from('profiles').update({ show_achievements: show }).eq('id', userId));
+}
+
 // ---------------------------------------------------------------- getting ready
 
 /** Your packing list and the group's tasks (row-level security keeps others' packing private). */

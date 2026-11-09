@@ -164,6 +164,20 @@ export default function TripOverview() {
         )}
       </Stack>
 
+      {/* After (or during) the trip: the recap */}
+      {status.kind === 'completed' || status.kind === 'ongoing' ? (
+        <Card onPress={() => router.push(`/trip/${id}/memories`)} accessibilityLabel="Trip memories" testID="overview-memories" style={{ backgroundColor: t.yellowSoft, borderColor: t.yellowSoft }}>
+          <Row gap={space.md}>
+            <Text style={{ fontSize: 28 }}>📖</Text>
+            <View style={{ flex: 1 }}>
+              <Text variant="label" color={t.yellowText}>{status.kind === 'completed' ? 'Trip memories' : 'The trip so far'}</Text>
+              <Text variant="caption" muted>Photos, highlights and what the group decided, ready to share.</Text>
+            </View>
+            <Icon name="chevron" size={16} color={t.textFaint} />
+          </Row>
+        </Card>
+      ) : null}
+
       {/* Countdown and preparation */}
       {status.kind === 'upcoming' || status.kind === 'planning' || status.kind === 'ongoing' ? (
         <Card onPress={() => router.push(`/trip/${id}/prepare`)} accessibilityLabel="Get ready: packing list and group tasks" testID="overview-prepare">

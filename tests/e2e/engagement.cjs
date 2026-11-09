@@ -32,7 +32,7 @@ async function shot(page, name) {
   await page.screenshot({ path: `${SHOTS}/${String(n).padStart(2, '0')}-${name}.png` });
 }
 async function person(browser) {
-  const ctx = await browser.newContext({ viewport: { width: 400, height: 860 }, geolocation: { latitude: 38.72, longitude: -9.14 }, permissions: ['geolocation'] });
+  const ctx = await browser.newContext({ viewport: { width: 400, height: 860 }, geolocation: { latitude: 38.72, longitude: -9.14 }, permissions: ['geolocation', 'clipboard-read', 'clipboard-write'] });
   await ctx.route('https://tiles.openfreemap.org/**', (r) => (r.request().url().includes('/styles/') ? r.fulfill({ json: STYLE }) : r.fulfill({ status: 404 })));
   const page = await ctx.newPage();
   page.on('dialog', (d) => d.accept());
@@ -302,6 +302,36 @@ async function signUp(page, name, email) {
     await ana.goto(`${BASE}/trip/${tripId}/feed`);
     await ana.getByText('Ben Ortiz started a challenge: Find the best local food').waitFor({ timeout: 15000 });
     ok('the group sees it in the feed');
+
+    console.log('15. Travel passport');
+    await ana.goto(`${BASE}/profile`);
+    await ana.getByTestId('passport').waitFor({ timeout: 15000 });
+    const first = await ana.getByTestId('badge-first_trip').getAttribute('aria-label');
+    expect(/First Trip: earned/.test(first ?? ''), 'First Trip is earned, with its date');
+    const planner = await ana.getByTestId('badge-group_planner').getAttribute('aria-label');
+    expect(/not yet\. Organize a trip that 3 or more people join/.test(planner ?? ''), 'Group Planner is locked and says how to earn it (only 2 in the trip)');
+    expect(!(await ana.getByRole('switch', { name: 'Show my badges to people I travel with' }).isChecked()), 'badges are private by default');
+    await shot(ana, 'passport');
+
+    console.log('16. Trip memories after the trip');
+    await ana.goto(`${BASE}/trip/${tripId}/settings`);
+    await ana.getByText('End trip now').click();
+    await ana.waitForTimeout(1500);
+    await ana.goto(`${BASE}/trip/${tripId}/overview`);
+    await ana.getByTestId('overview-memories').click();
+    await ana.getByTestId('recap-preview').waitFor({ timeout: 15000 });
+    let preview = await ana.getByTestId('recap-preview').innerText();
+    expect(preview.includes('Lisbon trip · Lisbon, Portugal') && preview.includes('Ana, Ben'), 'the recap has the trip and the group');
+    expect(preview.includes('Where should we eat tonight? → Pizza'), 'and what the group decided');
+    expect(!preview.includes('spent together'), 'no money unless chosen');
+    await ana.getByTestId('recap-people').click();
+    preview = await ana.getByTestId('recap-preview').innerText();
+    expect(!preview.includes('Ana, Ben'), 'switching off “who came” removes the names');
+    await ana.getByTestId('recap-share').click();
+    await ana.getByText(/Copied/).waitFor({ timeout: 10000 });
+    const copied = await ana.evaluate(() => navigator.clipboard.readText());
+    expect(copied === preview, 'the shared text is exactly the preview');
+    await shot(ana, 'memories');
 
     csp.assertNone();
     console.log('\nAll engagement checks passed.');

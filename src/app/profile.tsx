@@ -2,7 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { useState } from 'react';
 
-import { ChangePasswordCard, NotificationPrefsCard, SaveAccountCard } from '@/components/AccountCards';
+import { ChangePasswordCard, NotificationPrefsCard, PassportCard, SaveAccountCard } from '@/components/AccountCards';
 import { CurrencyPicker } from '@/components/CurrencyPicker';
 import { Avatar, Banner, Button, Card, Field, Row, Screen, SectionTitle, Stack, Text } from '@/components/ui';
 import { isPro, updateProfile } from '@/lib/api';
@@ -117,6 +117,8 @@ export default function Profile() {
           </Card>
         ))}
       </Stack>
+
+      <PassportCard />
 
       <NotificationPrefsCard />
 

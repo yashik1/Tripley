@@ -7,6 +7,7 @@ export type Profile = {
   default_currency: string;
   payment_handles: PaymentHandles;
   notification_prefs?: NotificationPrefs;
+  show_achievements?: boolean;
 };
 
 export type Account = {

@@ -62,6 +62,7 @@ export default function TripLayout() {
       <Stack.Screen name="poll/[pollId]" options={{ title: 'Poll' }} />
       <Stack.Screen name="prepare" options={{ title: 'Get ready' }} />
       <Stack.Screen name="challenges" options={{ title: 'Challenges' }} />
+      <Stack.Screen name="memories" options={{ title: 'Trip memories' }} />
       <Stack.Screen name="post/[postId]" options={{ title: 'Post' }} />
     </Stack>
     </TripIdContext.Provider>

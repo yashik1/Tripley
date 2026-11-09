@@ -111,6 +111,7 @@ describe('who can call which function', () => {
       'trip_is_active',
       'trip_preview',
       'try_uuid',
+      'user_achievements',
       'vote_poll',
     ]);
   });

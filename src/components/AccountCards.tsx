@@ -2,7 +2,9 @@ import { useState } from 'react';
 import { Switch, View } from 'react-native';
 
 import { saveGuestAccount, setNewPassword } from '@/lib/account';
-import { updateNotificationPrefs } from '@/lib/api';
+import { setShowAchievements, updateNotificationPrefs } from '@/lib/api';
+import { passport } from '@/lib/passport';
+import { useAchievements } from '@/lib/queries';
 import { errorMessage } from '@/lib/errors';
 import type { NotificationPrefs } from '@/lib/types';
 import { useAuth } from '@/providers/AuthProvider';
@@ -157,6 +159,70 @@ export function NotificationPrefsCard() {
       })}
       <Text variant="caption" faint>Bills, payments and invitations are always sent; they affect your money and trips.</Text>
       {error ? <Text variant="caption" color={t.danger}>{error}</Text> : null}
+    </Card>
+  );
+}
+
+/** The travel passport: badges earned from real activity, and whether trip mates can see them. */
+export function PassportCard() {
+  const t = useTheme();
+  const { profile, user, refreshProfile } = useAuth();
+  const achievements = useAchievements(user?.id);
+  const [busy, setBusy] = useState(false);
+  const list = passport(achievements.data ?? []);
+  const earned = list.filter((b) => b.earnedAt).length;
+  const tint: Record<string, [string, string]> = {
+    teal: [t.primarySoft, t.primary],
+    coral: [t.coralSoft, t.coralText],
+    yellow: [t.yellowSoft, t.yellowText],
+    sky: [t.skySoft, t.sky],
+  };
+  return (
+    <Card testID="passport">
+      <Row style={{ justifyContent: 'space-between' }}>
+        <Text variant="heading">Travel passport</Text>
+        <Text variant="label" color={t.primary} testID="passport-count">{earned}/{list.length}</Text>
+      </Row>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
+        {list.map((b) => {
+          const [bg, fg] = b.earnedAt ? tint[b.color] : [t.surfaceAlt, t.textFaint];
+          return (
+            <View
+              key={b.key}
+              accessible
+              accessibilityLabel={`${b.title}: ${b.earnedAt ? `earned ${new Date(b.earnedAt).toLocaleDateString()}` : `not yet. ${b.condition}`}`}
+              testID={`badge-${b.key}`}
+              style={{ flexBasis: 150, flexGrow: 1, borderRadius: 16, padding: space.sm, backgroundColor: bg, opacity: b.earnedAt ? 1 : 0.75, gap: 2 }}>
+              <Text style={{ fontSize: 26 }}>{b.earnedAt ? b.emoji : '🔒'}</Text>
+              <Text variant="label" color={b.earnedAt ? fg : t.textMuted}>{b.title}</Text>
+              <Text variant="caption" muted style={{ fontSize: 12 }}>
+                {b.earnedAt ? `${b.description} Earned ${new Date(b.earnedAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}.` : b.condition}
+              </Text>
+            </View>
+          );
+        })}
+      </View>
+      <Row gap={space.md}>
+        <View style={{ flex: 1 }}>
+          <Text variant="label">Show my badges to people I travel with</Text>
+          <Text variant="caption" muted>Off: only you see them.</Text>
+        </View>
+        <Switch
+          value={!!profile?.show_achievements}
+          disabled={busy}
+          onValueChange={async (v) => {
+            if (!user) return;
+            setBusy(true);
+            await setShowAchievements(user.id, v).catch(() => undefined);
+            await refreshProfile();
+            setBusy(false);
+          }}
+          trackColor={{ true: t.primary, false: t.border }}
+          thumbColor="#fff"
+          accessibilityLabel="Show my badges to people I travel with"
+          testID="passport-visible"
+        />
+      </Row>
     </Card>
   );
 }

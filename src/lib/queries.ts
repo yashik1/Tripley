@@ -50,6 +50,7 @@ export const keys = {
   suggestions: (id: string) => ['suggestions', id] as const,
   polls: (id: string) => ['polls', id] as const,
   tasks: (id: string) => ['tasks', id] as const,
+  achievements: (userId: string) => ['achievements', userId] as const,
   challenges: (id: string) => ['challenges', id] as const,
   itinerary: (id: string) => ['itinerary', id] as const,
   rsvps: (id: string) => ['rsvps', id] as const,
@@ -109,6 +110,8 @@ export const usePolls = (id: string) => useQuery({ queryKey: keys.polls(id), que
 export const useTasks = (id: string) => useQuery({ queryKey: keys.tasks(id), queryFn: () => api.listTasks(id), enabled: !!id });
 export const useChallenges = (id: string) =>
   useQuery({ queryKey: keys.challenges(id), queryFn: () => api.listChallenges(id), enabled: !!id });
+export const useAchievements = (userId: string | undefined) =>
+  useQuery({ queryKey: keys.achievements(userId ?? ''), queryFn: () => api.getAchievements(userId!), enabled: !!userId });
 export const useItinerary = (id: string) =>
   useQuery({ queryKey: keys.itinerary(id), queryFn: () => api.listItinerary(id), enabled: !!id });
 export const useRsvps = (id: string) => useQuery({ queryKey: keys.rsvps(id), queryFn: () => api.listRsvps(id), enabled: !!id });
