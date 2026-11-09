@@ -37,6 +37,8 @@ const ICONS = {
   refresh: ['arrow.clockwise', 'refresh'],
   navigate: ['location.north.fill', 'navigation'],
   pin: ['mappin.and.ellipse', 'add_location_alt'],
+  calendar: ['calendar', 'event'],
+  arrowDown: ['arrow.down', 'arrow_downward'],
   wallet: ['banknote', 'payments'],
   cloudOff: ['icloud.slash', 'cloud_off'],
   arrowUp: ['arrow.up', 'arrow_upward'],

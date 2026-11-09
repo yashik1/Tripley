@@ -1,5 +1,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { requireEnv } from './http.ts';
+import { requireEnv } from './env.ts';
+
+export { isUuid } from './http.ts';
 
 /** Service-role client: bypasses RLS. Only use after checking who the caller is. */
 export function adminClient(): SupabaseClient {
@@ -16,8 +18,4 @@ export function userClient(authorization: string): SupabaseClient {
     global: { headers: { Authorization: authorization } },
     auth: { persistSession: false, autoRefreshToken: false },
   });
-}
-
-export function isUuid(v: unknown): v is string {
-  return typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
 }

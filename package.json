@@ -79,7 +79,8 @@
     "test:e2e:accounts": "node tests/e2e/accounts.cjs",
     "test:e2e:roadmap": "node tests/e2e/roadmap.cjs",
     "start:web": "node scripts/serve-web.cjs",
-    "db:migrate": "node scripts/migrate.cjs"
+    "db:migrate": "node scripts/migrate.cjs",
+    "test:e2e:plan": "node tests/e2e/plan.cjs"
   },
   "private": true,
   "engines": {

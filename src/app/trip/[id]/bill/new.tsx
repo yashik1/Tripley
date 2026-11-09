@@ -129,6 +129,8 @@ function BillForm({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const rateRequest = useRef(0);
+  // Same request id for the same photo, so scanning it again isn't charged twice.
+  const scanIds = useRef(new Map<string, string>());
 
   // Show the saved receipt photo when editing.
   useEffect(() => {
@@ -294,7 +296,12 @@ function BillForm({
     try {
       const path = await ensureUploaded();
       if (!path) return;
-      const { receipt, scans_left } = await scanReceipt(path, id, base);
+      let requestId = scanIds.current.get(path);
+      if (!requestId) {
+        requestId = newClientId();
+        scanIds.current.set(path, requestId);
+      }
+      const { receipt, scans_left } = await scanReceipt(path, id, base, requestId);
       const draft = receiptToDraft(receipt, currency);
       if (!title.trim() && draft.title) setTitle(draft.title);
       if (draft.date) setDate(draft.date);

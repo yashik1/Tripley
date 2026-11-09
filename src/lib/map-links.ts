@@ -6,3 +6,9 @@ export function directionsUrl(lat: number, lng: number): string {
     ? `http://maps.apple.com/?daddr=${lat},${lng}`
     : `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
 }
+
+/** Look up an address in the phone's maps app (or Google Maps on the web). */
+export function searchUrl(address: string): string {
+  const q = encodeURIComponent(address);
+  return Platform.OS === 'ios' ? `http://maps.apple.com/?q=${q}` : `https://www.google.com/maps/search/?api=1&query=${q}`;
+}

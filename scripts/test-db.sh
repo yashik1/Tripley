@@ -6,6 +6,8 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PGBIN="${PGBIN:-/usr/lib/postgresql/16/bin}"
 BASE="${TRIPLEY_PG_DIR:-/tmp/tripley-pgtest}"
 PORT="${TRIPLEY_PG_PORT:-54329}"
+# Each test file can use its own database: scripts/test-db.sh start <name>
+DB="${2:-${TRIPLEY_PG_DB:-tripley_test}}"
 RUN_AS=()
 if [ "$(id -u)" = "0" ]; then RUN_AS=(runuser -u postgres --); fi
 
@@ -21,12 +23,12 @@ case "${1:-start}" in
         -o "-k $BASE -p $PORT -c listen_addresses=''" start >/dev/null
     fi
     psql() { command psql -h "$BASE" -p "$PORT" -U postgres -v ON_ERROR_STOP=1 -q "$@"; }
-    psql -d postgres -c "drop database if exists tripley_test with (force)" -c "create database tripley_test"
-    psql -d tripley_test -f "$ROOT/tests/db/supabase-stub.sql"
+    psql -d postgres -c "drop database if exists $DB with (force)" -c "create database $DB"
+    psql -d "$DB" -f "$ROOT/tests/db/supabase-stub.sql"
     for f in "$ROOT"/supabase/migrations/*.sql; do
-      psql -d tripley_test -f "$f"
+      psql -d "$DB" -f "$f"
     done
-    echo "postgresql://postgres@localhost:$PORT/tripley_test?host=$BASE"
+    echo "postgresql://postgres@localhost:$PORT/$DB?host=$BASE"
     ;;
   stop)
     "${RUN_AS[@]}" "$PGBIN/pg_ctl" -D "$BASE/data" -m fast stop >/dev/null || true

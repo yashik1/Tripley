@@ -54,6 +54,8 @@ export default function TripLayout() {
       <Stack.Screen name="place/[placeId]" options={{ title: 'Place' }} />
       <Stack.Screen name="find/[userId]" options={{ title: 'Find a friend' }} />
       <Stack.Screen name="kitty" options={{ title: 'Cash kitty' }} />
+      <Stack.Screen name="plan/new" options={{ title: 'Add to the plan', presentation: 'modal' }} />
+      <Stack.Screen name="plan/[itemId]" options={{ title: 'Plan' }} />
     </Stack>
     </TripIdContext.Provider>
   );

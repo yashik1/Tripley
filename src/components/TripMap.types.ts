@@ -22,6 +22,8 @@ export type MapPlace = {
   radiusM: number;
   /** Arrival alerts on: the zone is drawn on the map. */
   alerts: boolean;
+  /** Overrides the kind's emoji (e.g. 🗓️ for a stop from the plan). */
+  emoji?: string;
 };
 
 export const PLACE_KINDS: { kind: PlaceKind; emoji: string; label: string; alertsByDefault: boolean }[] = [

@@ -10,6 +10,7 @@
  *   BASE_URL=http://localhost:8081 SHOTS=./shots node tests/e2e/roadmap.cjs
  */
 const { chromium } = require('playwright');
+const { watchCsp } = require('./csp-watch.cjs');
 const fs = require('fs');
 
 const BASE = process.env.BASE_URL || 'http://localhost:8081';
@@ -86,6 +87,7 @@ async function addEqualBill(page, tripId, title, total, opts = {}) {
 
 (async () => {
   const browser = await chromium.launch();
+  const csp = watchCsp(browser);
   try {
     console.log('1. Ana starts a Rome trip; Ben and Cleo join from the link');
     const ana = await person(browser, 'ana');
@@ -256,10 +258,13 @@ async function addEqualBill(page, tripId, title, total, opts = {}) {
       await home.getByText(t).first().waitFor();
     }
     ok('home page lists the new features');
+    const headers = await csp.checkHeaders(home.request, `${BASE}/`);
+    expect(/frame-ancestors 'none'/.test(headers['content-security-policy']), 'security headers are sent');
     const manifest = await (await home.request.get(`${BASE}/manifest.json`)).json();
     expect(manifest.short_name === 'Tripley' && manifest.icons.length === 3, 'web app manifest is served');
     expect(!!(await home.locator('link[rel="manifest"]').count()), 'page links the manifest');
 
+    csp.assertNone();
     console.log('\nAll roadmap checks passed.');
   } finally {
     await browser.close();

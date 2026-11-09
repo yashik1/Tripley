@@ -51,7 +51,7 @@ export function TripMap({ people, places = [], focusId, onSelect, onPlacePress, 
         <Marker key={`place-${p.id}`} id={`place-${p.id}`} lngLat={[p.lng, p.lat]} anchor="bottom" onPress={() => onPlacePress?.(p.id)}>
           <View style={styles.pin} accessibilityLabel={p.name}>
             <View style={styles.place}>
-              <Text style={{ fontSize: 16 }}>{placeEmoji(p.kind)}</Text>
+              <Text style={{ fontSize: 16 }}>{p.emoji ?? placeEmoji(p.kind)}</Text>
             </View>
             <View style={styles.placeLabel}>
               <Text style={styles.placeLabelText} numberOfLines={1}>{p.name}</Text>

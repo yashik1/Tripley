@@ -9,6 +9,7 @@ import { useState } from 'react';
 import { View } from 'react-native';
 
 import { Avatar, Banner, Button, Card, Chip, Field, Loading, Row, Screen, SectionTitle, Stack, Text } from '@/components/ui';
+import { newClientId } from '@/lib/ids';
 import { closeKitty, createKitty, kittyAddCash, kittyHandover, kittyPayout, respondToSettlement } from '@/lib/api';
 import { confirm } from '@/lib/confirm';
 import { formatMoney, parseAmount } from '@/lib/currency';
@@ -110,6 +111,9 @@ function KittyCard({ tripId, kitty, summary, base }: { tripId: string; kitty: Ki
   const { me, members, nameOf, isOrganizer } = useTripData(tripId);
   const settlements = useSettlements(tripId);
   const holding = kitty.holder_id === me;
+  // One id per cash move, kept until it succeeds, so tapping again after a
+  // dropped connection can't record the same cash twice.
+  const [opId, setOpId] = useState(newClientId);
   const [panel, setPanel] = useState<Panel>(null);
   const [amountText, setAmountText] = useState('');
   const [who, setWho] = useState<string | null>(null);
@@ -132,6 +136,7 @@ function KittyCard({ tripId, kitty, summary, base }: { tripId: string; kitty: Ki
     setError(null);
     try {
       await fn();
+      setOpId(newClientId());
       await refresh();
       setPanel(null);
       setAmountText('');
@@ -209,7 +214,7 @@ function KittyCard({ tripId, kitty, summary, base }: { tripId: string; kitty: Ki
               onPress={() =>
                 run(async () => {
                   if (!who) throw new Error('Choose who put the cash in.');
-                  await kittyAddCash(kitty.id, who, amount());
+                  await kittyAddCash(kitty.id, who, amount(), opId);
                 })
               }
             />
@@ -253,7 +258,7 @@ function KittyCard({ tripId, kitty, summary, base }: { tripId: string; kitty: Ki
               onPress={() =>
                 run(async () => {
                   if (!who) throw new Error('Choose who gets the cash.');
-                  await kittyPayout(kitty.id, who, amount());
+                  await kittyPayout(kitty.id, who, amount(), opId);
                 })
               }
             />
