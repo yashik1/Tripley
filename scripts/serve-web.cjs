@@ -29,6 +29,9 @@ function securityHeaders(env, https) {
   const webPurchases = !!env.EXPO_PUBLIC_REVENUECAT_WEB_KEY;
   const connect = [
     "'self'",
+    // Photos picked on the web are read from in-page blob:/data: addresses before upload.
+    'blob:',
+    'data:',
     // Without a configured API address, allow any secure host rather than break the app.
     ...(supabase ? [supabase, supabase.replace(/^http/, 'ws')] : ['https:', 'wss:']),
     'https://tiles.openfreemap.org',
@@ -43,7 +46,7 @@ function securityHeaders(env, https) {
     // React Native Web writes its styles at runtime.
     "style-src 'self' 'unsafe-inline'",
     // Avatars from sign-in providers, signed photo links, map sprites.
-    "img-src 'self' data: blob: https:",
+    `img-src 'self' data: blob: https:${supabase ? ` ${supabase}` : ''}`,
     "font-src 'self' data:",
     `connect-src ${[...new Set(connect)].join(' ')}`,
     "worker-src 'self' blob:",
