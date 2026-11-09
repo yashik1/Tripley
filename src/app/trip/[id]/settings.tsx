@@ -4,7 +4,9 @@ import { useState } from 'react';
 import { Switch, View } from 'react-native';
 
 import { Banner, Button, Card, Field, Loading, Row, Screen, SectionTitle, Stack, Text } from '@/components/ui';
-import { deleteTrip, leaveTrip, regenerateInviteCode, updateMySharing, updateTrip } from '@/lib/api';
+import { deleteTrip, leaveTrip, regenerateInviteCode, setTripCover, updateMySharing, updateTrip } from '@/lib/api';
+import { pickPhoto } from '@/lib/photos';
+import { TripCover } from '@/components/Travel';
 import { confirm } from '@/lib/confirm';
 import { errorMessage } from '@/lib/errors';
 import { isISODate } from '@/lib/format';
@@ -27,6 +29,7 @@ function TripSettingsForm({ id, trip, isOrganizer, active }: { id: string; trip:
   const qc = useQueryClient();
   const sharing = useSharing();
   const [name, setName] = useState(trip.name);
+  const [destination, setDestination] = useState(trip.destination ?? '');
   const [start, setStart] = useState(trip.starts_on ?? '');
   const [end, setEnd] = useState(trip.ends_on ?? '');
   const [busy, setBusy] = useState<string | null>(null);
@@ -37,6 +40,7 @@ function TripSettingsForm({ id, trip, isOrganizer, active }: { id: string; trip:
     await Promise.all([
       qc.invalidateQueries({ queryKey: keys.trip(id) }),
       qc.invalidateQueries({ queryKey: keys.trips }),
+      qc.invalidateQueries({ queryKey: keys.overview }),
       qc.invalidateQueries({ queryKey: keys.sharing }),
     ]);
     await sharing.refresh();
@@ -60,7 +64,7 @@ function TripSettingsForm({ id, trip, isOrganizer, active }: { id: string; trip:
     run('save', async () => {
       if (!name.trim()) throw new Error('Give the trip a name.');
       if ((start && !isISODate(start)) || (end && !isISODate(end))) throw new Error('Dates should look like 2026-12-20.');
-      await updateTrip(id, { name: name.trim(), starts_on: start || null, ends_on: end || null });
+      await updateTrip(id, { name: name.trim(), destination: destination.trim() || null, starts_on: start || null, ends_on: end || null });
       setSaved(true);
     });
 
@@ -90,7 +94,33 @@ function TripSettingsForm({ id, trip, isOrganizer, active }: { id: string; trip:
       {saved ? <Banner tone="success">Saved.</Banner> : null}
       <ArrivalAlertsCard tripId={id} />
       <Card>
+        <Text variant="label">Cover photo</Text>
+        <TripCover seed={trip.id} path={trip.cover_path} height={140} />
+        <Row>
+          <Button
+            title={trip.cover_path ? 'Change photo' : 'Add a cover photo'}
+            icon="photo"
+            kind="secondary"
+            small
+            style={{ flex: 1 }}
+            loading={busy === 'cover'}
+            testID="cover-pick"
+            onPress={() =>
+              run('cover', async () => {
+                const uri = await pickPhoto(false);
+                if (uri) await setTripCover(id, uri);
+              })
+            }
+          />
+          {trip.cover_path ? (
+            <Button title="Use the illustration" kind="ghost" small style={{ flex: 1 }} onPress={() => run('cover', () => updateTrip(id, { cover_path: null }))} />
+          ) : null}
+        </Row>
+        <Text variant="caption" faint>Only people on the trip can see it.</Text>
+      </Card>
+      <Card>
         <Field label="Trip name" value={name} onChangeText={setName} maxLength={80} />
+        <Field label="Destination" value={destination} onChangeText={setDestination} placeholder="Lisbon, Portugal" maxLength={80} testID="settings-destination" />
         <Row gap={space.md}>
           <Field label="Starts" value={start} onChangeText={setStart} placeholder="YYYY-MM-DD" style={{ flex: 1 }} autoCapitalize="none" />
           <Field label="Ends" value={end} onChangeText={setEnd} placeholder="YYYY-MM-DD" style={{ flex: 1 }} autoCapitalize="none" />

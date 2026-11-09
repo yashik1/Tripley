@@ -33,7 +33,7 @@ function pinElement(p: MapPerson, onSelect?: (id: string) => void): HTMLElement 
   const label = document.createElement('div');
   label.className = 'tripley-label';
   label.style.cssText =
-    'margin-top:4px;background:rgba(17,20,24,.8);color:#fff;border-radius:8px;padding:2px 6px;font:600 11px system-ui,sans-serif;white-space:nowrap;max-width:140px;overflow:hidden;text-overflow:ellipsis;';
+    'margin-top:4px;background:rgba(23,43,58,.85);color:#fff;border-radius:8px;padding:2px 6px;font:600 11px system-ui,sans-serif;white-space:nowrap;max-width:140px;overflow:hidden;text-overflow:ellipsis;';
   root.append(dot, label);
   root.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -60,11 +60,11 @@ function placeElement(p: MapPlace, onPress?: (id: string) => void): HTMLElement 
   const badge = document.createElement('div');
   badge.className = 'tripley-place';
   badge.style.cssText =
-    'width:32px;height:32px;border-radius:10px;background:#fff;border:2px solid #0E7C66;display:flex;align-items:center;justify-content:center;font-size:17px;box-shadow:0 2px 6px rgba(0,0,0,.25);';
+    'width:32px;height:32px;border-radius:10px;background:#fff;border:2px solid #117C78;display:flex;align-items:center;justify-content:center;font-size:17px;box-shadow:0 2px 6px rgba(0,0,0,.25);';
   const label = document.createElement('div');
   label.className = 'tripley-place-label';
   label.style.cssText =
-    'margin-top:3px;background:rgba(255,255,255,.92);color:#111418;border-radius:6px;padding:1px 5px;font:600 10px system-ui,sans-serif;white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis;';
+    'margin-top:3px;background:rgba(255,255,255,.92);color:#172B3A;border-radius:6px;padding:1px 5px;font:600 10px system-ui,sans-serif;white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis;';
   root.append(badge, label);
   root.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -129,8 +129,8 @@ export function TripMap({ people, places = [], focusId, onSelect, onPlacePress, 
       styleLoaded = true;
       if (!m.getSource(ZONES)) {
         m.addSource(ZONES, { type: 'geojson', data: zonesData(latest.current.places) });
-        m.addLayer({ id: `${ZONES}-fill`, type: 'fill', source: ZONES, paint: { 'fill-color': '#0E7C66', 'fill-opacity': 0.12 } });
-        m.addLayer({ id: `${ZONES}-line`, type: 'line', source: ZONES, paint: { 'line-color': '#0E7C66', 'line-width': 1.5, 'line-dasharray': [2, 2] } });
+        m.addLayer({ id: `${ZONES}-fill`, type: 'fill', source: ZONES, paint: { 'fill-color': '#117C78', 'fill-opacity': 0.12 } });
+        m.addLayer({ id: `${ZONES}-line`, type: 'line', source: ZONES, paint: { 'line-color': '#117C78', 'line-width': 1.5, 'line-dasharray': [2, 2] } });
       }
     });
     m.on('click', (e) => {

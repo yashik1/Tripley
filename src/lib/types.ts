@@ -6,6 +6,8 @@ export type Profile = {
   avatar_url: string | null;
   default_currency: string;
   payment_handles: PaymentHandles;
+  notification_prefs?: NotificationPrefs;
+  show_achievements?: boolean;
 };
 
 export type Account = {
@@ -26,9 +28,26 @@ export type Trip = {
   invite_enabled: boolean;
   ended_at: string | null;
   created_at: string;
+  /** Where the trip goes, e.g. "Lisbon, Portugal" (optional). */
+  destination: string | null;
+  /** Cover photo in the private trip-photos bucket (shown through a signed link). */
+  cover_path: string | null;
 };
 
-export type TripWithCount = Trip & { trip_members: { count: number }[] };
+export type TripMemberPreview = { user_id: string; profile: { display_name: string; avatar_url: string | null } | null };
+
+export type TripWithCount = Trip & { trip_members: { count: number }[]; members?: TripMemberPreview[] };
+
+/** Counts for the dashboard and planning progress (my_trip_overview). */
+export type TripStats = {
+  members: number;
+  stops: number;
+  places: number;
+  stay_pinned: boolean;
+  bills: number;
+  spent_base_minor: number;
+  [key: string]: number | boolean;
+};
 
 export type SharingMode = 'live' | 'saver';
 
@@ -155,6 +174,93 @@ export type ItineraryItem = {
 export type ItineraryRsvp = { item_id: string; user_id: string; status: RsvpStatus };
 
 export type ItineraryComment = { id: string; item_id: string; trip_id: string; user_id: string; body: string; created_at: string };
+
+export type PostKind = 'update' | 'photos' | 'place' | 'announcement' | 'event';
+export const REACTIONS = ['❤️', '😂', '😮', '👏', '🔥', '👍'] as const;
+export type ReactionEmoji = (typeof REACTIONS)[number];
+
+/** A post in a trip's activity feed, with its photos, reactions and comment count. */
+export type FeedPost = {
+  id: string;
+  trip_id: string;
+  author_id: string | null;
+  kind: PostKind;
+  body: string | null;
+  place_name: string | null;
+  lat: number | null;
+  lng: number | null;
+  event: { type: string; label?: string; [key: string]: unknown } | null;
+  created_at: string;
+  post_photos: { path: string; position: number }[];
+  post_reactions: { user_id: string; emoji: string }[];
+  post_comments: { count: number }[];
+  trip?: { name: string } | null;
+  author?: { display_name: string; avatar_url: string | null } | null;
+};
+
+export type SuggestionCategory = 'food' | 'sight' | 'beach' | 'hike' | 'experience' | 'shopping' | 'nightlife' | 'other';
+
+/** A place or thing to do someone suggested for the trip, with everyone's votes. */
+export type Suggestion = {
+  id: string;
+  trip_id: string;
+  suggested_by: string;
+  category: SuggestionCategory;
+  name: string;
+  description: string | null;
+  address: string | null;
+  lat: number | null;
+  lng: number | null;
+  photo_path: string | null;
+  cost_minor: number | null;
+  cost_currency: string | null;
+  preferred_day: string | null;
+  itinerary_item_id: string | null;
+  created_at: string;
+  suggestion_votes: { user_id: string }[];
+};
+
+export type Poll = {
+  id: string;
+  trip_id: string;
+  created_by: string;
+  question: string;
+  allow_change: boolean;
+  closes_at: string | null;
+  closed_at: string | null;
+  created_at: string;
+  poll_options: { id: string; label: string; position: number }[];
+  poll_votes: { user_id: string; option_id: string }[];
+};
+
+export type TripTask = {
+  id: string;
+  trip_id: string;
+  kind: 'packing' | 'group';
+  title: string;
+  created_by: string;
+  assignee_id: string | null;
+  done: boolean;
+  done_by: string | null;
+  done_at: string | null;
+  created_at: string;
+};
+
+export type Challenge = {
+  id: string;
+  trip_id: string;
+  created_by: string;
+  title: string;
+  description: string | null;
+  emoji: string;
+  created_at: string;
+  challenge_entries: { post_id: string; user_id: string }[];
+};
+
+export type PostComment = { id: string; post_id: string; trip_id: string; user_id: string; body: string; created_at: string };
+
+/** Which notifications someone wants (unset = the default). */
+export type NotificationPrefs = { posts?: boolean; announcements?: boolean; comments?: boolean; reactions?: boolean };
 
 export type Kitty = {
   id: string;

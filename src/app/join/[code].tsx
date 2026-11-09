@@ -44,7 +44,7 @@ export default function JoinTrip() {
         qc.invalidateQueries({ queryKey: keys.trips }),
         qc.invalidateQueries({ queryKey: keys.sharing }),
       ]);
-      router.replace(`/trip/${tripId}/map`);
+      router.replace(`/trip/${tripId}/overview`);
     } catch (e) {
       setError(errorMessage(e));
       setBusy(false);
@@ -127,7 +127,7 @@ export default function JoinTrip() {
       </Stack>
       {error ? <Banner tone="danger">{error}</Banner> : null}
       {p.is_member ? (
-        <Button title="Open trip" onPress={() => router.replace(`/trip/${p.trip_id}/map`)} />
+        <Button title="Open trip" onPress={() => router.replace(`/trip/${p.trip_id}/overview`)} />
       ) : session ? (
         <Button title="Join trip" onPress={join} loading={busy} testID="join-trip" />
       ) : (

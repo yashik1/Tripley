@@ -2,7 +2,7 @@
  * React Query hooks + Supabase Realtime subscriptions. Realtime events either
  * patch the cache directly (map dots) or invalidate the affected queries.
  */
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 
 import * as api from './api';
@@ -41,12 +41,24 @@ export const keys = {
   places: (id: string) => ['places', id] as const,
   kitties: (id: string) => ['kitties', id] as const,
   kittyCash: (id: string) => ['kittyCash', id] as const,
+  overview: ['overview'] as const,
+  cover: (path: string) => ['cover', path] as const,
+  feed: (id: string) => ['feed', id] as const,
+  post: (id: string) => ['post', id] as const,
+  postComments: (id: string) => ['postComments', id] as const,
+  recentPosts: ['recentPosts'] as const,
+  suggestions: (id: string) => ['suggestions', id] as const,
+  polls: (id: string) => ['polls', id] as const,
+  tasks: (id: string) => ['tasks', id] as const,
+  achievements: (userId: string) => ['achievements', userId] as const,
+  challenges: (id: string) => ['challenges', id] as const,
   itinerary: (id: string) => ['itinerary', id] as const,
   rsvps: (id: string) => ['rsvps', id] as const,
   itineraryComments: (itemId: string) => ['itineraryComments', itemId] as const,
 };
 
-export const useTrips = () => useQuery({ queryKey: keys.trips, queryFn: api.listMyTrips });
+// Refreshed each time the dashboard opens, so member counts and covers are current.
+export const useTrips = () => useQuery({ queryKey: keys.trips, queryFn: api.listMyTrips, staleTime: 0 });
 export const useTrip = (id: string) => useQuery({ queryKey: keys.trip(id), queryFn: () => api.getTrip(id), enabled: !!id });
 export const useMembers = (id: string) =>
   useQuery({ queryKey: keys.members(id), queryFn: () => api.listMembers(id), enabled: !!id });
@@ -68,6 +80,38 @@ export const usePlaces = (id: string) => useQuery({ queryKey: keys.places(id), q
 export const useKitties = (id: string) => useQuery({ queryKey: keys.kitties(id), queryFn: () => api.listKitties(id), enabled: !!id });
 export const useKittyOwnCash = (id: string) =>
   useQuery({ queryKey: keys.kittyCash(id), queryFn: () => api.listKittyOwnCash(id), enabled: !!id });
+export const useTripOverview = () => useQuery({ queryKey: keys.overview, queryFn: api.getTripOverview, staleTime: 0 });
+/** Signed link to a private trip photo (valid 10 minutes; refreshed before it runs out). */
+export const usePhotoUrl = (path: string | null | undefined) =>
+  useQuery({
+    queryKey: keys.cover(path ?? ''),
+    queryFn: () => api.tripPhotoUrl(path!),
+    enabled: !!path,
+    staleTime: 8 * 60_000,
+    gcTime: 9 * 60_000,
+    refetchInterval: 8 * 60_000,
+  });
+/** A trip's feed, 20 posts at a time (older pages load as you scroll). */
+export const useFeed = (id: string) =>
+  useInfiniteQuery({
+    queryKey: keys.feed(id),
+    queryFn: ({ pageParam }) => api.listFeed(id, pageParam),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (last) => (last.length < api.FEED_PAGE ? undefined : last[last.length - 1].created_at),
+    enabled: !!id,
+  });
+export const usePost = (id: string) => useQuery({ queryKey: keys.post(id), queryFn: () => api.getPost(id), enabled: !!id });
+export const usePostComments = (id: string) =>
+  useQuery({ queryKey: keys.postComments(id), queryFn: () => api.listPostComments(id), enabled: !!id });
+export const useRecentPosts = () => useQuery({ queryKey: keys.recentPosts, queryFn: () => api.listRecentPosts(6), staleTime: 0 });
+export const useSuggestions = (id: string) =>
+  useQuery({ queryKey: keys.suggestions(id), queryFn: () => api.listSuggestions(id), enabled: !!id });
+export const usePolls = (id: string) => useQuery({ queryKey: keys.polls(id), queryFn: () => api.listPolls(id), enabled: !!id });
+export const useTasks = (id: string) => useQuery({ queryKey: keys.tasks(id), queryFn: () => api.listTasks(id), enabled: !!id });
+export const useChallenges = (id: string) =>
+  useQuery({ queryKey: keys.challenges(id), queryFn: () => api.listChallenges(id), enabled: !!id });
+export const useAchievements = (userId: string | undefined) =>
+  useQuery({ queryKey: keys.achievements(userId ?? ''), queryFn: () => api.getAchievements(userId!), enabled: !!userId });
 export const useItinerary = (id: string) =>
   useQuery({ queryKey: keys.itinerary(id), queryFn: () => api.listItinerary(id), enabled: !!id });
 export const useRsvps = (id: string) => useQuery({ queryKey: keys.rsvps(id), queryFn: () => api.listRsvps(id), enabled: !!id });
@@ -105,6 +149,7 @@ export function useTripRealtime(tripId: string) {
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'trip_places', filter }, () => {
         qc.invalidateQueries({ queryKey: keys.places(tripId) });
+        qc.invalidateQueries({ queryKey: keys.overview });
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'trip_kitties', filter }, () => {
         qc.invalidateQueries({ queryKey: keys.kitties(tripId) });
@@ -115,6 +160,7 @@ export function useTripRealtime(tripId: string) {
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'itinerary_items', filter }, () => {
         qc.invalidateQueries({ queryKey: keys.itinerary(tripId) });
+        qc.invalidateQueries({ queryKey: keys.overview });
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'itinerary_rsvps', filter }, () => {
         qc.invalidateQueries({ queryKey: keys.rsvps(tripId) });
@@ -124,13 +170,51 @@ export function useTripRealtime(tripId: string) {
         if (row?.item_id) qc.invalidateQueries({ queryKey: keys.itineraryComments(row.item_id) });
         else qc.invalidateQueries({ queryKey: ['itineraryComments'] });
       })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'trip_posts', filter }, () => {
+        qc.invalidateQueries({ queryKey: keys.feed(tripId) });
+        qc.invalidateQueries({ queryKey: keys.recentPosts });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'post_reactions', filter }, (payload) => {
+        qc.invalidateQueries({ queryKey: keys.feed(tripId) });
+        const row = (payload.new ?? payload.old) as { post_id?: string } | undefined;
+        if (row?.post_id) qc.invalidateQueries({ queryKey: keys.post(row.post_id) });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'post_comments', filter }, (payload) => {
+        qc.invalidateQueries({ queryKey: keys.feed(tripId) });
+        const row = (payload.new ?? payload.old) as { post_id?: string } | undefined;
+        if (row?.post_id) qc.invalidateQueries({ queryKey: keys.postComments(row.post_id) });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'trip_suggestions', filter }, () => {
+        qc.invalidateQueries({ queryKey: keys.suggestions(tripId) });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'suggestion_votes', filter }, () => {
+        qc.invalidateQueries({ queryKey: keys.suggestions(tripId) });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'trip_polls', filter }, () => {
+        qc.invalidateQueries({ queryKey: keys.polls(tripId) });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'poll_votes', filter }, () => {
+        qc.invalidateQueries({ queryKey: keys.polls(tripId) });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'trip_tasks', filter }, () => {
+        qc.invalidateQueries({ queryKey: keys.tasks(tripId) });
+        qc.invalidateQueries({ queryKey: keys.overview });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'challenge_entries', filter }, () => {
+        qc.invalidateQueries({ queryKey: keys.challenges(tripId) });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'trip_challenges', filter }, () => {
+        qc.invalidateQueries({ queryKey: keys.challenges(tripId) });
+      })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'trip_members', filter }, () => {
         qc.invalidateQueries({ queryKey: keys.members(tripId) });
+        qc.invalidateQueries({ queryKey: keys.overview });
+        qc.invalidateQueries({ queryKey: keys.trips });
         qc.invalidateQueries({ queryKey: keys.locations(tripId) });
       })
       .on('system', {}, (msg) => {
         if (!isListenerReady(msg)) return;
-        for (const key of [keys.locations, keys.members, keys.bills, keys.shares, keys.settlements, keys.places, keys.kitties, keys.kittyCash, keys.itinerary, keys.rsvps]) {
+        for (const key of [keys.locations, keys.members, keys.bills, keys.shares, keys.settlements, keys.places, keys.kitties, keys.kittyCash, keys.itinerary, keys.rsvps, keys.feed, keys.suggestions, keys.polls, keys.tasks, keys.challenges]) {
           qc.invalidateQueries({ queryKey: key(tripId) });
         }
       })

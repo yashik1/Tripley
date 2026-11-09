@@ -72,13 +72,19 @@ describe('who can call which function', () => {
 
   it('signed in: exactly the app’s functions and the helpers row rules use', async () => {
     expect(await callable('authenticated')).toEqual([
+      'add_suggestion_to_plan',
       'can_read_bill',
       'can_see_profile',
       'can_share_location',
       'can_upload_now',
       'cancel_invitation',
       'close_kitty',
+      'close_poll',
+      'create_challenge',
       'create_kitty',
+      'create_poll',
+      'create_post',
+      'enter_challenge',
       'invite_by_email',
       'invite_by_phone',
       'invite_user',
@@ -92,6 +98,7 @@ describe('who can call which function', () => {
       'move_itinerary_item',
       'my_invitations',
       'my_trip_friends',
+      'my_trip_overview',
       'new_invite_code',
       'record_payment_received',
       'regenerate_invite_code',
@@ -99,9 +106,13 @@ describe('who can call which function', () => {
       'respond_to_settlement',
       'save_bill',
       'set_itinerary_rsvp',
+      'toggle_reaction',
+      'toggle_suggestion_vote',
       'trip_is_active',
       'trip_preview',
       'try_uuid',
+      'user_achievements',
+      'vote_poll',
     ]);
   });
 

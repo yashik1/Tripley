@@ -12,6 +12,8 @@ import { supabase } from './supabase';
 import type {
   Account,
   AppNotification,
+  Challenge,
+  FeedPost,
   Bill,
   BillDetail,
   Invitation,
@@ -23,16 +25,23 @@ import type {
   KittyOwnCash,
   Member,
   MemberLocation,
+  NotificationPrefs,
   Place,
   PlaceKind,
+  Poll,
+  PostComment,
+  PostKind,
   Profile,
   RsvpStatus,
   SentInvitation,
   Settlement,
   SharingMode,
+  Suggestion,
   Trip,
   TripFriend,
   TripPreview,
+  TripStats,
+  TripTask,
   TripWithCount,
 } from './types';
 
@@ -77,8 +86,24 @@ export function isPro(account: Account | null | undefined): boolean {
 
 export async function listMyTrips(): Promise<TripWithCount[]> {
   return check(
-    await supabase.from('trips').select('*, trip_members(count)').order('created_at', { ascending: false }),
+    await supabase
+      .from('trips')
+      .select('*, trip_members(count), members:trip_members(user_id, profile:profiles(display_name, avatar_url))')
+      .order('created_at', { ascending: false })
+      .limit(5, { referencedTable: 'members' }),
   ) as TripWithCount[];
+}
+
+/** Counts per trip for the dashboard (only trips you're in). */
+export async function getTripOverview(): Promise<Record<string, TripStats>> {
+  const rows = check(await supabase.rpc('my_trip_overview')) as { trip_id: string; stats: TripStats }[];
+  return Object.fromEntries(rows.map((r) => [r.trip_id, r.stats]));
+}
+
+/** The organizer sets a cover photo: uploaded into the trip's private folder. */
+export async function setTripCover(tripId: string, localUri: string): Promise<void> {
+  const path = await uploadTripPhoto(tripId, localUri);
+  check(await supabase.from('trips').update({ cover_path: path }).eq('id', tripId));
 }
 
 export async function getTrip(id: string): Promise<Trip | null> {
@@ -90,6 +115,7 @@ export async function createTrip(input: {
   base_currency: string;
   starts_on?: string | null;
   ends_on?: string | null;
+  destination?: string | null;
 }): Promise<Trip> {
   const organizer_id = await uid();
   return check(
@@ -99,7 +125,7 @@ export async function createTrip(input: {
 
 export async function updateTrip(
   id: string,
-  patch: Partial<Pick<Trip, 'name' | 'starts_on' | 'ends_on' | 'invite_enabled' | 'ended_at'>>,
+  patch: Partial<Pick<Trip, 'name' | 'starts_on' | 'ends_on' | 'invite_enabled' | 'ended_at' | 'destination' | 'cover_path'>>,
 ): Promise<void> {
   check(await supabase.from('trips').update(patch).eq('id', id));
 }
@@ -499,6 +525,178 @@ export async function updatePlace(
 
 export async function deletePlace(id: string): Promise<void> {
   check(await supabase.from('trip_places').delete().eq('id', id));
+}
+
+// ---------------------------------------------------------------- activity feed
+
+const FEED_SELECT =
+  '*, author:profiles(display_name, avatar_url), post_photos(path, position), post_reactions(user_id, emoji), post_comments(count)';
+export const FEED_PAGE = 20;
+
+/** One page of a trip's feed, newest first; pass the oldest time seen to get the next page. */
+export async function listFeed(tripId: string, before?: string): Promise<FeedPost[]> {
+  let q = supabase.from('trip_posts').select(FEED_SELECT).eq('trip_id', tripId).order('created_at', { ascending: false }).limit(FEED_PAGE);
+  if (before) q = q.lt('created_at', before);
+  return check(await q) as FeedPost[];
+}
+
+/** Latest posts across all your trips (row-level security limits it to your trips). */
+export async function listRecentPosts(limit = 6): Promise<FeedPost[]> {
+  return check(
+    await supabase.from('trip_posts').select(`${FEED_SELECT}, trip:trips(name)`).order('created_at', { ascending: false }).limit(limit),
+  ) as FeedPost[];
+}
+
+export async function getPost(id: string): Promise<FeedPost | null> {
+  return check(await supabase.from('trip_posts').select(FEED_SELECT).eq('id', id).maybeSingle()) as FeedPost | null;
+}
+
+export async function createPost(input: {
+  tripId: string;
+  kind: Exclude<PostKind, 'event'>;
+  body?: string | null;
+  photos?: string[];
+  placeName?: string | null;
+  lat?: number | null;
+  lng?: number | null;
+}): Promise<string> {
+  return check(
+    await supabase.rpc('create_post', {
+      p_trip: input.tripId,
+      p_kind: input.kind,
+      p_body: input.body ?? null,
+      p_photos: input.photos ?? [],
+      p_place_name: input.placeName ?? null,
+      p_lat: input.lat ?? null,
+      p_lng: input.lng ?? null,
+    }),
+  ) as string;
+}
+
+export async function deletePost(id: string): Promise<void> {
+  check(await supabase.from('trip_posts').delete().eq('id', id));
+}
+
+export async function toggleReaction(postId: string, emoji: string): Promise<boolean> {
+  return check(await supabase.rpc('toggle_reaction', { p_post: postId, p_emoji: emoji })) as boolean;
+}
+
+export async function listPostComments(postId: string): Promise<PostComment[]> {
+  return check(await supabase.from('post_comments').select('*').eq('post_id', postId).order('created_at')) as PostComment[];
+}
+
+export async function addPostComment(tripId: string, postId: string, body: string): Promise<void> {
+  check(await supabase.from('post_comments').insert({ trip_id: tripId, post_id: postId, body }));
+}
+
+export async function deletePostComment(id: string): Promise<void> {
+  check(await supabase.from('post_comments').delete().eq('id', id));
+}
+
+export async function updateNotificationPrefs(userId: string, prefs: NotificationPrefs): Promise<void> {
+  check(await supabase.from('profiles').update({ notification_prefs: prefs }).eq('id', userId));
+}
+
+// ---------------------------------------------------------------- bucket list and polls
+
+export type SuggestionInput = Pick<
+  Suggestion,
+  'category' | 'name' | 'description' | 'address' | 'lat' | 'lng' | 'photo_path' | 'cost_minor' | 'cost_currency' | 'preferred_day'
+>;
+
+export async function listSuggestions(tripId: string): Promise<Suggestion[]> {
+  return check(
+    await supabase.from('trip_suggestions').select('*, suggestion_votes(user_id)').eq('trip_id', tripId).order('created_at', { ascending: false }),
+  ) as Suggestion[];
+}
+
+export async function addSuggestion(tripId: string, input: SuggestionInput): Promise<void> {
+  check(await supabase.from('trip_suggestions').insert({ trip_id: tripId, ...input }));
+}
+
+export async function deleteSuggestion(id: string): Promise<void> {
+  check(await supabase.from('trip_suggestions').delete().eq('id', id));
+}
+
+export async function toggleSuggestionVote(id: string): Promise<boolean> {
+  return check(await supabase.rpc('toggle_suggestion_vote', { p_suggestion: id })) as boolean;
+}
+
+/** Adds the suggestion to the plan (once; pressing again returns the same stop). */
+export async function addSuggestionToPlan(id: string, day?: string | null): Promise<string> {
+  return check(await supabase.rpc('add_suggestion_to_plan', { p_suggestion: id, p_day: day ?? null })) as string;
+}
+
+export async function listPolls(tripId: string): Promise<Poll[]> {
+  return check(
+    await supabase
+      .from('trip_polls')
+      .select('*, poll_options(id, label, position), poll_votes(user_id, option_id)')
+      .eq('trip_id', tripId)
+      .order('created_at', { ascending: false }),
+  ) as Poll[];
+}
+
+export async function createPoll(tripId: string, question: string, options: string[], closesAt: string | null, allowChange: boolean): Promise<string> {
+  return check(
+    await supabase.rpc('create_poll', { p_trip: tripId, p_question: question, p_options: options, p_closes_at: closesAt, p_allow_change: allowChange }),
+  ) as string;
+}
+
+export async function votePoll(pollId: string, optionId: string | null): Promise<void> {
+  check(await supabase.rpc('vote_poll', { p_poll: pollId, p_option: optionId }));
+}
+
+export async function closePoll(pollId: string): Promise<void> {
+  check(await supabase.rpc('close_poll', { p_poll: pollId }));
+}
+
+export async function deletePoll(pollId: string): Promise<void> {
+  check(await supabase.from('trip_polls').delete().eq('id', pollId));
+}
+
+// ---------------------------------------------------------------- passport
+
+/** Badges this person has earned (yours always; others' only if they share them with you). */
+export async function getAchievements(userId: string): Promise<{ key: string; earned_at: string }[]> {
+  return check(await supabase.rpc('user_achievements', { p_user: userId })) as { key: string; earned_at: string }[];
+}
+
+export async function setShowAchievements(userId: string, show: boolean): Promise<void> {
+  check(await supabase.from('profiles').update({ show_achievements: show }).eq('id', userId));
+}
+
+// ---------------------------------------------------------------- getting ready
+
+/** Your packing list and the group's tasks (row-level security keeps others' packing private). */
+export async function listTasks(tripId: string): Promise<TripTask[]> {
+  return check(await supabase.from('trip_tasks').select('*').eq('trip_id', tripId).order('created_at')) as TripTask[];
+}
+
+export async function addTasks(tripId: string, kind: TripTask['kind'], titles: string[], assigneeId?: string | null): Promise<void> {
+  check(await supabase.from('trip_tasks').insert(titles.map((title) => ({ trip_id: tripId, kind, title, assignee_id: assigneeId ?? null }))));
+}
+
+export async function setTaskDone(id: string, done: boolean): Promise<void> {
+  check(await supabase.from('trip_tasks').update({ done }).eq('id', id));
+}
+
+export async function deleteTask(id: string): Promise<void> {
+  check(await supabase.from('trip_tasks').delete().eq('id', id));
+}
+
+export async function listChallenges(tripId: string): Promise<Challenge[]> {
+  return check(
+    await supabase.from('trip_challenges').select('*, challenge_entries(post_id, user_id)').eq('trip_id', tripId).order('created_at', { ascending: false }),
+  ) as Challenge[];
+}
+
+export async function createChallenge(tripId: string, title: string, description: string | null, emoji: string): Promise<string> {
+  return check(await supabase.rpc('create_challenge', { p_trip: tripId, p_title: title, p_description: description, p_emoji: emoji })) as string;
+}
+
+export async function enterChallenge(challengeId: string, postId: string): Promise<void> {
+  check(await supabase.rpc('enter_challenge', { p_challenge: challengeId, p_post: postId }));
 }
 
 // ---------------------------------------------------------------- itinerary

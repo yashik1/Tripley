@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 
 import { CurrencyPicker } from '@/components/CurrencyPicker';
@@ -14,8 +14,11 @@ import { space } from '@/theme';
 export default function NewTrip() {
   const { profile } = useAuth();
   const qc = useQueryClient();
-  const [name, setName] = useState('');
-  const [currency, setCurrency] = useState(profile?.default_currency ?? 'USD');
+  // Pre-filled from a destination idea (Explore).
+  const params = useLocalSearchParams<{ name?: string; destination?: string; currency?: string }>();
+  const [name, setName] = useState(params.name ?? '');
+  const [destination, setDestination] = useState(params.destination ?? '');
+  const [currency, setCurrency] = useState(params.currency && /^[A-Z]{3}$/.test(params.currency) ? params.currency : profile?.default_currency ?? 'USD');
   const [start, setStart] = useState('');
   const [end, setEnd] = useState('');
   const [busy, setBusy] = useState(false);
@@ -34,9 +37,11 @@ export default function NewTrip() {
         base_currency: currency,
         starts_on: start || null,
         ends_on: end || null,
+        destination: destination.trim() || null,
       });
       await Promise.all([
         qc.invalidateQueries({ queryKey: keys.trips }),
+        qc.invalidateQueries({ queryKey: keys.overview }),
         qc.invalidateQueries({ queryKey: keys.sharing }),
       ]);
       router.replace(`/trip/${trip.id}/invite`);
@@ -49,6 +54,7 @@ export default function NewTrip() {
   return (
     <Screen footer={<Button title="Create trip" onPress={create} loading={busy} testID="create-trip" />}>
       <Field label="Trip name" testID="trip-name" value={name} onChangeText={setName} placeholder="Goa with the gang" autoFocus maxLength={80} />
+      <Field label="Destination (optional)" testID="trip-destination" value={destination} onChangeText={setDestination} placeholder="Goa, India" maxLength={80} />
       <CurrencyPicker label="Trip currency" value={currency} onChange={setCurrency} />
       <Text variant="caption" faint>
         Balances are shown in this currency. Bills in other currencies are converted automatically.

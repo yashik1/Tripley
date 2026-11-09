@@ -1,8 +1,12 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
+import { useMemo } from 'react';
 import { RefreshControl, View } from 'react-native';
 
 import { Icon } from '@/components/Icon';
+import { MoneySwitch } from '@/components/MoneySwitch';
+import { SpendingChart } from '@/components/SpendingChart';
+import { paidPerMember, spendPerMember, type ShareRow } from '@/lib/balances';
 import { Avatar, Banner, Button, Card, EmptyState, Row, Screen, SectionTitle, Stack, Text } from '@/components/ui';
 import { formatMoney } from '@/lib/currency';
 import { formatDate, timeAgo } from '@/lib/format';
@@ -12,10 +16,17 @@ import { useTripId } from '@/lib/trip-context';
 import { useTripData } from '@/lib/trip-hooks';
 import { space, useTheme } from '@/theme';
 
+/** Each person's share of each bill, from the bill list (no extra request). */
+function toShareRows(bills: { id: string; title: string; paid_by: string; bill_shares: { user_id: string; amount_base_minor: number }[] }[]): ShareRow[] {
+  return bills.flatMap((b) =>
+    b.bill_shares.map((s) => ({ billId: b.id, billTitle: b.title, paidBy: b.paid_by, userId: s.user_id, amountBaseMinor: s.amount_base_minor })),
+  );
+}
+
 export default function BillsTab() {
   const id = useTripId();
   const t = useTheme();
-  const { trip, me, nameOf, byId } = useTripData(id);
+  const { trip, me, nameOf, byId, members } = useTripData(id);
   const bills = useBills(id);
   const qc = useQueryClient();
   const waiting = useOutbox(me, id);
@@ -24,14 +35,23 @@ export default function BillsTab() {
     await flushOutbox(me);
     await Promise.all([qc.invalidateQueries({ queryKey: keys.bills(id) }), qc.invalidateQueries({ queryKey: keys.shares(id) })]);
   };
-  const list = bills.data ?? [];
+  const list = useMemo(() => bills.data ?? [], [bills.data]);
   const total = list.reduce((a, b) => a + b.total_base_minor, 0);
+  const spendRows = useMemo(() => {
+    const rows = toShareRows(list);
+    const paid = paidPerMember(rows);
+    const share = spendPerMember(rows);
+    return members
+      .map((m) => ({ userId: m.user_id, name: m.profile.display_name || 'Friend', url: m.profile.avatar_url, paid: paid.get(m.user_id) ?? 0, share: share.get(m.user_id) ?? 0 }))
+      .filter((r) => r.paid || r.share);
+  }, [list, members]);
   const mine = list.reduce((a, b) => a + (b.bill_shares.find((s) => s.user_id === me)?.amount_base_minor ?? 0), 0);
 
   return (
     <Screen
       refreshControl={<RefreshControl refreshing={bills.isRefetching} onRefresh={() => { bills.refetch(); }} />}
       footer={<Button title="Add a bill" icon="add" onPress={() => router.push(`/trip/${id}/bill/new`)} testID="add-bill" />}>
+      <MoneySwitch tripId={id} value="bills" />
       {list.length > 0 ? (
         <Row gap={space.md}>
           <Card style={{ flex: 1 }}>
@@ -43,6 +63,12 @@ export default function BillsTab() {
             <Text variant="money">{formatMoney(mine, base)}</Text>
           </Card>
         </Row>
+      ) : null}
+      {list.length > 0 && spendRows.length > 1 ? (
+        <Card testID="spending-chart">
+          <Text variant="heading">Who paid, whose share</Text>
+          <SpendingChart rows={spendRows} currency={base} me={me} />
+        </Card>
       ) : null}
 
       {waiting.length > 0 ? (

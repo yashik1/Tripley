@@ -17,7 +17,8 @@ export const CACHE_MAX_AGE_MS = 7 * DAY;
 /** Bills waiting to sync are dropped after this long (the person is told before signing out). */
 export const OUTBOX_MAX_AGE_MS = 30 * DAY;
 
-export const NOT_PERSISTED = new Set(['locations', 'notifications', 'invitations', 'sentInvites', 'friends', 'sharing']);
+// Signed photo links ('cover') expire, and are a key to a private photo: never saved.
+export const NOT_PERSISTED = new Set(['locations', 'notifications', 'invitations', 'sentInvites', 'friends', 'sharing', 'cover']);
 
 export function shouldPersistQuery(queryKey: readonly unknown[], status: string): boolean {
   return status === 'success' && !NOT_PERSISTED.has(String(queryKey[0]));

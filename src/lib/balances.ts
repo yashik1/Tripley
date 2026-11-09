@@ -129,3 +129,10 @@ export function spendPerMember(shares: ShareRow[]): Map<string, number> {
   for (const s of shares) out.set(s.userId, (out.get(s.userId) ?? 0) + s.amountBaseMinor);
   return out;
 }
+
+/** What each person paid for the group (bills they paid), for the spending chart. */
+export function paidPerMember(shares: ShareRow[]): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const s of shares) out.set(s.paidBy, (out.get(s.paidBy) ?? 0) + s.amountBaseMinor);
+  return out;
+}

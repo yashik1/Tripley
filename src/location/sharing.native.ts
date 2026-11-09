@@ -16,7 +16,7 @@ const optionsFor = (state: SharingState): Location.LocationTaskOptions => {
     foregroundService: {
       notificationTitle: `Sharing location with ${names}`,
       notificationBody: 'Your trip friends can see you. Pause anytime from the map in Tripley.',
-      notificationColor: '#0E7C66',
+      notificationColor: '#117C78',
       killServiceOnDestroy: false,
     },
   };
