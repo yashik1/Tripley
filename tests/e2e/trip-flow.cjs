@@ -89,7 +89,7 @@ async function signIn(page, local, name) {
     await sam.getByTestId('join-trip').click();
     await signIn(sam, '5550000002', 'Sam');
     // After signing up, Tripley finishes joining the invite he opened.
-    await sam.getByText("Who's where").waitFor({ timeout: 20000 });
+    await sam.getByTestId('trip-overview').waitFor({ timeout: 20000 });
     expect(true, 'Sam signed up and was taken straight into the trip');
 
     console.log('2b. Priya joins from the link as a guest (just her name)');
@@ -97,7 +97,7 @@ async function signIn(page, local, name) {
     await priya.getByTestId('join-guest-name').fill('Priya');
     await shot(priya, 'join-as-guest');
     await priya.getByTestId('join-as-guest').click();
-    await priya.getByText("Who's where").waitFor({ timeout: 20000 });
+    await priya.getByTestId('trip-overview').waitFor({ timeout: 20000 });
     expect(true, 'Priya joined as a guest without phone or email');
 
     console.log('3. Lee signs up; Maya invites Lee by phone; Lee accepts in the app');
@@ -114,8 +114,8 @@ async function signIn(page, local, name) {
     });
     await shot(lee, 'invitation');
     await lee.getByText('Join trip').click();
-    await lee.getByText("Who's where").waitFor({ timeout: 15000 });
-    expect(true, 'Lee accepted and sees the trip map');
+    await lee.getByTestId('trip-overview').waitFor({ timeout: 15000 });
+    expect(true, 'Lee accepted and lands on the trip');
 
     console.log('4. Live map: everyone shares location and sees each other');
     await maya.goto(`${BASE}/trip/${await tripIdFrom(sam)}/map`);

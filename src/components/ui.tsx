@@ -79,12 +79,32 @@ export function Stack({ children, gap = space.md, style }: { children: ReactNode
   return <View style={[{ gap }, style]}>{children}</View>;
 }
 
-export function Card({ children, style, onPress }: { children: ReactNode; style?: StyleProp<ViewStyle>; onPress?: () => void }) {
+export function Card({
+  children,
+  style,
+  onPress,
+  raised,
+  testID,
+  accessibilityLabel,
+}: {
+  children: ReactNode;
+  style?: StyleProp<ViewStyle>;
+  onPress?: () => void;
+  /** A stronger shadow for the one card that should stand out. */
+  raised?: boolean;
+  testID?: string;
+  accessibilityLabel?: string;
+}) {
   const t = useTheme();
-  const base = [styles.card, { backgroundColor: t.surface, borderColor: t.border }, style];
-  if (!onPress) return <View style={base}>{children}</View>;
+  const base = [styles.card, { backgroundColor: t.surface, borderColor: t.border, boxShadow: raised ? t.shadowRaised : t.shadow }, style];
+  if (!onPress) return <View style={base} testID={testID}>{children}</View>;
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [base, pressed && { opacity: 0.85 }]}>
+    <Pressable
+      onPress={onPress}
+      testID={testID}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      style={({ pressed }) => [base, pressed && { opacity: 0.92, transform: [{ scale: 0.985 }] }]}>
       {children}
     </Pressable>
   );
@@ -137,8 +157,8 @@ export function Text({
 }
 
 const textStyles = StyleSheet.create({
-  title: { fontSize: 28, fontWeight: '700', letterSpacing: -0.5 },
-  heading: { fontSize: 18, fontWeight: '600' },
+  title: { fontSize: 28, lineHeight: 34, fontWeight: '800', letterSpacing: -0.6 },
+  heading: { fontSize: 18, lineHeight: 24, fontWeight: '700', letterSpacing: -0.2 },
   body: { fontSize: 16, lineHeight: 22 },
   label: { fontSize: 14, fontWeight: '600' },
   caption: { fontSize: 13, lineHeight: 18 },
@@ -183,7 +203,8 @@ export function Button({
         styles.button,
         small && styles.buttonSmall,
         { backgroundColor: bg, borderColor: border },
-        pressed && !inactive && { opacity: 0.8 },
+        kind === 'primary' && !inactive && { boxShadow: t.shadow },
+        pressed && !inactive && { opacity: 0.85, transform: [{ scale: 0.98 }] },
         inactive && { opacity: 0.5 },
         style,
       ]}>
@@ -321,7 +342,7 @@ export function Segmented<T extends string>({
             accessibilityRole="button"
             accessibilityState={{ selected: active }}
             onPress={() => onChange(o.value)}
-            style={[styles.segment, active && { backgroundColor: t.surface }]}>
+            style={[styles.segment, active && { backgroundColor: t.surface, boxShadow: t.shadow }]}>
             <RNText style={{ color: active ? t.text : t.textMuted, fontWeight: active ? '600' : '500' }}>{o.label}</RNText>
           </Pressable>
         );
@@ -497,14 +518,14 @@ const styles = StyleSheet.create({
   card: { borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth, padding: space.lg, gap: space.md },
   button: {
     minHeight: 48,
-    borderRadius: radius.md,
+    borderRadius: radius.pill,
     paddingHorizontal: space.lg,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
   },
   buttonSmall: { minHeight: 36, paddingHorizontal: space.md },
-  buttonText: { fontSize: 16, fontWeight: '600' },
+  buttonText: { fontSize: 16, fontWeight: '700' },
   input: {
     minHeight: 48,
     borderRadius: radius.md,
@@ -514,8 +535,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   chip: { paddingHorizontal: space.md, paddingVertical: 7, borderRadius: radius.pill, borderWidth: 1 },
-  segmented: { flexDirection: 'row', borderRadius: radius.md, padding: 3 },
-  segment: { flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: radius.sm },
+  segmented: { flexDirection: 'row', borderRadius: radius.pill, padding: 3 },
+  segment: { flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: radius.pill },
   banner: { borderRadius: radius.md, padding: space.md },
   empty: { alignItems: 'center', justifyContent: 'center', gap: space.md, padding: space.xl },
   emptyIcon: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center' },

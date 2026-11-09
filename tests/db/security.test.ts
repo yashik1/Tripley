@@ -92,6 +92,7 @@ describe('who can call which function', () => {
       'move_itinerary_item',
       'my_invitations',
       'my_trip_friends',
+      'my_trip_overview',
       'new_invite_code',
       'record_payment_received',
       'regenerate_invite_code',

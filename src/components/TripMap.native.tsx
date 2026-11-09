@@ -44,8 +44,8 @@ export function TripMap({ people, places = [], focusId, onSelect, onPlacePress, 
       }}>
       <Camera ref={camera} initialViewState={{ zoom: 1.5 }} />
       <GeoJSONSource id="tripley-zones" data={zones}>
-        <Layer id="tripley-zones-fill" type="fill" paint={{ 'fill-color': '#0E7C66', 'fill-opacity': 0.12 }} />
-        <Layer id="tripley-zones-line" type="line" paint={{ 'line-color': '#0E7C66', 'line-width': 1.5 }} />
+        <Layer id="tripley-zones-fill" type="fill" paint={{ 'fill-color': '#117C78', 'fill-opacity': 0.12 }} />
+        <Layer id="tripley-zones-line" type="line" paint={{ 'line-color': '#117C78', 'line-width': 1.5 }} />
       </GeoJSONSource>
       {places.map((p) => (
         <Marker key={`place-${p.id}`} id={`place-${p.id}`} lngLat={[p.lng, p.lat]} anchor="bottom" onPress={() => onPlacePress?.(p.id)}>
@@ -103,7 +103,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     backgroundColor: '#fff',
     borderWidth: 2,
-    borderColor: '#0E7C66',
+    borderColor: '#117C78',
     alignItems: 'center',
     justifyContent: 'center',
     elevation: 3,

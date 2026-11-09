@@ -1,0 +1,229 @@
+/**
+ * A trip at a glance: the destination header, who's coming, what's next,
+ * planning progress (from real data), quick actions and a summary of every
+ * part of the trip with a way into each.
+ */
+import { router } from 'expo-router';
+import { useMemo } from 'react';
+import { Pressable, RefreshControl, View } from 'react-native';
+
+import { Icon, type IconName } from '@/components/Icon';
+import { AvatarStack, ProgressBar, QuickAction, StatusPill, TripCover } from '@/components/Travel';
+import { Banner, Card, Row, Screen, SectionTitle, Stack, Text } from '@/components/ui';
+import { toSettlementRows } from '@/lib/api';
+import { summarizeForUser, computePairBalances } from '@/lib/balances';
+import { formatMoney } from '@/lib/currency';
+import { formatDate, formatDateRange, todayISO } from '@/lib/format';
+import { rsvpSummary, timeRange } from '@/lib/itinerary';
+import { useItinerary, usePlaces, useRsvps, useSettlements, useShareRows, useTripOverview } from '@/lib/queries';
+import { useTripId } from '@/lib/trip-context';
+import { useTripData } from '@/lib/trip-hooks';
+import { planningSteps, tripStatus } from '@/lib/trip-status';
+import { radius, space, useTheme } from '@/theme';
+
+export default function TripOverview() {
+  const id = useTripId();
+  const t = useTheme();
+  const { trip, members, me, isOrganizer, active, refetch } = useTripData(id);
+  const overview = useTripOverview();
+  const itinerary = useItinerary(id);
+  const rsvps = useRsvps(id);
+  const places = usePlaces(id);
+  const shares = useShareRows(id);
+  const settlements = useSettlements(id);
+  const today = todayISO();
+  const stats = overview.data?.[id];
+
+  const base = trip?.base_currency ?? 'USD';
+  const spent = (shares.data ?? []).reduce((a, s) => a + s.amountBaseMinor, 0);
+  const myNet = useMemo(
+    () => summarizeForUser(computePairBalances(shares.data ?? [], toSettlementRows(settlements.data ?? [])), me).netMinor,
+    [shares.data, settlements.data, me],
+  );
+  const upcoming = (itinerary.data ?? []).filter((i) => i.day >= today).slice(0, 3);
+
+  if (!trip) return <Screen>{null}</Screen>;
+  const status = tripStatus(trip, today);
+  // Live trip data wins over the dashboard summary, which may be a moment old.
+  const progress = planningSteps(trip, {
+    ...stats,
+    members: members.length || Number(stats?.members ?? 1),
+    stops: itinerary.data?.length ?? Number(stats?.stops ?? 0),
+    stay_pinned: places.data ? places.data.some((p) => p.kind === 'stay') : !!stats?.stay_pinned,
+  });
+  const fixStep: Record<string, () => void> = {
+    dates: () => router.push(`/trip/${id}/settings`),
+    friends: () => router.push(`/trip/${id}/invite`),
+    stay: () => router.push(`/trip/${id}/map`),
+    plan: () => router.push(`/trip/${id}/plan/new`),
+    cover: () => router.push(`/trip/${id}/settings`),
+  };
+  const dates = formatDateRange(trip.starts_on, trip.ends_on);
+
+  return (
+    <Screen
+      refreshControl={
+        <RefreshControl
+          refreshing={false}
+          onRefresh={() => {
+            refetch();
+            overview.refetch();
+            itinerary.refetch();
+          }}
+        />
+      }>
+      {/* Header */}
+      <View testID="trip-overview" style={{ gap: space.md }}>
+        <TripCover seed={trip.id} path={trip.cover_path} height={190}>
+          {status.countdown ? (
+            <View style={{ position: 'absolute', top: space.md, left: space.md, backgroundColor: t.surface, borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 6, boxShadow: t.shadow }}>
+              <Text variant="label">{status.kind === 'upcoming' ? '✈️ ' : '📍 '}{status.countdown}</Text>
+            </View>
+          ) : null}
+          {isOrganizer && !trip.cover_path && active ? (
+            <Pressable
+              onPress={() => router.push(`/trip/${id}/settings`)}
+              accessibilityRole="button"
+              style={{ position: 'absolute', right: space.md, bottom: space.md, backgroundColor: t.surface, borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 6, flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+              <Icon name="camera" size={16} color={t.text} />
+              <Text variant="caption" style={{ fontWeight: '600' }}>Add a cover photo</Text>
+            </Pressable>
+          ) : null}
+        </TripCover>
+        <View style={{ gap: 4 }}>
+          <StatusPill kind={status.kind} label={status.label} />
+          <Text variant="title" numberOfLines={2}>{trip.name}</Text>
+          <Text muted>{[trip.destination, dates ?? 'No dates yet', `Money in ${base}`].filter(Boolean).join(' · ')}</Text>
+        </View>
+      </View>
+
+      {/* Group */}
+      <Card onPress={() => router.push(`/trip/${id}/people`)} accessibilityLabel="See everyone on the trip">
+        <Row gap={space.md}>
+          <AvatarStack people={members.map((m) => ({ id: m.user_id, name: m.profile.display_name || 'Friend', url: m.profile.avatar_url }))} size={34} />
+          <View style={{ flex: 1 }}>
+            <Text variant="label">{members.length === 1 ? 'Just you so far' : `${members.length} travellers`}</Text>
+            <Text variant="caption" muted numberOfLines={1}>{members.map((m) => (m.user_id === me ? 'You' : (m.profile.display_name || 'Friend').split(' ')[0])).join(', ')}</Text>
+          </View>
+          {active ? (
+            <Pressable onPress={() => router.push(`/trip/${id}/invite`)} accessibilityRole="button" accessibilityLabel="Invite friends" hitSlop={8}>
+              <Icon name="personAdd" size={22} color={t.primary} />
+            </Pressable>
+          ) : null}
+        </Row>
+      </Card>
+
+      {/* What's next */}
+      <Stack gap={space.sm}>
+        <SectionTitle>What’s next</SectionTitle>
+        {upcoming.length === 0 ? (
+          <Card onPress={active ? () => router.push(`/trip/${id}/plan/new`) : undefined}>
+            <Row gap={space.md}>
+              <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: t.skySoft, alignItems: 'center', justifyContent: 'center' }}>
+                <Icon name="idea" size={20} color={t.sky} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text variant="label">{active ? 'Nothing planned yet' : 'The trip is over'}</Text>
+                <Text variant="caption" muted>{active ? 'Add a museum slot, a dinner booking or a day trip.' : 'Have a look back at the plan and the photos.'}</Text>
+              </View>
+            </Row>
+          </Card>
+        ) : (
+          upcoming.map((item) => {
+            const r = rsvpSummary(rsvps.data ?? [], item.id, me);
+            return (
+              <Card key={item.id} onPress={() => router.push({ pathname: '/trip/[id]/plan/[itemId]', params: { id, itemId: item.id } })}>
+                <Row gap={space.md}>
+                  <View style={{ width: 56, alignItems: 'center', backgroundColor: t.primarySoft, borderRadius: radius.md, paddingVertical: 6 }}>
+                    <Text variant="caption" color={t.primary} style={{ fontWeight: '700' }}>{item.day === today ? 'Today' : formatDate(item.day)}</Text>
+                    <Text variant="caption" color={t.primary}>{timeRange(item)?.split(' – ')[0] ?? 'Any time'}</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text variant="label" numberOfLines={1}>{item.title}</Text>
+                    <Text variant="caption" muted numberOfLines={1}>
+                      {[item.place_name, r.going.length ? `${r.going.length} going` : null, r.mine ? null : 'Are you in?'].filter(Boolean).join(' · ')}
+                    </Text>
+                  </View>
+                  <Icon name="chevron" size={16} color={t.textFaint} />
+                </Row>
+              </Card>
+            );
+          })
+        )}
+      </Stack>
+
+      {/* Planning progress */}
+      {status.kind !== 'completed' ? (
+        <Card testID="planning-progress">
+          <Row style={{ justifyContent: 'space-between' }}>
+            <Text variant="heading">Getting ready</Text>
+            <Text variant="heading" color={t.primary}>{progress.percent}%</Text>
+          </Row>
+          <ProgressBar value={progress.percent} label={`Planning ${progress.done} of ${progress.steps.length} done`} />
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.xs }}>
+            {progress.steps.map((s) => (
+              <Pressable
+                key={s.key}
+                disabled={s.done || !fixStep[s.key] || (!isOrganizer && (s.key === 'dates' || s.key === 'cover'))}
+                onPress={fixStep[s.key]}
+                accessibilityRole="button"
+                accessibilityState={{ checked: s.done }}
+                style={{
+                  flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: radius.pill,
+                  backgroundColor: s.done ? t.primarySoft : t.surface, borderWidth: 1, borderColor: s.done ? t.primarySoft : t.border,
+                }}>
+                <Text variant="caption" color={s.done ? t.primary : t.textMuted} style={{ fontWeight: '600' }}>
+                  {s.done ? '✓ ' : '○ '}
+                  {s.label}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        </Card>
+      ) : null}
+
+      {/* Quick actions */}
+      {active ? (
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
+          <QuickAction icon="calendar" label="Add a plan" color={t.primary} soft={t.primarySoft} onPress={() => router.push(`/trip/${id}/plan/new`)} testID="overview-add-plan" />
+          <QuickAction icon="bills" label="Add a bill" color={t.coralText} soft={t.coralSoft} onPress={() => router.push(`/trip/${id}/bill/new`)} testID="overview-add-bill" />
+          <QuickAction icon="pin" label="Pin a place" color={t.yellowText} soft={t.yellowSoft} onPress={() => router.push(`/trip/${id}/map`)} />
+          <QuickAction icon="personAdd" label="Invite" color={t.sky} soft={t.skySoft} onPress={() => router.push(`/trip/${id}/invite`)} />
+        </View>
+      ) : (
+        <Banner tone="info" icon="calendar">This trip has ended. Everything is still here to look back on and settle up.</Banner>
+      )}
+
+      {/* Every part of the trip */}
+      <Stack gap={space.sm}>
+        <SectionTitle>The trip</SectionTitle>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
+          <SectionTile icon="calendar" title="Plan" detail={`${itinerary.data?.length ?? stats?.stops ?? 0} plans`} onPress={() => router.push(`/trip/${id}/plan`)} />
+          <SectionTile icon="map" title="Map" detail={`${places.data?.length ?? 0} places pinned`} onPress={() => router.push(`/trip/${id}/map`)} />
+          <SectionTile
+            icon="wallet"
+            title="Money"
+            detail={spent ? `${formatMoney(spent, base)} spent` : 'No bills yet'}
+            sub={myNet > 0 ? `You're owed ${formatMoney(myNet, base)}` : myNet < 0 ? `You owe ${formatMoney(-myNet, base)}` : spent ? 'You’re all square' : undefined}
+            onPress={() => router.push(`/trip/${id}/bills`)}
+          />
+          <SectionTile icon="people" title="People" detail={`${members.length} on the trip`} onPress={() => router.push(`/trip/${id}/people`)} />
+        </View>
+      </Stack>
+    </Screen>
+  );
+}
+
+function SectionTile({ icon, title, detail, sub, onPress }: { icon: IconName; title: string; detail: string; sub?: string; onPress: () => void }) {
+  const t = useTheme();
+  return (
+    <Card onPress={onPress} style={{ flexBasis: 150, flexGrow: 1, gap: 6 }} accessibilityLabel={`${title}: ${detail}${sub ? `, ${sub}` : ''}`}>
+      <Row gap={space.sm}>
+        <Icon name={icon} size={18} color={t.primary} />
+        <Text variant="label">{title}</Text>
+      </Row>
+      <Text variant="caption" muted>{detail}</Text>
+      {sub ? <Text variant="caption" style={{ fontWeight: '600' }}>{sub}</Text> : null}
+    </Card>
+  );
+}

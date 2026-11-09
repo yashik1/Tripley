@@ -80,7 +80,9 @@
     "test:e2e:roadmap": "node tests/e2e/roadmap.cjs",
     "start:web": "node scripts/serve-web.cjs",
     "db:migrate": "node scripts/migrate.cjs",
-    "test:e2e:plan": "node tests/e2e/plan.cjs"
+    "test:e2e:plan": "node tests/e2e/plan.cjs",
+    "test:e2e:engagement": "node tests/e2e/engagement.cjs",
+    "screens": "node tests/e2e/screens.cjs"
   },
   "private": true,
   "engines": {

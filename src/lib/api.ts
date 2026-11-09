@@ -33,6 +33,7 @@ import type {
   Trip,
   TripFriend,
   TripPreview,
+  TripStats,
   TripWithCount,
 } from './types';
 
@@ -77,8 +78,24 @@ export function isPro(account: Account | null | undefined): boolean {
 
 export async function listMyTrips(): Promise<TripWithCount[]> {
   return check(
-    await supabase.from('trips').select('*, trip_members(count)').order('created_at', { ascending: false }),
+    await supabase
+      .from('trips')
+      .select('*, trip_members(count), members:trip_members(user_id, profile:profiles(display_name, avatar_url))')
+      .order('created_at', { ascending: false })
+      .limit(5, { referencedTable: 'members' }),
   ) as TripWithCount[];
+}
+
+/** Counts per trip for the dashboard (only trips you're in). */
+export async function getTripOverview(): Promise<Record<string, TripStats>> {
+  const rows = check(await supabase.rpc('my_trip_overview')) as { trip_id: string; stats: TripStats }[];
+  return Object.fromEntries(rows.map((r) => [r.trip_id, r.stats]));
+}
+
+/** The organizer sets a cover photo: uploaded into the trip's private folder. */
+export async function setTripCover(tripId: string, localUri: string): Promise<void> {
+  const path = await uploadTripPhoto(tripId, localUri);
+  check(await supabase.from('trips').update({ cover_path: path }).eq('id', tripId));
 }
 
 export async function getTrip(id: string): Promise<Trip | null> {
@@ -90,6 +107,7 @@ export async function createTrip(input: {
   base_currency: string;
   starts_on?: string | null;
   ends_on?: string | null;
+  destination?: string | null;
 }): Promise<Trip> {
   const organizer_id = await uid();
   return check(
@@ -99,7 +117,7 @@ export async function createTrip(input: {
 
 export async function updateTrip(
   id: string,
-  patch: Partial<Pick<Trip, 'name' | 'starts_on' | 'ends_on' | 'invite_enabled' | 'ended_at'>>,
+  patch: Partial<Pick<Trip, 'name' | 'starts_on' | 'ends_on' | 'invite_enabled' | 'ended_at' | 'destination' | 'cover_path'>>,
 ): Promise<void> {
   check(await supabase.from('trips').update(patch).eq('id', id));
 }

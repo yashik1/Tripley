@@ -26,9 +26,26 @@ export type Trip = {
   invite_enabled: boolean;
   ended_at: string | null;
   created_at: string;
+  /** Where the trip goes, e.g. "Lisbon, Portugal" (optional). */
+  destination: string | null;
+  /** Cover photo in the private trip-photos bucket (shown through a signed link). */
+  cover_path: string | null;
 };
 
-export type TripWithCount = Trip & { trip_members: { count: number }[] };
+export type TripMemberPreview = { user_id: string; profile: { display_name: string; avatar_url: string | null } | null };
+
+export type TripWithCount = Trip & { trip_members: { count: number }[]; members?: TripMemberPreview[] };
+
+/** Counts for the dashboard and planning progress (my_trip_overview). */
+export type TripStats = {
+  members: number;
+  stops: number;
+  places: number;
+  stay_pinned: boolean;
+  bills: number;
+  spent_base_minor: number;
+  [key: string]: number | boolean;
+};
 
 export type SharingMode = 'live' | 'saver';
 

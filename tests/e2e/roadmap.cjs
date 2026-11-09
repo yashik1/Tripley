@@ -107,13 +107,15 @@ async function addEqualBill(page, tripId, title, total, opts = {}) {
       await p.goto(`${BASE}/join/${code}`);
       await p.getByTestId('join-signup').click();
       await signUp(p, name, `${who}.${stamp}@example.com`);
-      await p.getByText("Who's where").waitFor({ timeout: 20000 });
+      await p.getByTestId('trip-overview').waitFor({ timeout: 20000 });
       people[who] = p;
     }
     const { ben, cleo } = people;
     const tripId = /\/trip\/([0-9a-f-]{36})/.exec(ben.url())[1];
     await ana.goto(`${BASE}/trip/${tripId}/map`);
     await ana.getByText("Who's where").waitFor();
+    await ben.goto(`${BASE}/trip/${tripId}/map`); // Ben watches the map while Ana pins
+    await ben.getByText("Who's where").waitFor();
     const pins = ana.locator('[data-testid^="map-pin-"]');
     for (let i = 0; i < 20 && (await pins.count()) < 3; i++) await ana.waitForTimeout(1000);
     expect((await pins.count()) === 3, 'everyone is on Ana’s map');

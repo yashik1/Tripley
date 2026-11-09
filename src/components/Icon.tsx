@@ -42,6 +42,20 @@ const ICONS = {
   wallet: ['banknote', 'payments'],
   cloudOff: ['icloud.slash', 'cloud_off'],
   arrowUp: ['arrow.up', 'arrow_upward'],
+  home: ['house', 'home'],
+  feed: ['bubble.left.and.bubble.right', 'forum'],
+  comment: ['bubble.left', 'chat_bubble'],
+  heart: ['heart', 'favorite'],
+  poll: ['chart.bar', 'poll'],
+  star: ['star', 'star'],
+  checklist: ['checklist', 'checklist'],
+  trophy: ['trophy', 'emoji_events'],
+  flag: ['flag', 'flag'],
+  idea: ['lightbulb', 'lightbulb'],
+  explore: ['safari', 'explore'],
+  send: ['paperplane', 'send'],
+  ticket: ['ticket', 'confirmation_number'],
+  megaphone: ['megaphone', 'campaign'],
 } as const satisfies Record<string, readonly [string, AndroidSymbol]>;
 
 export type IconName = keyof typeof ICONS;

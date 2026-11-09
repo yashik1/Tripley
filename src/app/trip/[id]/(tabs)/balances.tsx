@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { Pressable, RefreshControl, View } from 'react-native';
 
 import { Icon } from '@/components/Icon';
+import { MoneySwitch } from '@/components/MoneySwitch';
 import { Avatar, Banner, Button, Card, EmptyState, ListRow, Row, Screen, SectionTitle, Stack, Text } from '@/components/ui';
 import { respondToSettlement, toSettlementRows, undoSettlement } from '@/lib/api';
 import { computePairBalances, summarizeForUser } from '@/lib/balances';
@@ -67,6 +68,7 @@ export default function BalancesTab() {
           }}
         />
       }>
+      <MoneySwitch tripId={id} value="balances" />
       {error ? <Banner tone="danger">{error}</Banner> : null}
       {loading ? null : (
         <Card style={{ alignItems: 'center' }}>

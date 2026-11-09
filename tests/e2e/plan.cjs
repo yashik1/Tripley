@@ -79,7 +79,7 @@ async function addStop(page, tripId, f) {
     await ben.goto(`${BASE}/join/${code}`);
     await ben.getByTestId('join-signup').click();
     await signUp(ben, 'Ben Ortiz', `ben.plan.${stamp}@example.com`);
-    await ben.getByText("Who's where").waitFor({ timeout: 20000 });
+    await ben.getByTestId('trip-overview').waitFor({ timeout: 20000 });
     const tripId = /\/trip\/([0-9a-f-]{36})/.exec(ben.url())[1];
 
     console.log('2. An empty plan explains itself; Ana adds the museum');

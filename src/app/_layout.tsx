@@ -66,7 +66,7 @@ function SignedInServices({ userId, children }: { userId: string | null; childre
       else if (tripId && kind === 'itinerary_comment' && typeof data.item_id === 'string') router.push(`/trip/${tripId}/plan/${data.item_id}`);
       else if (tripId && kind.startsWith('settlement')) router.push(`/trip/${tripId}/balances`);
       else if (tripId && kind.startsWith('bill')) router.push(`/trip/${tripId}/bills`);
-      else if (tripId) router.push(`/trip/${tripId}/map`);
+      else if (tripId) router.push(`/trip/${tripId}/overview`);
     });
   }, [userId]);
   return <SharingProvider userId={userId}>{children}</SharingProvider>;
@@ -116,7 +116,9 @@ function AppNavigator() {
         <Stack.Screen name="profile" options={{ title: 'Profile' }} />
         <Stack.Screen name="notifications" options={{ title: 'Notifications' }} />
         <Stack.Screen name="pro" options={{ title: 'Tripley Pro', presentation: 'modal' }} />
+        <Stack.Screen name="explore" options={{ title: 'Explore ideas' }} />
       </Stack.Protected>
+      <Stack.Screen name="join/index" options={{ title: 'Join a trip' }} />
       <Stack.Screen name="join/[code]" options={{ title: 'Join trip' }} />
       {/* Opened from the reset email, signed out; the link signs you in. */}
       <Stack.Screen name="reset-password" options={{ headerShown: false, title: 'Choose a new password' }} />

@@ -79,7 +79,7 @@ function Preview() {
   const t = useTheme();
   const road = t.scheme === 'dark' ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.85)';
   const pins = [
-    { id: 'maya', name: 'MR', x: '22%', y: '30%', color: '#0E7C66' },
+    { id: 'maya', name: 'MR', x: '22%', y: '30%', color: '#117C78' },
     { id: 'sam', name: 'SK', x: '58%', y: '20%', color: '#3B6FD8' },
     { id: 'lee', name: 'LT', x: '70%', y: '58%', color: '#C2410C' },
     { id: 'priya', name: 'PS', x: '36%', y: '64%', color: '#8B5CF6' },

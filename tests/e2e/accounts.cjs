@@ -107,7 +107,7 @@ async function latestEmailTo(address) {
     await shot(a, 'log-in-wrong-password');
     ok('wrong password explained');
     await logIn(a, ana.email, ana.pw);
-    await a.getByText('Lisbon long weekend').waitFor({ timeout: 15000 });
+    await a.getByText('Lisbon long weekend').first().waitFor({ timeout: 15000 });
     ok('logged back in and the trip is there');
 
     console.log('4. Forgot password: link opened in another browser');
@@ -132,7 +132,7 @@ async function latestEmailTo(address) {
     await other.getByTestId('reset-submit').click();
     await other.getByText('Password changed').waitFor();
     await other.getByTestId('reset-done').click();
-    await other.getByText('Lisbon long weekend').waitFor({ timeout: 15000 });
+    await other.getByText('Lisbon long weekend').first().waitFor({ timeout: 15000 });
     ok('new password set from a different browser, signed in to trips');
     await other.goto(`${BASE}/reset-password?token=${token}&type=recovery`);
     // Signed in already, so the used token isn't re-checked here; check it signed out:
@@ -144,7 +144,7 @@ async function latestEmailTo(address) {
     await third.getByText(/Wrong email or password/).waitFor();
     ok('old password no longer works');
     await logIn(third, ana.email, ana.pw2);
-    await third.getByText('Lisbon long weekend').waitFor({ timeout: 15000 });
+    await third.getByText('Lisbon long weekend').first().waitFor({ timeout: 15000 });
     ok('new password works');
 
     console.log('5. A guest saves their account and keeps their trip');
@@ -173,26 +173,26 @@ async function latestEmailTo(address) {
     expect(await g.getByText(gus.email).first().isVisible(), 'profile now shows the email instead of "Guest account"');
     const g2 = await newPage(browser);
     await logIn(g2, gus.email, gus.pw);
-    await g2.getByText('Gus road trip').waitFor({ timeout: 15000 });
+    await g2.getByText('Gus road trip').first().waitFor({ timeout: 15000 });
     expect(!(await g2.getByText('Save your account').count()), 'logged in elsewhere: same trip, no guest warning');
     await g2.getByTestId('header-home').click();
     await g2.getByText('Know where everyone is. Split every bill fairly.').waitFor();
     expect(!(await g2.getByTestId('nav-login').count()), 'the Tripley logo opens the home page, with "My trips" instead of log in');
     await g2.getByTestId('nav-trips').click();
-    await g2.getByText('Gus road trip').waitFor();
+    await g2.getByText('Gus road trip').first().waitFor();
     ok('"My trips" goes back to the trips page');
 
     console.log('6. Ben opens Ana’s invite, signs up, and lands in the trip');
     const b = await newPage(browser);
     await b.goto(`${BASE}/join/${code}`);
-    await b.getByText('Lisbon long weekend').waitFor();
+    await b.getByText('Lisbon long weekend').first().waitFor();
     await shot(b, 'join-options');
     await b.getByTestId('join-signup').click();
     await b.getByTestId('signup-name').fill(ben.name);
     await b.getByTestId('signup-email').fill(ben.email);
     await b.getByTestId('signup-password').fill(ben.pw);
     await b.getByTestId('signup-submit').click();
-    await b.getByText("Who's where").waitFor({ timeout: 20000 });
+    await b.getByTestId('trip-overview').waitFor({ timeout: 20000 });
     ok('signed up from the invite and joined the trip');
 
     console.log('7. Signing up again with a used email');
@@ -209,7 +209,7 @@ async function latestEmailTo(address) {
     const shared = await newPage(browser);
     const saved = () => shared.evaluate(() => ({ cache: localStorage.getItem('tripley.cache.v2') ?? '', owner: localStorage.getItem('tripley.cache.owner') }));
     await logIn(shared, ana.email, ana.pw2);
-    await shared.getByText('Lisbon long weekend').waitFor({ timeout: 15000 });
+    await shared.getByText('Lisbon long weekend').first().waitFor({ timeout: 15000 });
     await shared.waitForTimeout(2600); // the offline copy is written at most every 2 s
     let s = await saved();
     expect(s.cache.includes('Lisbon long weekend') && !!s.owner, 'the offline copy holds Ana’s trip, tagged with her account');
@@ -218,7 +218,7 @@ async function latestEmailTo(address) {
     s = await saved();
     expect(!s.cache.includes('Lisbon long weekend') && !s.owner, 'signing out removes it from the device');
     await logIn(shared, gus.email, gus.pw);
-    await shared.getByText('Gus road trip').waitFor({ timeout: 15000 });
+    await shared.getByText('Gus road trip').first().waitFor({ timeout: 15000 });
     expect(!(await shared.getByText('Lisbon long weekend').count()), 'Gus sees only his own trip');
     await shared.waitForTimeout(2600);
     s = await saved();

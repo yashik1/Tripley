@@ -26,7 +26,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   android: {
     package: BUNDLE_ID,
     adaptiveIcon: {
-      backgroundColor: '#0E7C66',
+      backgroundColor: '#117C78',
       foregroundImage: './assets/images/android-icon-foreground.png',
       backgroundImage: './assets/images/android-icon-background.png',
       monochromeImage: './assets/images/android-icon-monochrome.png',
@@ -46,7 +46,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     favicon: './assets/images/favicon.png',
     name: 'Tripley',
     shortName: 'Tripley',
-    themeColor: '#0E7C66',
+    themeColor: '#117C78',
     backgroundColor: '#ffffff',
   },
   plugins: [
@@ -54,7 +54,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     [
       'expo-splash-screen',
       {
-        backgroundColor: '#0E7C66',
+        backgroundColor: '#117C78',
         image: './assets/images/splash-icon.png',
         imageWidth: 76,
       },
@@ -78,7 +78,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     [
       'expo-notifications',
       {
-        color: '#0E7C66',
+        color: '#117C78',
       },
     ],
     [
