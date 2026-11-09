@@ -16,8 +16,12 @@ import type {
   BillDetail,
   Invitation,
   InviteResult,
+  Kitty,
+  KittyOwnCash,
   Member,
   MemberLocation,
+  Place,
+  PlaceKind,
   Profile,
   SentInvitation,
   Settlement,
@@ -138,7 +142,7 @@ export async function listMySharingMemberships(): Promise<
 
 export async function updateMySharing(
   tripId: string,
-  patch: { location_sharing?: boolean; sharing_mode?: SharingMode },
+  patch: { location_sharing?: boolean; sharing_mode?: SharingMode; arrival_alerts?: boolean },
 ): Promise<void> {
   const me = await uid();
   check(await supabase.from('trip_members').update(patch).eq('trip_id', tripId).eq('user_id', me));
@@ -275,6 +279,11 @@ export async function getBill(billId: string): Promise<BillDetail | null> {
 
 export type SaveBillPayload = {
   id?: string;
+  /** Made on the device; makes saving the same bill twice (e.g. after being offline) harmless. */
+  client_id?: string;
+  /** Paid from the cash kitty (paid_by must be its holder). */
+  kitty_id?: string | null;
+  fx_source?: 'ecb' | 'manual' | null;
   trip_id: string;
   paid_by: string;
   title: string;
@@ -442,4 +451,90 @@ export async function savePushToken(token: string): Promise<void> {
 
 export async function removePushToken(token: string): Promise<void> {
   check(await supabase.from('push_tokens').delete().eq('token', token));
+}
+
+// ---------------------------------------------------------------- places
+
+export async function listPlaces(tripId: string): Promise<Place[]> {
+  return check(
+    await supabase.from('trip_places').select('*').eq('trip_id', tripId).order('created_at', { ascending: false }),
+  ) as Place[];
+}
+
+export async function addPlace(input: {
+  trip_id: string;
+  kind: PlaceKind;
+  name: string;
+  note?: string | null;
+  lat: number;
+  lng: number;
+  radius_m?: number;
+  alerts?: boolean;
+  photo_path?: string | null;
+}): Promise<Place> {
+  const me = await uid();
+  return check(await supabase.from('trip_places').insert({ ...input, created_by: me }).select('*').single()) as Place;
+}
+
+export async function updatePlace(
+  id: string,
+  patch: Partial<Pick<Place, 'kind' | 'name' | 'note' | 'radius_m' | 'alerts' | 'photo_path'>>,
+): Promise<void> {
+  check(await supabase.from('trip_places').update(patch).eq('id', id));
+}
+
+export async function deletePlace(id: string): Promise<void> {
+  check(await supabase.from('trip_places').delete().eq('id', id));
+}
+
+/** Upload a photo (already resized to JPEG) for a place or memory into the trip's folder. */
+export async function uploadTripPhoto(tripId: string, localUri: string): Promise<string> {
+  const path = `${tripId}/${randomId()}.jpg`;
+  const body = await (await fetch(localUri)).arrayBuffer();
+  check(await supabase.storage.from('trip-photos').upload(path, body, { contentType: 'image/jpeg', upsert: false }));
+  return path;
+}
+
+export async function tripPhotoUrl(path: string): Promise<string | null> {
+  const { data } = await supabase.storage.from('trip-photos').createSignedUrl(path, 3600);
+  return data?.signedUrl ?? null;
+}
+
+// ---------------------------------------------------------------- cash kitty
+
+export async function listKitties(tripId: string): Promise<Kitty[]> {
+  return check(
+    await supabase.from('trip_kitties').select('*').eq('trip_id', tripId).order('created_at', { ascending: true }),
+  ) as Kitty[];
+}
+
+export async function listKittyOwnCash(tripId: string): Promise<KittyOwnCash[]> {
+  const rows = check(
+    await supabase.from('kitty_own_cash').select('*, kitty:trip_kitties!inner(trip_id)').eq('kitty.trip_id', tripId),
+  ) as (KittyOwnCash & { kitty?: unknown })[];
+  return rows.map(({ kitty: _k, ...r }) => r);
+}
+
+export async function createKitty(tripId: string, name: string, holderId: string): Promise<string> {
+  return check(await supabase.rpc('create_kitty', { p_trip: tripId, p_name: name, p_holder: holderId })) as string;
+}
+
+export async function kittyAddCash(kittyId: string, fromUser: string, amountBaseMinor: number, note?: string): Promise<void> {
+  check(
+    await supabase.rpc('kitty_add_cash', { p_kitty: kittyId, p_from: fromUser, p_amount: amountBaseMinor, p_note: note ?? null }),
+  );
+}
+
+export async function kittyHandover(kittyId: string, toUser: string): Promise<void> {
+  check(await supabase.rpc('kitty_handover', { p_kitty: kittyId, p_to: toUser }));
+}
+
+export async function kittyPayout(kittyId: string, toUser: string, amountBaseMinor: number, note?: string): Promise<void> {
+  check(
+    await supabase.rpc('kitty_payout', { p_kitty: kittyId, p_to: toUser, p_amount: amountBaseMinor, p_note: note ?? null }),
+  );
+}
+
+export async function closeKitty(kittyId: string): Promise<void> {
+  check(await supabase.rpc('close_kitty', { p_kitty: kittyId }));
 }

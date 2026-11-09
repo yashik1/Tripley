@@ -15,7 +15,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   scheme: 'tripley',
   userInterfaceStyle: 'automatic',
   ios: {
-    icon: './assets/expo.icon',
     bundleIdentifier: BUNDLE_ID,
     supportsTablet: false,
     usesAppleSignIn: true,
@@ -27,7 +26,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   android: {
     package: BUNDLE_ID,
     adaptiveIcon: {
-      backgroundColor: '#E6F4FE',
+      backgroundColor: '#0E7C66',
       foregroundImage: './assets/images/android-icon-foreground.png',
       backgroundImage: './assets/images/android-icon-background.png',
       monochromeImage: './assets/images/android-icon-monochrome.png',

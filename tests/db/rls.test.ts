@@ -468,3 +468,252 @@ describe('stale location reminders', () => {
     await expect(as(maya, (q) => q('select public.nudge_stale_sharers()'))).rejects.toThrow(/permission denied/);
   });
 });
+
+describe('places and arrival alerts', () => {
+  let rome: string;
+  let hotel: string;
+  const move = (uid: string, lat: number, lng: number) =>
+    as(uid, (q) =>
+      q(
+        `insert into public.member_locations (trip_id, user_id, lat, lng, accuracy_m)
+         values ($1, $2, $3, $4, 10)
+         on conflict (trip_id, user_id) do update set lat = excluded.lat, lng = excluded.lng, updated_at = now()`,
+        [rome, uid, lat, lng],
+      ),
+    );
+  const arrivals = (uid: string) =>
+    as(uid, (q) => q(`select body from public.notifications where kind = 'arrival' and trip_id = $1 order by created_at`, [rome]));
+
+  beforeAll(async () => {
+    const t = await as(maya, (q) => q(`insert into public.trips (name, base_currency) values ('Rome', 'EUR') returning id, invite_code`));
+    rome = t.rows[0].id;
+    for (const u of [sam, lee]) await as(u, (q) => q('select public.join_trip_by_code($1)', [t.rows[0].invite_code]));
+  });
+
+  it('members pin places; strangers can’t see them', async () => {
+    const r = await as(sam, (q) =>
+      q(
+        `insert into public.trip_places (trip_id, kind, name, lat, lng, radius_m, alerts)
+         values ($1, 'stay', 'Hotel Artemide', 41.9, 12.49, 100, true) returning id`,
+        [rome],
+      ),
+    );
+    hotel = r.rows[0].id;
+    await as(lee, (q) =>
+      q(`insert into public.trip_places (trip_id, kind, name, note, lat, lng) values ($1, 'food', 'Roscioli', 'Best carbonara', 41.894, 12.473)`, [rome]),
+    );
+    const seen = await as(maya, (q) => q('select name from public.trip_places where trip_id = $1 order by name', [rome]));
+    expect(seen.rows.map((x) => x.name)).toEqual(['Hotel Artemide', 'Roscioli']);
+    expect((await as(stranger, (q) => q('select * from public.trip_places'))).rowCount).toBe(0);
+    await expect(
+      as(stranger, (q) => q(`insert into public.trip_places (trip_id, name, lat, lng) values ($1, 'x', 0, 0)`, [rome])),
+    ).rejects.toThrow(/row-level security/);
+  });
+
+  it('only the person who pinned it or the organizer can remove it', async () => {
+    const r = await as(lee, (q) => q(`delete from public.trip_places where name = 'Hotel Artemide'`));
+    expect(r.rowCount).toBe(0);
+    const tmp = await as(lee, (q) => q(`insert into public.trip_places (trip_id, name, lat, lng) values ($1, 'Tmp', 1, 1) returning id`, [rome]));
+    const del = await as(maya, (q) => q('delete from public.trip_places where id = $1', [tmp.rows[0].id]));
+    expect(del.rowCount).toBe(1);
+  });
+
+  it('photos must live in the trip’s folder', async () => {
+    await expect(
+      as(lee, (q) => q(`update public.trip_places set photo_path = 'other-trip/x.jpg' where name = 'Roscioli'`)),
+    ).rejects.toThrow(/check constraint/);
+    await as(lee, (q) => q(`update public.trip_places set photo_path = $1 where name = 'Roscioli'`, [`${rome}/carbonara.jpg`]));
+  });
+
+  it('tells the others when someone arrives, not where they already were', async () => {
+    await as(lee, (q) => q('update public.trip_members set arrival_alerts = false where trip_id = $1 and user_id = $2', [rome, lee]));
+    await move(maya, 41.9, 12.49); // first position, already at the hotel: no alert
+    await move(sam, 41.95, 12.49); // ~5.5 km away
+    expect((await arrivals(sam)).rowCount).toBe(0);
+    await move(sam, 41.9004, 12.49); // ~45 m from the hotel
+    expect((await arrivals(maya)).rows.map((x) => x.body)).toEqual(['Sam arrived at Hotel Artemide']);
+    expect((await arrivals(lee)).rowCount).toBe(0); // turned alerts off
+    expect((await arrivals(sam)).rowCount).toBe(0); // not told about yourself
+  });
+
+  it('doesn’t repeat when someone steps out and back within half an hour', async () => {
+    await move(sam, 41.9012, 12.49); // ~130 m: still "inside" (leaves only past 1.5 × radius)
+    await move(sam, 41.95, 12.49);
+    await move(sam, 41.9004, 12.49);
+    expect((await arrivals(maya)).rowCount).toBe(1);
+    await db.query(`update public.place_presence set last_alert_at = now() - interval '31 minutes' where place_id = $1`, [hotel]);
+    await move(sam, 41.95, 12.49);
+    await move(sam, 41.9004, 12.49);
+    expect((await arrivals(maya)).rowCount).toBe(2);
+  });
+
+  it('keeps who-is-where state away from app users', async () => {
+    await expect(as(maya, (q) => q('select * from public.place_presence'))).rejects.toThrow(/permission denied/);
+  });
+});
+
+describe('cash kitty', () => {
+  let trip: string;
+  let kitty: string;
+  const cash = async () => (await db.query('select public.kitty_cash($1)::int as c', [kitty])).rows[0].c;
+  const kittyBill = (paidBy: string, total: number) => ({
+    trip_id: trip,
+    paid_by: paidBy,
+    kitty_id: kitty,
+    title: 'Taxi',
+    currency: 'EUR',
+    split_mode: 'equal',
+    total_minor: total,
+    total_base_minor: total,
+    shares: [
+      { user_id: maya, amount_minor: total / 2, amount_base_minor: total / 2 },
+      { user_id: lee, amount_minor: total / 2, amount_base_minor: total / 2 },
+    ],
+  });
+
+  beforeAll(async () => {
+    trip = (await db.query(`select id from public.trips where name = 'Rome'`)).rows[0].id;
+  });
+
+  it('anyone on the trip starts a kitty and picks who holds it', async () => {
+    const r = await as(maya, (q) => q(`select public.create_kitty($1, 'Cash', $2) as id`, [trip, sam]));
+    kitty = r.rows[0].id;
+    const n = await as(sam, (q) => q(`select body from public.notifications where kind = 'kitty_holder'`));
+    expect(n.rows[0].body).toBe('Maya R made you the holder of the "Cash" cash kitty');
+    await expect(as(stranger, (q) => q(`select public.create_kitty($1, 'x', $2)`, [trip, stranger]))).rejects.toThrow(/not in this trip/);
+  });
+
+  it('putting cash in: the holder confirms, or records it themselves', async () => {
+    const lees = await as(lee, (q) => q('select public.kitty_add_cash($1, $2, 5000) as id', [kitty, lee]));
+    const s1 = await db.query('select status, to_user, kitty_role from public.settlements where id = $1', [lees.rows[0].id]);
+    expect(s1.rows[0]).toEqual({ status: 'paid', to_user: sam, kitty_role: 'contribution' });
+    const ask = await as(sam, (q) => q(`select body from public.notifications where kind = 'settlement_paid' order by created_at desc limit 1`));
+    expect(ask.rows[0].body).toBe('Lee put 50.00 EUR in the kitty. Tap to confirm you got it.');
+    await as(sam, (q) => q(`select public.respond_to_settlement($1, 'confirmed')`, [lees.rows[0].id]));
+
+    await as(sam, (q) => q('select public.kitty_add_cash($1, $2, 5000)', [kitty, maya])); // holder records Maya's cash
+    await as(sam, (q) => q(`select public.kitty_add_cash($1, $2, 2000, 'my own cash')`, [kitty, sam])); // holder's own money
+    expect(await cash()).toBe(12000);
+
+    await expect(as(lee, (q) => q('select public.kitty_add_cash($1, $2, 100)', [kitty, maya]))).rejects.toThrow(/holder or the person/);
+    await expect(as(maya, (q) => q('select public.kitty_add_cash($1, $2, 100)', [kitty, sam]))).rejects.toThrow(/Only the holder/);
+  });
+
+  it('kitty moves can’t be faked with a plain payment', async () => {
+    await expect(
+      as(lee, (q) =>
+        q(`insert into public.settlements (trip_id, to_user, amount_base_minor, kitty_id, kitty_role) values ($1, $2, 100, $3, 'contribution')`, [trip, sam, kitty]),
+      ),
+    ).rejects.toThrow(/row-level security/);
+  });
+
+  it('spending from the kitty is a bill paid by the holder', async () => {
+    await expect(as(maya, (q) => q('select public.save_bill($1)', [JSON.stringify(kittyBill(maya, 3000))]))).rejects.toThrow(/person holding it/);
+    await as(maya, (q) => q('select public.save_bill($1)', [JSON.stringify(kittyBill(sam, 3000))]));
+    expect(await cash()).toBe(9000);
+    const n = await as(lee, (q) => q(`select body from public.notifications where kind = 'bill_added' and trip_id = $1`, [trip]));
+    expect(n.rows[0].body).toContain('(paid from the kitty)');
+  });
+
+  it('handing over moves all the cash to the new holder', async () => {
+    await expect(as(lee, (q) => q('select public.kitty_handover($1, $2)', [kitty, lee]))).rejects.toThrow(/holding the kitty/);
+    await as(sam, (q) => q('select public.kitty_handover($1, $2)', [kitty, lee]));
+    const k = await db.query('select holder_id from public.trip_kitties where id = $1', [kitty]);
+    expect(k.rows[0].holder_id).toBe(lee);
+    const h = await db.query(`select from_user, to_user, amount_base_minor::int as a, status from public.settlements where kitty_role = 'handover'`);
+    expect(h.rows).toEqual([{ from_user: sam, to_user: lee, a: 9000, status: 'confirmed' }]);
+    const n = await as(lee, (q) => q(`select body from public.notifications where kind = 'kitty_holder'`));
+    expect(n.rows[0].body).toBe('Sam handed you the "Cash" kitty (90.00 EUR in cash)');
+    expect(await cash()).toBe(9000);
+  });
+
+  it('the holder gives leftover cash back, up to what’s there', async () => {
+    await expect(as(lee, (q) => q('select public.kitty_payout($1, $2, 99999)', [kitty, maya]))).rejects.toThrow(/that much cash/);
+    await as(lee, (q) => q('select public.kitty_payout($1, $2, 4000)', [kitty, maya]));
+    expect(await cash()).toBe(5000);
+  });
+
+  it('the ledger still balances to zero', async () => {
+    const { rows } = await db.query(
+      `select coalesce(sum(v), 0)::int as total from (
+         select bs.amount_base_minor * -1 as v from public.bill_shares bs join public.bills b on b.id = bs.bill_id where b.trip_id = $1
+         union all select b.total_base_minor from public.bills b where b.trip_id = $1
+         union all select s.amount_base_minor from public.settlements s where s.trip_id = $1 and s.status <> 'disputed'
+         union all select -s.amount_base_minor from public.settlements s where s.trip_id = $1 and s.status <> 'disputed'
+       ) x`,
+      [trip],
+    );
+    expect(rows[0].total).toBe(0);
+  });
+
+  it('app users can’t call the internal cash total', async () => {
+    await expect(as(maya, (q) => q('select public.kitty_cash($1)', [kitty]))).rejects.toThrow(/permission denied/);
+  });
+});
+
+describe('offline saves and locked exchange rates', () => {
+  let trip: string;
+  const coffee = (extra: Record<string, unknown> = {}) => ({
+    trip_id: trip,
+    paid_by: maya,
+    title: 'Coffee',
+    currency: 'USD',
+    fx_rate: 0.9,
+    fx_source: 'ecb',
+    split_mode: 'equal',
+    total_minor: 1000,
+    total_base_minor: 900,
+    shares: [
+      { user_id: maya, amount_minor: 500, amount_base_minor: 450 },
+      { user_id: sam, amount_minor: 500, amount_base_minor: 450 },
+    ],
+    ...extra,
+  });
+
+  beforeAll(async () => {
+    trip = (await db.query(`select id from public.trips where name = 'Rome'`)).rows[0].id;
+  });
+
+  it('saving the same offline bill twice adds it once', async () => {
+    const client_id = '7f6c2a1e-4b7d-4c1a-9f00-1234567890ab';
+    const a = await as(maya, (q) => q('select public.save_bill($1) as id', [JSON.stringify(coffee({ client_id }))]));
+    const b = await as(maya, (q) => q('select public.save_bill($1) as id', [JSON.stringify(coffee({ client_id }))]));
+    expect(b.rows[0].id).toBe(a.rows[0].id);
+    const n = await db.query('select count(*)::int as n from public.bills where client_id = $1', [client_id]);
+    expect(n.rows[0].n).toBe(1);
+    // Someone outside the trip can't learn about it by guessing the id.
+    await expect(as(stranger, (q) => q('select public.save_bill($1)', [JSON.stringify(coffee({ client_id }))]))).rejects.toThrow(/not found/);
+  });
+
+  it('locks the rate with its source and time, until the rate or currency changes', async () => {
+    const r = await as(maya, (q) => q('select public.save_bill($1) as id', [JSON.stringify(coffee())]));
+    const id = r.rows[0].id;
+    const first = (await db.query('select fx_source, fx_locked_at from public.bills where id = $1', [id])).rows[0];
+    expect(first.fx_source).toBe('ecb');
+    expect(first.fx_locked_at).not.toBeNull();
+    await db.query(`update public.bills set fx_locked_at = now() - interval '3 days' where id = $1`, [id]);
+
+    await as(maya, (q) => q('select public.save_bill($1)', [JSON.stringify(coffee({ id, title: 'Coffees' }))]));
+    const kept = (await db.query(`select title, fx_locked_at < now() - interval '2 days' as old from public.bills where id = $1`, [id])).rows[0];
+    expect(kept).toEqual({ title: 'Coffees', old: true });
+
+    const manual = coffee({ id, fx_rate: 0.95, fx_source: 'manual', total_base_minor: 950, shares: [
+      { user_id: maya, amount_minor: 500, amount_base_minor: 475 },
+      { user_id: sam, amount_minor: 500, amount_base_minor: 475 },
+    ] });
+    await as(maya, (q) => q('select public.save_bill($1)', [JSON.stringify(manual)]));
+    const relocked = (await db.query(`select fx_source, fx_locked_at > now() - interval '1 minute' as fresh from public.bills where id = $1`, [id])).rows[0];
+    expect(relocked).toEqual({ fx_source: 'manual', fresh: true });
+  });
+
+  it('same-currency bills have no rate to lock', async () => {
+    const r = await as(maya, (q) =>
+      q('select public.save_bill($1) as id', [JSON.stringify(coffee({ currency: 'EUR', fx_rate: 1, total_base_minor: 1000, shares: [
+        { user_id: maya, amount_minor: 500, amount_base_minor: 500 },
+        { user_id: sam, amount_minor: 500, amount_base_minor: 500 },
+      ] }))]),
+    );
+    const b = (await db.query('select fx_source, fx_locked_at from public.bills where id = $1', [r.rows[0].id])).rows[0];
+    expect(b).toEqual({ fx_source: null, fx_locked_at: null });
+  });
+});

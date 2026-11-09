@@ -35,6 +35,11 @@ const ICONS = {
   trip: ['airplane', 'flight_takeoff'],
   link: ['link', 'link'],
   refresh: ['arrow.clockwise', 'refresh'],
+  navigate: ['location.north.fill', 'navigation'],
+  pin: ['mappin.and.ellipse', 'add_location_alt'],
+  wallet: ['banknote', 'payments'],
+  cloudOff: ['icloud.slash', 'cloud_off'],
+  arrowUp: ['arrow.up', 'arrow_upward'],
 } as const satisfies Record<string, readonly [string, AndroidSymbol]>;
 
 export type IconName = keyof typeof ICONS;

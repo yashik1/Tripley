@@ -11,10 +11,40 @@ export type MapPerson = {
   isMe: boolean;
 };
 
+export type PlaceKind = 'stay' | 'airport' | 'meetup' | 'food' | 'sight' | 'memory' | 'other';
+
+export type MapPlace = {
+  id: string;
+  name: string;
+  kind: PlaceKind;
+  lat: number;
+  lng: number;
+  radiusM: number;
+  /** Arrival alerts on: the zone is drawn on the map. */
+  alerts: boolean;
+};
+
+export const PLACE_KINDS: { kind: PlaceKind; emoji: string; label: string; alertsByDefault: boolean }[] = [
+  { kind: 'stay', emoji: '🏨', label: 'Where we stay', alertsByDefault: true },
+  { kind: 'airport', emoji: '✈️', label: 'Airport / station', alertsByDefault: true },
+  { kind: 'meetup', emoji: '📍', label: 'Meeting point', alertsByDefault: true },
+  { kind: 'food', emoji: '🍽️', label: 'Food & drink', alertsByDefault: false },
+  { kind: 'sight', emoji: '⭐', label: 'Must see', alertsByDefault: false },
+  { kind: 'memory', emoji: '📸', label: 'Memory', alertsByDefault: false },
+  { kind: 'other', emoji: '🔖', label: 'Other', alertsByDefault: false },
+];
+
+export const placeEmoji = (kind: PlaceKind) => PLACE_KINDS.find((k) => k.kind === kind)?.emoji ?? '🔖';
+
 export type TripMapProps = {
   people: MapPerson[];
+  places?: MapPlace[];
   focusId?: string | null;
   onSelect?: (id: string) => void;
+  onPlacePress?: (id: string) => void;
+  /** While true, tapping the map picks a spot (for pinning a place). */
+  picking?: boolean;
+  onPick?: (lat: number, lng: number) => void;
   /** Change this number to re-fit the map around everyone. */
   fitToken?: number;
 };

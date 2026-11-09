@@ -16,14 +16,18 @@ import { Icon } from '@/components/Icon';
 import { Avatar, Banner, Button, Card, Chip, Field, IconButton, Loading, Row, Screen, SectionTitle, Segmented, Stack, Text } from '@/components/ui';
 import { isPro, receiptUrl, saveBill, ScanError, scanReceipt, uploadReceipt, type SaveBillPayload } from '@/lib/api';
 import { convertMinor, fetchExchangeRate, formatMoney, minorToInput, parseAmount } from '@/lib/currency';
-import { errorMessage } from '@/lib/errors';
+import { errorMessage, isNetworkError } from '@/lib/errors';
 import { firstName, isISODate, todayISO } from '@/lib/format';
-import { keys, useAccount, useBill } from '@/lib/queries';
+import { nearbyPeople } from '@/lib/geo';
+import { newClientId } from '@/lib/ids';
+import { queueBill } from '@/lib/outbox';
+import { keys, useAccount, useBill, useKitties, useLocations } from '@/lib/queries';
 import { receiptToDraft } from '@/lib/receipt';
 import { computeSplit, convertShares, describeIssue, type SplitResult } from '@/lib/split';
 import { useTripId } from '@/lib/trip-context';
 import { useTripData } from '@/lib/trip-hooks';
 import type { BillDetail, Member, Trip } from '@/lib/types';
+import { useKittySummaries } from '@/lib/use-kitties';
 import { radius, space, useTheme } from '@/theme';
 
 type DraftItem = { key: string; name: string; priceText: string; assignees: Record<string, number> };
@@ -34,12 +38,13 @@ const emptyItem = (): DraftItem => ({ key: newKey(), name: '', priceText: '', as
 
 export default function BillEditor() {
   const id = useTripId();
-  const { billId } = useLocalSearchParams<{ billId?: string }>();
+  const { billId, kitty } = useLocalSearchParams<{ billId?: string; kitty?: string }>();
   const { trip, me, members, loading } = useTripData(id);
   const account = useAccount();
   const existing = useBill(billId ?? '');
+  const kittyList = useKitties(id);
 
-  if (loading || !trip || (billId && existing.isLoading)) return <Loading />;
+  if (loading || !trip || (billId && existing.isLoading) || (kitty && kittyList.isLoading)) return <Loading />;
   return (
     <BillForm
       key={billId ?? 'new'}
@@ -50,6 +55,7 @@ export default function BillEditor() {
       members={members}
       pro={isPro(account.data)}
       initial={billId ? existing.data ?? null : null}
+      initialKittyId={kitty}
     />
   );
 }
@@ -62,6 +68,7 @@ function BillForm({
   members,
   pro,
   initial: b,
+  initialKittyId,
 }: {
   tripId: string;
   billId?: string;
@@ -70,6 +77,7 @@ function BillForm({
   members: Member[];
   pro: boolean;
   initial: BillDetail | null;
+  initialKittyId?: string;
 }) {
   const t = useTheme();
   const qc = useQueryClient();
@@ -78,7 +86,18 @@ function BillForm({
   const initialMoney = (minor: number | undefined) => (b && minor ? minorToInput(minor, b.currency) : '');
 
   const [title, setTitle] = useState(b?.title ?? '');
-  const [paidBy, setPaidBy] = useState(b?.paid_by ?? me);
+  const kitties = useKittySummaries(id);
+  const startKitty = b ? b.kitty_id : kitties.find((k) => k.kitty.id === initialKittyId && !k.kitty.closed_at) ?? null;
+  const [kittyId, setKittyId] = useState<string | null>(
+    typeof startKitty === 'string' ? startKitty : startKitty ? startKitty.kitty.id : null,
+  );
+  const [paidBy, setPaidBy] = useState(b?.paid_by ?? (startKitty && typeof startKitty !== 'string' ? startKitty.kitty.holder_id : me));
+  const [fxSource, setFxSource] = useState<'ecb' | 'manual' | null>(b?.fx_source ?? null);
+  // One id per new bill, so saving it again after being offline can't add it twice.
+  const [clientId] = useState(() => newClientId());
+  const [openedAt] = useState(() => Date.now());
+  const locations = useLocations(id);
+  const [groupMode, setGroupMode] = useState<'nearby' | 'everyone'>('nearby');
   const [date, setDate] = useState(b?.bill_date ?? todayISO());
   const [currency, setCurrencyState] = useState(b?.currency ?? base);
   const [rateText, setRateText] = useState(b ? String(b.fx_rate) : '1');
@@ -132,9 +151,13 @@ function BillForm({
       if (request !== rateRequest.current) return;
       if (rate) {
         setRateText(String(Number(rate.toFixed(6))));
-        setRateNote(`European Central Bank rate for ${isISODate(day) ? day : 'today'}. Change it to match what you actually paid.`);
+        setFxSource('ecb');
+        setRateNote(
+          `European Central Bank rate for ${isISODate(day) ? day : 'today'}. It's locked when you save, so later swings don't change anyone's share. Change it to match what you actually paid.`,
+        );
       } else {
         setRateText('');
+        setFxSource('manual');
         setRateNote(`We couldn't find a rate for ${code}. Enter how many ${base} one ${code} was.`);
       }
     });
@@ -149,7 +172,19 @@ function BillForm({
   };
 
   const everyone = members.map((m) => m.user_id);
-  const participants = equalPeople ?? everyone;
+  // "Meet up at the bill": for a new bill, pick the people who were near whoever paid.
+  const nearby = useMemo(() => {
+    if (b) return null;
+    const payer = paidBy || me;
+    const located = (locations.data ?? []).map((l) => ({ userId: l.user_id, lat: l.lat, lng: l.lng, updatedAt: l.updated_at }));
+    const at = located.find((l) => l.userId === payer);
+    if (!at || openedAt - Date.parse(at.updatedAt) > 30 * 60_000) return null;
+    const ids = nearbyPeople(at, located, { now: openedAt }).filter((u) => everyone.includes(u));
+    if (!ids.includes(payer)) ids.push(payer);
+    return ids.length >= 2 && ids.length < everyone.length ? ids : null;
+  }, [b, paidBy, me, locations.data, openedAt, everyone]);
+  const group = nearby && groupMode === 'nearby' ? nearby : everyone;
+  const participants = equalPeople ?? group;
   const participantsKey = participants.join(',');
   const rate = Number(rateText.replace(',', '.'));
   const rateOk = currency === base || (Number.isFinite(rate) && rate > 0);
@@ -207,11 +242,11 @@ function BillForm({
       ),
     );
   const assignAll = (key: string) =>
-    updateItem(key, { assignees: Object.fromEntries(everyone.map((u) => [u, 1])) });
+    updateItem(key, { assignees: Object.fromEntries(group.map((u) => [u, 1])) });
   const assignRemainingToEveryone = () =>
     setItems((list) =>
       list.map((it) =>
-        Object.values(it.assignees).some((w) => w > 0) ? it : { ...it, assignees: Object.fromEntries(everyone.map((u) => [u, 1])) },
+        Object.values(it.assignees).some((w) => w > 0) ? it : { ...it, assignees: Object.fromEntries(group.map((u) => [u, 1])) },
       ),
     );
 
@@ -293,6 +328,9 @@ function BillForm({
 
   // ---------------------------------------------------------------- save
 
+  // Back to where you came from, or the bills list when opened directly (a link, a reload).
+  const leave = () => (router.canGoBack() ? router.back() : router.replace({ pathname: '/trip/[id]/bills', params: { id } }));
+
   const save = async () => {
     setError(null);
     if (!title.trim()) return setError('Give the bill a name, e.g. "Dinner".');
@@ -301,11 +339,23 @@ function BillForm({
     if (!split.ok) return setError(split.issues.map(describeIssue).join(' '));
     if (split.totalMinor <= 0) return setError('The bill total is zero.');
     setSaving(true);
+    let payload: SaveBillPayload | null = null;
+    let photoLeftOut = false;
     try {
-      const path = await ensureUploaded();
+      let path: string | null = null;
+      try {
+        path = await ensureUploaded();
+      } catch (e) {
+        // No connection: keep the bill, leave the photo out.
+        if (billId || !isNetworkError(e)) throw e;
+        photoLeftOut = true;
+      }
       const baseById = new Map(converted.map((c) => [c.userId, c.amountBaseMinor]));
-      const payload: SaveBillPayload = {
+      payload = {
         id: billId || undefined,
+        client_id: billId ? undefined : clientId,
+        kitty_id: kittyId,
+        fx_source: currency === base ? null : fxSource ?? 'manual',
         trip_id: id,
         paid_by: paidBy || me,
         title: title.trim(),
@@ -341,15 +391,30 @@ function BillForm({
           amount_base_minor: baseById.get(s.userId) ?? 0,
         })),
       };
+      if (photoLeftOut) throw new TypeError('Network request failed');
       const savedId = await saveBill(payload);
       await Promise.all([
         qc.invalidateQueries({ queryKey: keys.bills(id) }),
         qc.invalidateQueries({ queryKey: keys.shares(id) }),
         qc.invalidateQueries({ queryKey: keys.bill(savedId) }),
       ]);
-      router.back();
+      leave();
     } catch (e) {
-      setError(errorMessage(e));
+      if (!billId && payload && isNetworkError(e)) {
+        // Offline: keep it on this device and send it when the connection is back.
+        await queueBill({
+          clientId,
+          userId: me,
+          tripId: id,
+          title: payload.title,
+          totalMinor: payload.total_minor,
+          currency,
+          payload: { ...payload, receipt_path: null },
+        });
+        leave();
+        return;
+      }
+      setError(billId && isNetworkError(e) ? 'You’re offline. Changes to a saved bill need a connection.' : errorMessage(e));
       setSaving(false);
     }
   };
@@ -408,10 +473,72 @@ function BillForm({
         <Text variant="label" muted>Who paid?</Text>
         <Row style={{ flexWrap: 'wrap' }}>
           {members.map((m) => (
-            <Chip key={m.user_id} label={nameFor(m)} selected={(paidBy || me) === m.user_id} onPress={() => setPaidBy(m.user_id)} />
+            <Chip
+              key={m.user_id}
+              label={nameFor(m)}
+              selected={!kittyId && (paidBy || me) === m.user_id}
+              onPress={() => {
+                setKittyId(null);
+                setPaidBy(m.user_id);
+              }}
+            />
           ))}
+          {kitties
+            .filter((k) => !k.kitty.closed_at || k.kitty.id === kittyId)
+            .map((k) => (
+              <Chip
+                key={k.kitty.id}
+                testID={`paid-from-kitty-${k.kitty.id}`}
+                label={`💵 ${k.kitty.name} (${k.kitty.holder_id === me ? 'you hold it' : `${firstName(members.find((m) => m.user_id === k.kitty.holder_id)?.profile.display_name || 'Friend')} has it`})`}
+                selected={kittyId === k.kitty.id}
+                onPress={() => {
+                  setKittyId(k.kitty.id);
+                  setPaidBy(k.kitty.holder_id);
+                }}
+              />
+            ))}
         </Row>
+        {kittyId
+          ? (() => {
+              const k = kitties.find((x) => x.kitty.id === kittyId);
+              if (!k) return null;
+              const after = k.summary.cashMinor - (billId && b?.kitty_id === kittyId ? 0 : totalBase);
+              return (
+                <Text variant="caption" color={after < 0 ? t.warning : t.textMuted}>
+                  Paid from the kitty: {formatMoney(k.summary.cashMinor, base)} in it now
+                  {totalBase > 0 && !billId ? `, ${formatMoney(Math.max(after, 0), base)} left after this` : ''}.
+                  {after < 0 ? ' That’s more than is in the kitty; someone may have added cash without recording it.' : ''}
+                </Text>
+              );
+            })()
+          : null}
       </View>
+
+      {nearby ? (
+        <Banner
+          tone="info"
+          icon="location"
+          title={groupMode === 'nearby' ? `Split between the ${nearby.length} of you here` : 'Split with everyone on the trip'}
+          action={
+            <Button
+              title={groupMode === 'nearby' ? 'Include everyone' : `Only the ${nearby.length} who were here`}
+              small
+              kind="secondary"
+              testID="toggle-nearby"
+              onPress={() => {
+                setGroupMode((m) => (m === 'nearby' ? 'everyone' : 'nearby'));
+                setEqualPeople(null);
+              }}
+            />
+          }>
+          {groupMode === 'nearby'
+            ? `${nearby
+                .filter((u) => u !== (paidBy || me))
+                .map((u) => (u === me ? 'You' : firstName(members.find((m) => m.user_id === u)?.profile.display_name || 'Friend')))
+                .join(', ')} ${nearby.length > 2 ? 'were' : 'was'} within 150 m, so they're picked for this bill.`
+            : 'Everyone on the trip is picked. Untick anyone who wasn’t there.'}
+        </Banner>
+      ) : null}
 
       <Row gap={space.md} align="flex-start">
         <View style={{ flex: 1 }}>
@@ -423,7 +550,10 @@ function BillForm({
         <Field
           label={`1 ${currency} = ? ${base}`}
           value={rateText}
-          onChangeText={setRateText}
+          onChangeText={(v) => {
+            setRateText(v);
+            setFxSource('manual');
+          }}
           keyboardType="decimal-pad"
           hint={rateNote ?? undefined}
           error={!rateOk && rateText ? 'Enter a positive number.' : null}
@@ -456,6 +586,7 @@ function BillForm({
               onToggle={(u) => toggle(it.key, u)}
               onBump={(u) => bump(it.key, u)}
               onAll={() => assignAll(it.key)}
+              allLabel={group.length < everyone.length ? 'All here' : 'All'}
               onRemove={items.length > 1 ? () => setItems((l) => l.filter((x) => x.key !== it.key)) : undefined}
             />
           ))}
@@ -544,6 +675,7 @@ function ItemEditor({
   onToggle,
   onBump,
   onAll,
+  allLabel = 'All',
   onRemove,
 }: {
   item: DraftItem;
@@ -555,6 +687,7 @@ function ItemEditor({
   onToggle: (userId: string) => void;
   onBump: (userId: string) => void;
   onAll: () => void;
+  allLabel?: string;
   onRemove?: () => void;
 }) {
   const t = useTheme();
@@ -615,7 +748,7 @@ function ItemEditor({
           );
         })}
         <Pressable onPress={onAll} accessibilityRole="button" style={{ paddingVertical: 6, paddingHorizontal: 8 }}>
-          <Text variant="caption" color={t.primary} style={{ fontWeight: '600' }}>All</Text>
+          <Text variant="caption" color={t.primary} style={{ fontWeight: '600' }}>{allLabel}</Text>
         </Pressable>
       </Row>
       {!anyone && item.priceText.trim() ? (

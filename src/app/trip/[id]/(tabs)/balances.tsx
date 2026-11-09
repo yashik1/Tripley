@@ -1,8 +1,9 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { RefreshControl, View } from 'react-native';
+import { Pressable, RefreshControl, View } from 'react-native';
 
+import { Icon } from '@/components/Icon';
 import { Avatar, Banner, Button, Card, EmptyState, ListRow, Row, Screen, SectionTitle, Stack, Text } from '@/components/ui';
 import { respondToSettlement, toSettlementRows, undoSettlement } from '@/lib/api';
 import { computePairBalances, summarizeForUser } from '@/lib/balances';
@@ -12,6 +13,7 @@ import { timeAgo } from '@/lib/format';
 import { keys, useSettlements, useShareRows } from '@/lib/queries';
 import { useTripId } from '@/lib/trip-context';
 import { useTripData } from '@/lib/trip-hooks';
+import { useKittySummaries } from '@/lib/use-kitties';
 import { space, useTheme } from '@/theme';
 
 export default function BalancesTab() {
@@ -77,6 +79,8 @@ export default function BalancesTab() {
         </Card>
       )}
 
+      <KittyLink tripId={id} base={base} />
+
       {toConfirm.length > 0 ? (
         <Stack gap={space.sm}>
           <SectionTitle>Confirm payments</SectionTitle>
@@ -86,7 +90,8 @@ export default function BalancesTab() {
                 {avatarFor(s.from_user)}
                 <View style={{ flex: 1 }}>
                   <Text>
-                    <Text style={{ fontWeight: '600' }}>{nameOf(s.from_user)}</Text> says they paid you{' '}
+                    <Text style={{ fontWeight: '600' }}>{nameOf(s.from_user)}</Text>
+                    {s.kitty_role === 'contribution' ? ' says they put in the kitty ' : s.kitty_role === 'payout' ? ' says they gave you back from the kitty ' : ' says they paid you '}
                     <Text style={{ fontWeight: '600' }}>{formatMoney(s.amount_base_minor, base)}</Text>
                   </Text>
                   <Text variant="caption" muted>
@@ -187,7 +192,9 @@ export default function BalancesTab() {
               <ListRow
                 key={s.id}
                 title={`${nameOf(s.from_user)} → ${nameOf(s.to_user)}`}
-                subtitle={`${s.status === 'confirmed' ? 'Confirmed' : s.status === 'disputed' ? 'Not received' : 'Waiting for confirmation'} · ${timeAgo(s.created_at)}`}
+                subtitle={`${
+                  s.kitty_role === 'contribution' ? 'Cash into the kitty · ' : s.kitty_role === 'handover' ? 'Kitty handed over · ' : s.kitty_role === 'payout' ? 'Cash back from the kitty · ' : ''
+                }${s.status === 'confirmed' ? 'Confirmed' : s.status === 'disputed' ? 'Not received' : 'Waiting for confirmation'} · ${timeAgo(s.created_at)}`}
                 right={
                   <Row gap={space.sm}>
                     <Text variant="money" color={s.status === 'disputed' ? t.textFaint : t.text}>
@@ -210,5 +217,35 @@ export default function BalancesTab() {
         </Stack>
       ) : null}
     </Screen>
+  );
+}
+
+/** The group's cash kitty, or a way to start one. */
+function KittyLink({ tripId, base }: { tripId: string; base: string }) {
+  const t = useTheme();
+  const { nameOf, me } = useTripData(tripId);
+  const kitties = useKittySummaries(tripId).filter((k) => !k.kitty.closed_at);
+  const k = kitties[0];
+  return (
+    <Pressable
+      accessibilityRole="button"
+      testID="open-kitty"
+      onPress={() => router.push({ pathname: '/trip/[id]/kitty', params: { id: tripId } })}
+      style={({ pressed }) => ({ opacity: pressed ? 0.75 : 1 })}>
+      <Card>
+        <Row gap={space.md}>
+          <Text style={{ fontSize: 22 }}>💵</Text>
+          <View style={{ flex: 1 }}>
+            <Text variant="label">{k ? k.kitty.name : 'Cash kitty'}</Text>
+            <Text variant="caption" muted>
+              {k
+                ? `${formatMoney(k.summary.cashMinor, base)} with ${k.kitty.holder_id === me ? 'you' : nameOf(k.kitty.holder_id)}`
+                : 'Pool cash with one person for taxis, tips and street food'}
+            </Text>
+          </View>
+          <Icon name="chevron" size={18} color={t.textFaint} />
+        </Row>
+      </Card>
+    </Pressable>
   );
 }

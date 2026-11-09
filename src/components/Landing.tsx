@@ -17,29 +17,44 @@ const FEATURES: { icon: IconName; title: string; body: string }[] = [
     body: 'See everyone on one map while the trip is on. Pause anytime. Sharing stops by itself when the trip ends.',
   },
   {
-    icon: 'link',
-    title: 'Invite with a link',
-    body: 'Share a link or QR code on WhatsApp or text. Friends join in seconds, or accept an invite in the app.',
+    icon: 'pin',
+    title: 'Arrival alerts and pins',
+    body: 'Pin the hotel, the airport or a meeting point and hear when friends arrive. Share finds and photo memories on the map.',
+  },
+  {
+    icon: 'navigate',
+    title: 'Find a lost friend',
+    body: 'In a crowd or a market, an arrow points to your friend with how far they are: “Maya is 120 m east.”',
   },
   {
     icon: 'bills',
     title: 'Split bills item by item',
-    body: 'Whoever paid adds the bill and taps who had what. Tax, tip and discounts are shared out fairly.',
+    body: 'Tap who had what, and tax, tip and discounts are shared fairly. People who were with you are picked for you. Pro reads receipts.',
   },
   {
     icon: 'balances',
     title: 'Settle up in a tap',
-    body: 'See exactly who owes whom. Pay with UPI, Venmo, PayPal, Revolut and more, then mark it paid.',
+    body: 'See who owes whom, then pay with UPI, PhonePe, Venmo, Zelle, Revolut, Monzo or a SEPA QR code, and mark it paid.',
+  },
+  {
+    icon: 'wallet',
+    title: 'Cash kitty',
+    body: 'Pool cash with one person for taxis and street food. Tripley tracks what’s left and who’s holding it.',
   },
   {
     icon: 'refresh',
-    title: 'Any currency',
-    body: 'Add bills in the local currency. Balances stay in your trip’s currency, converted for you.',
+    title: 'Any currency, locked rates',
+    body: 'Add bills in the local currency. The exchange rate is locked when you save, so nobody argues later.',
   },
   {
-    icon: 'sparkles',
-    title: 'Receipts read for you',
-    body: 'With Tripley Pro, snap a receipt and the items, prices, tax and tip are filled in.',
+    icon: 'cloudOff',
+    title: 'Works offline',
+    body: 'Install it to your home screen. Log bills on a mountain or a plane; they sync when you’re back online.',
+  },
+  {
+    icon: 'link',
+    title: 'Invite with a link',
+    body: 'Share a link or QR code on WhatsApp or text. Friends join in seconds, no app store needed.',
   },
 ];
 

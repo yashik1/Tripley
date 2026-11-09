@@ -38,6 +38,7 @@ export type Member = {
   role: 'organizer' | 'member';
   location_sharing: boolean;
   sharing_mode: SharingMode;
+  arrival_alerts: boolean;
   joined_at: string;
   profile: Profile;
 };
@@ -77,6 +78,10 @@ export type Bill = {
   receipt_path: string | null;
   source: 'manual' | 'ai';
   notes: string | null;
+  kitty_id: string | null;
+  fx_source: 'ecb' | 'manual' | null;
+  fx_locked_at: string | null;
+  client_id: string | null;
   created_at: string;
   bill_shares: BillShare[];
 };
@@ -102,8 +107,46 @@ export type Settlement = {
   method: string | null;
   note: string | null;
   status: 'paid' | 'confirmed' | 'disputed';
+  kitty_id: string | null;
+  kitty_role: 'contribution' | 'handover' | 'payout' | null;
   created_at: string;
   responded_at: string | null;
+};
+
+export type PlaceKind = 'stay' | 'airport' | 'meetup' | 'food' | 'sight' | 'memory' | 'other';
+
+export type Place = {
+  id: string;
+  trip_id: string;
+  created_by: string;
+  kind: PlaceKind;
+  name: string;
+  note: string | null;
+  lat: number;
+  lng: number;
+  radius_m: number;
+  alerts: boolean;
+  photo_path: string | null;
+  created_at: string;
+};
+
+export type Kitty = {
+  id: string;
+  trip_id: string;
+  name: string;
+  holder_id: string;
+  created_by: string;
+  created_at: string;
+  closed_at: string | null;
+};
+
+export type KittyOwnCash = {
+  id: string;
+  kitty_id: string;
+  user_id: string;
+  amount_base_minor: number;
+  note: string | null;
+  created_at: string;
 };
 
 export type Invitation = {

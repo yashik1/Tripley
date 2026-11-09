@@ -13,4 +13,9 @@ module.exports = defineConfig([
     files: ['scripts/**/*.cjs'],
     languageOptions: { sourceType: 'commonjs', globals: globals.node },
   },
+  {
+    // The web app's service worker.
+    files: ['public/sw.js'],
+    languageOptions: { sourceType: 'script', globals: globals.serviceworker },
+  },
 ]);

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Switch, View } from 'react-native';
 
 import { Banner, Button, Card, Field, Loading, Row, Screen, SectionTitle, Stack, Text } from '@/components/ui';
-import { deleteTrip, leaveTrip, regenerateInviteCode, updateTrip } from '@/lib/api';
+import { deleteTrip, leaveTrip, regenerateInviteCode, updateMySharing, updateTrip } from '@/lib/api';
 import { confirm } from '@/lib/confirm';
 import { errorMessage } from '@/lib/errors';
 import { isISODate } from '@/lib/format';
@@ -67,6 +67,7 @@ function TripSettingsForm({ id, trip, isOrganizer, active }: { id: string; trip:
   if (!isOrganizer) {
     return (
       <Screen>
+        <ArrivalAlertsCard tripId={id} />
         <Text muted>Only the organizer can change trip details.</Text>
         {error ? <Banner tone="danger">{error}</Banner> : null}
         <Button
@@ -87,6 +88,7 @@ function TripSettingsForm({ id, trip, isOrganizer, active }: { id: string; trip:
     <Screen>
       {error ? <Banner tone="danger">{error}</Banner> : null}
       {saved ? <Banner tone="success">Saved.</Banner> : null}
+      <ArrivalAlertsCard tripId={id} />
       <Card>
         <Field label="Trip name" value={name} onChangeText={setName} maxLength={80} />
         <Row gap={space.md}>
@@ -163,5 +165,37 @@ function TripSettingsForm({ id, trip, isOrganizer, active }: { id: string; trip:
         </Card>
       </Stack>
     </Screen>
+  );
+}
+
+/** Your own setting: hear when people arrive at the trip's places. */
+function ArrivalAlertsCard({ tripId }: { tripId: string }) {
+  const qc = useQueryClient();
+  const { myMembership } = useTripData(tripId);
+  const [error, setError] = useState<string | null>(null);
+  const on = myMembership?.arrival_alerts ?? true;
+  return (
+    <Card>
+      <Row style={{ justifyContent: 'space-between' }} gap={space.md}>
+        <View style={{ flex: 1, gap: 2 }}>
+          <Text variant="label">Arrival alerts</Text>
+          <Text variant="caption" muted>Get told when someone arrives at a place pinned with alerts, like where you&apos;re staying.</Text>
+        </View>
+        <Switch
+          testID="arrival-alerts-switch"
+          value={on}
+          onValueChange={async (value) => {
+            setError(null);
+            try {
+              await updateMySharing(tripId, { arrival_alerts: value });
+              await qc.invalidateQueries({ queryKey: keys.members(tripId) });
+            } catch (e) {
+              setError(errorMessage(e));
+            }
+          }}
+        />
+      </Row>
+      {error ? <Banner tone="danger">{error}</Banner> : null}
+    </Card>
   );
 }

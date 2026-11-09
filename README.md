@@ -5,9 +5,14 @@ Group trips without the "where are you?" texts and the spreadsheet at the end.
 **Live:** https://web-production-f080e3.up.railway.app (sign up with email and password, or try it as a guest)
 
 - **Live map.** Everyone on the trip sees each other, even with the app closed (iPhone & Android). Pause anytime; sharing stops by itself when the trip ends.
+- **Places, pins and arrival alerts.** Pin where you're staying, the airport, a meeting point, a great find or a photo memory. Places with alerts on tell the group "Cleo arrived at Hotel Artemide" (once per 30 minutes, never for where someone already was; each person can turn alerts off).
+- **Find a lost friend.** A big arrow and "Ana is 50 m south of you" for crowds and markets. It turns with the phone's compass where there is one (iPhone, Android, Chrome on Android, Safari on iPhone after a tap).
 - **Invite by link or in the app.** The organizer shares a link or QR code (WhatsApp, SMS…), or invites people already on Tripley by phone number or email. They tap Accept.
-- **Bills split for you.** Whoever paid adds the bill, taps who had which item, and Tripley works out every share: shared items, tax, service, tip, discounts, other currencies. No maths.
-- **Settle up.** "You owe Maya ₹1,240" → **Pay** opens UPI / Venmo / PayPal / Revolut / Cash App / Wise with the amount filled in → **Mark as paid** → Maya taps **Got it**.
+- **Bills split for you.** Whoever paid adds the bill, taps who had which item, and Tripley works out every share: shared items, tax, service, tip, discounts, other currencies. No maths. People who were within 150 m of the payer are picked automatically ("Split between the 2 of you here"), with one tap to include everyone.
+- **Locked exchange rates.** A foreign-currency bill uses the European Central Bank rate for its date (or one you type), locked when saved and shown on the bill, so later swings never change anyone's share.
+- **Settle up.** "You owe Maya ₹1,240" → **Pay** opens UPI / PhonePe / Paytm, Venmo / Zelle / Cash App, Revolut / Monzo / Wise / PayPal, or shows a SEPA QR code for euro bank transfers, ordered for the trip's region → **Mark as paid** → Maya taps **Got it**.
+- **Cash kitty.** Pool cash with one person for taxis and street food. Put cash in, spend from it, hand it over; Tripley shows what's left and who holds it, and it flows into everyone's balances so leftovers come back on settling up.
+- **Works offline.** The web app installs to the home screen and opens without a connection (a service worker keeps the app and recent map tiles; trips, bills and balances are kept on the device). Bills added offline wait on the device and are sent once, exactly once, when you're back online.
 - **Accounts.** Sign up with email and password, log in on any device, reset a forgotten password by email. Guests can try it with just a name and save their account later without losing their trips.
 - **Free + Pro.** Everything is free except **AI receipt reading** (Tripley Pro): snap the receipt and the items, prices, tax and tip are filled in.
 
@@ -179,7 +184,7 @@ Tripley runs in the Railway project **tripley**: the open-source Supabase stack 
 | `auth`, `rest`, `realtime`, `storage`, `meta`, `functions` | Supabase's sign-in, REST API, live updates, file storage (volume), dashboard backend, edge runtime |
 | `studio` | The Supabase dashboard |
 | `supabase` | Gateway: the public API URL (`https://supabase-production-….up.railway.app`), and Studio behind a login |
-| `web` | This repo: built with `npm run export:web` (copies the map worker into `public/`, then `expo export --platform web`), served by `scripts/serve-web.cjs` |
+| `web` | This repo: built with `npm run export:web` (copies the map worker into `public/`, runs `expo export --platform web`, then lists every file for the service worker with `scripts/precache-manifest.cjs`), served by `scripts/serve-web.cjs` |
 
 **How a deploy works.** Pushing to the deployed branch rebuilds `web`. Before the new version goes live, Railway runs the pre-deploy command `node scripts/migrate.cjs`. It applies any new file in `supabase/migrations/` once, recorded in `supabase_migrations.schema_migrations` (the Supabase CLI's table). If a migration fails, the deploy stops and the old version keeps running.
 
@@ -283,6 +288,8 @@ To run it locally:
 2. Run `npx supabase start`.
 3. Run `npx expo start --web` with `EXPO_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321` and the local publishable key.
 4. Run `npm run test:e2e`. The test signs up fixed phone numbers, so delete those users (and their trips) before running it again.
+
+`tests/e2e/roadmap.cjs` (`npm run test:e2e:roadmap`, same build as the accounts test) follows three people in Rome: pinning the hotel and an arrival alert when one of them gets there; the friend finder; a dinner split only between the two who were nearby; a dollar bill with the rate locked; a cash kitty (cash in, spending, handing over); a SEPA QR code; and a bill saved offline, the app reopened with no connection, then synced exactly once.
 
 `tests/e2e/accounts.cjs` (`npm run test:e2e:accounts`) covers accounts against a web build with `EXPO_PUBLIC_AUTH_METHODS=password,guest`: the landing page; sign up; log out and back in; forgot password, with the reset link (read from the local mail catcher on :54324) opened in a different browser; a guest saving their account and logging in elsewhere with their trip intact; signing up from an invite; and a duplicate email.
 

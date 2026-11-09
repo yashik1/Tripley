@@ -50,6 +50,10 @@ export default function TripLayout() {
       <Stack.Screen name="invite" options={{ title: 'Invite friends', presentation: 'modal' }} />
       <Stack.Screen name="settle/[userId]" options={{ title: 'Settle up' }} />
       <Stack.Screen name="settings" options={{ title: 'Trip settings' }} />
+      <Stack.Screen name="place/new" options={{ title: 'Pin a place', presentation: 'modal' }} />
+      <Stack.Screen name="place/[placeId]" options={{ title: 'Place' }} />
+      <Stack.Screen name="find/[userId]" options={{ title: 'Find a friend' }} />
+      <Stack.Screen name="kitty" options={{ title: 'Cash kitty' }} />
     </Stack>
     </TripIdContext.Provider>
   );

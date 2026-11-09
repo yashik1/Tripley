@@ -10,19 +10,23 @@ import { hasAuth } from '@/lib/auth-methods';
 import { confirm } from '@/lib/confirm';
 import { errorMessage } from '@/lib/errors';
 import { isGuest } from '@/lib/guest';
-import { normalizeHandles, type PaymentHandles } from '@/lib/payment-links';
+import { isValidIban, normalizeHandles, type PaymentHandles } from '@/lib/payment-links';
 import { useAccount } from '@/lib/queries';
 import { useAuth } from '@/providers/AuthProvider';
 import { space, useTheme } from '@/theme';
 
-const HANDLE_FIELDS: { key: keyof PaymentHandles; label: string; placeholder: string }[] = [
-  { key: 'upi', label: 'UPI ID', placeholder: 'name@okhdfcbank' },
-  { key: 'venmo', label: 'Venmo username', placeholder: 'maya-r' },
-  { key: 'paypal', label: 'PayPal.me username', placeholder: 'mayar' },
-  { key: 'revolut', label: 'Revolut @tag', placeholder: 'mayar' },
-  { key: 'cashapp', label: 'Cash App $cashtag', placeholder: 'mayar' },
-  { key: 'wise', label: 'Wise pay link name', placeholder: 'mayar' },
-  { key: 'other', label: 'Other (bank details, etc.)', placeholder: 'IBAN / account number' },
+const HANDLE_FIELDS: { key: keyof PaymentHandles; label: string; placeholder: string; group: string }[] = [
+  { key: 'upi', label: 'UPI ID (also opens PhonePe, Paytm, GPay)', placeholder: 'name@okhdfcbank', group: 'India' },
+  { key: 'venmo', label: 'Venmo username', placeholder: 'maya-r', group: 'United States' },
+  { key: 'zelle', label: 'Zelle email or phone', placeholder: 'maya@example.com', group: 'United States' },
+  { key: 'cashapp', label: 'Cash App $cashtag', placeholder: 'mayar', group: 'United States' },
+  { key: 'iban', label: 'IBAN (for a SEPA QR code)', placeholder: 'DE89 3704 0044 0532 0130 00', group: 'Europe & UK' },
+  { key: 'iban_name', label: 'Name on the bank account', placeholder: 'Maya Rao', group: 'Europe & UK' },
+  { key: 'monzo', label: 'Monzo.me username', placeholder: 'mayar', group: 'Europe & UK' },
+  { key: 'revolut', label: 'Revolut @tag', placeholder: 'mayar', group: 'Europe & UK' },
+  { key: 'wise', label: 'Wise pay link name', placeholder: 'mayar', group: 'Europe & UK' },
+  { key: 'paypal', label: 'PayPal.me username', placeholder: 'mayar', group: 'Anywhere' },
+  { key: 'other', label: 'Other (bank details, etc.)', placeholder: 'Account number, sort code…', group: 'Anywhere' },
 ];
 
 export default function Profile() {
@@ -40,6 +44,7 @@ export default function Profile() {
 
   const save = async () => {
     if (!name.trim()) return setMessage({ tone: 'danger', text: 'Your name can’t be empty.' });
+    if ((handles.iban ?? '').trim() && !isValidIban(handles.iban)) return setMessage({ tone: 'danger', text: 'Check your IBAN, or leave it empty.' });
     setBusy(true);
     setMessage(null);
     try {
@@ -91,20 +96,25 @@ export default function Profile() {
         <Text variant="caption" muted>
           Shown to people on your trips when they settle up, so their payment app opens with the amount filled in.
         </Text>
-        <Card>
-          {HANDLE_FIELDS.map((f) => (
-            <Field
-              key={f.key}
-              label={f.label}
-              value={handles[f.key] ?? ''}
-              onChangeText={(v) => setHandles((h) => ({ ...h, [f.key]: v }))}
-              placeholder={f.placeholder}
-              autoCapitalize="none"
-              autoCorrect={false}
-              multiline={f.key === 'other'}
-            />
-          ))}
-        </Card>
+        {[...new Set(HANDLE_FIELDS.map((f) => f.group))].map((group) => (
+          <Card key={group}>
+            <Text variant="caption" muted style={{ fontWeight: '600' }}>{group}</Text>
+            {HANDLE_FIELDS.filter((f) => f.group === group).map((f) => (
+              <Field
+                key={f.key}
+                label={f.label}
+                testID={`handle-${f.key}`}
+                value={handles[f.key] ?? ''}
+                onChangeText={(v) => setHandles((h) => ({ ...h, [f.key]: v }))}
+                placeholder={f.placeholder}
+                autoCapitalize={f.key === 'iban' ? 'characters' : f.key === 'iban_name' ? 'words' : 'none'}
+                autoCorrect={false}
+                multiline={f.key === 'other'}
+                error={f.key === 'iban' && (handles.iban ?? '').trim() && !isValidIban(handles.iban) ? 'That IBAN doesn’t look right. Check the digits.' : null}
+              />
+            ))}
+          </Card>
+        ))}
       </Stack>
 
       {!guest && user?.email && hasAuth('password') ? <ChangePasswordCard /> : null}

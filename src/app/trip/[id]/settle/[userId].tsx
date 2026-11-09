@@ -3,6 +3,7 @@ import * as Clipboard from 'expo-clipboard';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Linking, View } from 'react-native';
+import QRCode from 'react-native-qrcode-svg';
 
 import { Avatar, Banner, Button, Card, Chip, Field, ListRow, Row, Screen, SectionTitle, Stack, Text } from '@/components/ui';
 import { markPaid, recordPaymentReceived, toSettlementRows } from '@/lib/api';
@@ -15,7 +16,7 @@ import { useTripId } from '@/lib/trip-context';
 import { useTripData } from '@/lib/trip-hooks';
 import { space, useTheme } from '@/theme';
 
-const METHODS = ['UPI', 'Venmo', 'PayPal', 'Revolut', 'Cash App', 'Wise', 'Bank transfer', 'Cash', 'Other'];
+const METHODS = ['UPI', 'PhonePe', 'Paytm', 'Venmo', 'Zelle', 'PayPal', 'Revolut', 'Monzo', 'Cash App', 'Wise', 'Bank transfer', 'Cash', 'Other'];
 
 export default function SettleUp() {
   const id = useTripId();
@@ -97,31 +98,43 @@ export default function SettleUp() {
           ) : (
             <Card>
               {options.map((o) => (
-                <ListRow
-                  key={o.kind}
-                  title={o.label}
-                  subtitle={o.prefillsAmount ? `${o.copyText} · amount filled in` : o.copyText}
-                  right={
-                    <Row gap={space.xs}>
-                      <Button
-                        title="Copy"
-                        kind="ghost"
-                        small
-                        onPress={() => Clipboard.setStringAsync(o.copyText)}
-                      />
-                      {o.url ? (
+                <View key={o.kind} style={{ gap: space.sm }}>
+                  <ListRow
+                    title={o.label}
+                    subtitle={o.prefillsAmount ? `${o.copyText} · amount filled in` : o.copyText}
+                    right={
+                      <Row gap={space.xs}>
                         <Button
-                          title="Open"
+                          title="Copy"
+                          kind="ghost"
                           small
-                          onPress={() => {
-                            setMethod(o.label.split(' ')[0]);
-                            Linking.openURL(o.url!).catch(() => setError(`Couldn't open ${o.label}. Is the app installed?`));
-                          }}
+                          onPress={() => Clipboard.setStringAsync(o.copyText)}
                         />
-                      ) : null}
-                    </Row>
-                  }
-                />
+                        {o.url ? (
+                          <Button
+                            title="Open"
+                            small
+                            testID={`pay-${o.kind}`}
+                            onPress={() => {
+                              setMethod(o.kind === 'sepa' ? 'Bank transfer' : o.label.split(' ')[0]);
+                              Linking.openURL(o.url!).catch(() => setError(`Couldn't open ${o.label}. Is the app installed?`));
+                            }}
+                          />
+                        ) : null}
+                      </Row>
+                    }
+                  />
+                  {o.qr ? (
+                    <View style={{ alignItems: 'center', gap: space.xs, paddingBottom: space.sm }} testID="sepa-qr">
+                      <View style={{ padding: 12, backgroundColor: '#fff', borderRadius: 12 }}>
+                        <QRCode value={o.qr} size={170} ecl="M" />
+                      </View>
+                      <Text variant="caption" muted center>
+                        Scan in your banking app: name, IBAN, amount and reference fill in by themselves.
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
               ))}
             </Card>
           )}

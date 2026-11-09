@@ -20,7 +20,7 @@ const otherSignIn = accounts || hasAuth('phone') || hasAuth('email') || hasAuth(
 
 export default function JoinTrip() {
   const { code = '', auto } = useLocalSearchParams<{ code: string; auto?: string }>();
-  const { session, profile } = useAuth();
+  const { session, profile, profileLoading } = useAuth();
   // New accounts without a name set it first; the invite is kept and finished after.
   const needsName = !!session && !!profile && !profile.display_name.trim();
   const qc = useQueryClient();
@@ -53,7 +53,9 @@ export default function JoinTrip() {
 
   // Finish joining automatically after signing in from this invite.
   useEffect(() => {
-    if (!session || needsName || !p || p.is_member || autoTried.current) return;
+    // Wait for the profile: someone new may need to set their name first (the
+    // invite is kept and finished after), and joining now would skip that.
+    if (!session || profileLoading || needsName || !p || p.is_member || autoTried.current) return;
     let cancelled = false;
     peekPendingJoin().then(async (pending) => {
       if (cancelled || autoTried.current) return;
@@ -66,7 +68,7 @@ export default function JoinTrip() {
     return () => {
       cancelled = true;
     };
-  }, [session, needsName, p, auto, code, join]);
+  }, [session, profileLoading, needsName, p, auto, code, join]);
 
   if (needsName) return <Redirect href="/welcome" />;
   if (preview.isLoading) return <Loading />;

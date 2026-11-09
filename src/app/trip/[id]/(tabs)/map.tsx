@@ -1,42 +1,24 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
+import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Linking, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { Icon } from '@/components/Icon';
 import { TripMap } from '@/components/TripMap';
-import type { MapPerson } from '@/components/TripMap.types';
-import { Avatar, Banner, Button, Chip, initials, Row, Text } from '@/components/ui';
+import type { MapPerson, MapPlace } from '@/components/TripMap.types';
+import { Avatar, Banner, Button, Chip, IconButton, initials, Row, Text } from '@/components/ui';
 import { updateMySharing } from '@/lib/api';
 import { errorMessage } from '@/lib/errors';
 import { isStale, timeAgo } from '@/lib/format';
-import { keys, useLocations } from '@/lib/queries';
+import { describeOffset } from '@/lib/geo';
+import { directionsUrl } from '@/lib/map-links';
+import { keys, useLocations, usePlaces } from '@/lib/queries';
 import { useTripId } from '@/lib/trip-context';
 import { useTripData } from '@/lib/trip-hooks';
 import type { Member } from '@/lib/types';
 import { useSharing } from '@/providers/SharingProvider';
 import { colorFor, radius, space, useTheme } from '@/theme';
-
-function distanceKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
-  const R = 6371;
-  const toRad = (d: number) => (d * Math.PI) / 180;
-  const dLat = toRad(b.lat - a.lat);
-  const dLng = toRad(b.lng - a.lng);
-  const h = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLng / 2) ** 2;
-  return 2 * R * Math.asin(Math.sqrt(h));
-}
-
-function formatDistance(km: number): string {
-  if (km < 1) return `${Math.round(km * 1000)} m away`;
-  if (km < 10) return `${km.toFixed(1)} km away`;
-  return `${Math.round(km)} km away`;
-}
-
-function directionsUrl(lat: number, lng: number): string {
-  return Platform.OS === 'ios'
-    ? `http://maps.apple.com/?daddr=${lat},${lng}`
-    : `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
-}
 
 export default function TripMapScreen() {
   const id = useTripId();
@@ -44,7 +26,9 @@ export default function TripMapScreen() {
   const qc = useQueryClient();
   const { me, members, byId, myMembership, active } = useTripData(id);
   const locations = useLocations(id);
+  const placesQuery = usePlaces(id);
   const sharing = useSharing();
+  const [picking, setPicking] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const [focusId, setFocusId] = useState<string | null>(null);
   const [fitToken, setFitToken] = useState(0);
@@ -85,7 +69,24 @@ export default function TripMapScreen() {
         }),
     [locations.data, byId, me, now],
   );
+  const places: MapPlace[] = useMemo(
+    () =>
+      (placesQuery.data ?? []).map((p) => ({
+        id: p.id,
+        name: p.name,
+        kind: p.kind,
+        lat: p.lat,
+        lng: p.lng,
+        radiusM: p.radius_m,
+        alerts: p.alerts,
+      })),
+    [placesQuery.data],
+  );
   const myPos = people.find((p) => p.isMe);
+  const pinAt = (lat: number, lng: number) => {
+    setPicking(false);
+    router.push({ pathname: '/trip/[id]/place/new', params: { id, lat: lat.toFixed(6), lng: lng.toFixed(6) } });
+  };
   const focused = people.find((p) => p.id === focusId);
   const sharingOn = myMembership?.location_sharing ?? false;
 
@@ -108,25 +109,50 @@ export default function TripMapScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: t.bg }}>
-      <TripMap people={people} focusId={focusId} onSelect={setFocusId} fitToken={fitToken} />
+      <TripMap
+        people={people}
+        places={places}
+        focusId={focusId}
+        onSelect={setFocusId}
+        onPlacePress={(placeId) => router.push({ pathname: '/trip/[id]/place/[placeId]', params: { id, placeId } })}
+        picking={picking}
+        onPick={pinAt}
+        fitToken={fitToken}
+      />
 
       <View style={styles.topOverlay} pointerEvents="box-none">
-        <StatusBanner
-          active={active}
-          sharingOn={sharingOn}
-          busy={busy}
-          onResume={() => setMySharing({ location_sharing: true })}
-        />
+        {picking ? (
+          <Banner
+            tone="info"
+            icon="pin"
+            title="Tap the map where the place is"
+            action={
+              <Row gap={space.sm} style={{ flexWrap: 'wrap' }}>
+                {myPos ? <Button title="Use where I am" small onPress={() => pinAt(myPos.lat, myPos.lng)} testID="pin-here" /> : null}
+                <Button title="Cancel" small kind="secondary" onPress={() => setPicking(false)} />
+              </Row>
+            }>
+            A stay, the airport, a meeting point, a great find or a memory.
+          </Banner>
+        ) : (
+          <StatusBanner
+            active={active}
+            sharingOn={sharingOn}
+            busy={busy}
+            onResume={() => setMySharing({ location_sharing: true })}
+          />
+        )}
         {error ? <Banner tone="danger">{error}</Banner> : null}
       </View>
 
       <View style={[styles.sheet, { backgroundColor: t.surface, borderColor: t.border }]}>
         <Row style={{ justifyContent: 'space-between' }}>
           <Text variant="heading">Who&apos;s where</Text>
-          <Row gap={space.xs}>
-            <Chip label={keepAwake ? 'Screen on' : 'Keep screen on'} selected={keepAwake} onPress={() => setKeepAwake((v) => !v)} />
-            <Chip label="Fit all" onPress={() => { setFocusId(null); setFitToken((n) => n + 1); }} />
-          </Row>
+          <Chip label="Fit all" onPress={() => { setFocusId(null); setFitToken((n) => n + 1); }} />
+        </Row>
+        <Row gap={space.xs} style={{ flexWrap: 'wrap' }}>
+          <Chip label="📍 Pin a place" selected={picking} onPress={() => setPicking((v) => !v)} testID="pin-place" />
+          <Chip label={keepAwake ? 'Screen on' : 'Keep screen on'} selected={keepAwake} onPress={() => setKeepAwake((v) => !v)} />
         </Row>
 
         <ScrollView style={{ maxHeight: 200 }} contentContainerStyle={{ gap: 2 }}>
@@ -139,6 +165,7 @@ export default function TripMapScreen() {
               myPos={myPos}
               focused={focusId === m.user_id}
               onPress={() => setFocusId(m.user_id)}
+              onFind={() => router.push({ pathname: '/trip/[id]/find/[userId]', params: { id, userId: m.user_id } })}
             />
           ))}
         </ScrollView>
@@ -257,6 +284,7 @@ function MemberRow({
   myPos,
   focused,
   onPress,
+  onFind,
 }: {
   m: Member;
   me: string;
@@ -264,6 +292,7 @@ function MemberRow({
   myPos?: MapPerson;
   focused: boolean;
   onPress: () => void;
+  onFind: () => void;
 }) {
   const t = useTheme();
   const name = m.user_id === me ? 'You' : m.profile.display_name || 'Friend';
@@ -271,7 +300,7 @@ function MemberRow({
   if (!m.location_sharing) status = 'Paused sharing';
   else if (!location) status = 'No location yet';
   else {
-    const dist = myPos && !location.isMe ? ` · ${formatDistance(distanceKm(myPos, location))}` : '';
+    const dist = myPos && !location.isMe ? ` · ${describeOffset(myPos, location)}` : '';
     status = `${location.stale ? 'Last seen' : 'Updated'} ${location.ago}${dist}`;
   }
   return (
@@ -287,7 +316,11 @@ function MemberRow({
         <Text style={{ fontWeight: '500' }} numberOfLines={1}>{name}</Text>
         <Text variant="caption" muted numberOfLines={1}>{status}</Text>
       </View>
-      {location ? <Icon name="myLocation" size={18} color={t.textFaint} /> : null}
+      {location && myPos && !location.isMe ? (
+        <IconButton icon="navigate" label={`Find ${name}`} color={t.primary} size={20} onPress={onFind} />
+      ) : location ? (
+        <Icon name="myLocation" size={18} color={t.textFaint} />
+      ) : null}
     </Pressable>
   );
 }

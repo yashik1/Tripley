@@ -272,16 +272,19 @@ export function Chip({
   selected,
   onPress,
   color,
+  testID,
 }: {
   label: string;
   selected?: boolean;
   onPress?: () => void;
   color?: string;
+  testID?: string;
 }) {
   const t = useTheme();
   const c = color ?? t.primary;
   return (
     <Pressable
+      testID={testID}
       accessibilityRole="button"
       accessibilityState={{ selected: !!selected }}
       onPress={onPress}

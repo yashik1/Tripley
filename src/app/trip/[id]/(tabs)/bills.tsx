@@ -1,10 +1,13 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { RefreshControl, View } from 'react-native';
 
-import { Avatar, Button, Card, EmptyState, Row, Screen, SectionTitle, Stack, Text } from '@/components/ui';
+import { Icon } from '@/components/Icon';
+import { Avatar, Banner, Button, Card, EmptyState, Row, Screen, SectionTitle, Stack, Text } from '@/components/ui';
 import { formatMoney } from '@/lib/currency';
-import { formatDate } from '@/lib/format';
-import { useBills } from '@/lib/queries';
+import { formatDate, timeAgo } from '@/lib/format';
+import { discardQueuedBill, flushOutbox, retryQueuedBill, useOutbox } from '@/lib/outbox';
+import { keys, useBills } from '@/lib/queries';
 import { useTripId } from '@/lib/trip-context';
 import { useTripData } from '@/lib/trip-hooks';
 import { space, useTheme } from '@/theme';
@@ -14,7 +17,13 @@ export default function BillsTab() {
   const t = useTheme();
   const { trip, me, nameOf, byId } = useTripData(id);
   const bills = useBills(id);
+  const qc = useQueryClient();
+  const waiting = useOutbox(me, id);
   const base = trip?.base_currency ?? 'USD';
+  const syncNow = async () => {
+    await flushOutbox(me);
+    await Promise.all([qc.invalidateQueries({ queryKey: keys.bills(id) }), qc.invalidateQueries({ queryKey: keys.shares(id) })]);
+  };
   const list = bills.data ?? [];
   const total = list.reduce((a, b) => a + b.total_base_minor, 0);
   const mine = list.reduce((a, b) => a + (b.bill_shares.find((s) => s.user_id === me)?.amount_base_minor ?? 0), 0);
@@ -36,6 +45,38 @@ export default function BillsTab() {
         </Row>
       ) : null}
 
+      {waiting.length > 0 ? (
+        <Stack gap={space.sm}>
+          <Banner
+            tone={waiting.some((w) => w.error) ? 'warning' : 'info'}
+            icon="cloudOff"
+            title={`${waiting.length} ${waiting.length === 1 ? 'bill' : 'bills'} saved on this device`}
+            action={<Button title="Sync now" small kind="secondary" onPress={syncNow} testID="sync-now" />}>
+            They&apos;re sent as soon as you&apos;re back online, and only once.
+          </Banner>
+          {waiting.map((w) => (
+            <Card key={w.clientId} style={{ borderStyle: 'dashed' }}>
+              <Row gap={space.md}>
+                <Icon name="cloudOff" size={22} color={w.error ? t.warning : t.textFaint} />
+                <View style={{ flex: 1, gap: 2 }}>
+                  <Text style={{ fontWeight: '600' }} numberOfLines={1} testID="queued-bill">{w.title}</Text>
+                  <Text variant="caption" color={w.error ? t.warning : t.textMuted}>
+                    {w.error ? `Couldn’t save: ${w.error}` : `Waiting to sync · added ${timeAgo(w.queuedAt)}`}
+                  </Text>
+                </View>
+                <Text variant="money">{formatMoney(w.totalMinor, w.currency)}</Text>
+              </Row>
+              {w.error ? (
+                <Row gap={space.sm}>
+                  <Button title="Try again" small onPress={async () => { await retryQueuedBill(w.clientId); await syncNow(); }} />
+                  <Button title="Discard" small kind="ghost" onPress={() => discardQueuedBill(w.clientId)} />
+                </Row>
+              ) : null}
+            </Card>
+          ))}
+        </Stack>
+      ) : null}
+
       {bills.isLoading ? null : list.length === 0 ? (
         <EmptyState
           icon="bills"
@@ -55,7 +96,7 @@ export default function BillsTab() {
                   <View style={{ flex: 1, gap: 2 }}>
                     <Text style={{ fontWeight: '600' }} numberOfLines={1}>{b.title}</Text>
                     <Text variant="caption" muted>
-                      {nameOf(b.paid_by)} paid · {formatDate(b.bill_date)}
+                      {b.kitty_id ? '💵 From the kitty' : `${nameOf(b.paid_by)} paid`} · {formatDate(b.bill_date)}
                       {b.source === 'ai' ? ' · scanned' : ''}
                     </Text>
                   </View>

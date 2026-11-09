@@ -38,6 +38,9 @@ export const keys = {
   account: ['account'] as const,
   friends: ['friends'] as const,
   sharing: ['sharing'] as const,
+  places: (id: string) => ['places', id] as const,
+  kitties: (id: string) => ['kitties', id] as const,
+  kittyCash: (id: string) => ['kittyCash', id] as const,
 };
 
 export const useTrips = () => useQuery({ queryKey: keys.trips, queryFn: api.listMyTrips });
@@ -58,6 +61,10 @@ export const useInvitations = () => useQuery({ queryKey: keys.invitations, query
 export const useNotifications = () =>
   useQuery({ queryKey: keys.notifications, queryFn: api.listNotifications, refetchInterval: 120_000 });
 export const useAccount = () => useQuery({ queryKey: keys.account, queryFn: api.getAccount });
+export const usePlaces = (id: string) => useQuery({ queryKey: keys.places(id), queryFn: () => api.listPlaces(id), enabled: !!id });
+export const useKitties = (id: string) => useQuery({ queryKey: keys.kitties(id), queryFn: () => api.listKitties(id), enabled: !!id });
+export const useKittyOwnCash = (id: string) =>
+  useQuery({ queryKey: keys.kittyCash(id), queryFn: () => api.listKittyOwnCash(id), enabled: !!id });
 export const useFriends = () => useQuery({ queryKey: keys.friends, queryFn: api.myTripFriends });
 
 /** Live updates for one trip while its screens are open. */
@@ -88,13 +95,23 @@ export function useTripRealtime(tripId: string) {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'settlements', filter }, () => {
         qc.invalidateQueries({ queryKey: keys.settlements(tripId) });
       })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'trip_places', filter }, () => {
+        qc.invalidateQueries({ queryKey: keys.places(tripId) });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'trip_kitties', filter }, () => {
+        qc.invalidateQueries({ queryKey: keys.kitties(tripId) });
+      })
+      // No trip column to filter on; the server only sends rows this person may see.
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'kitty_own_cash' }, () => {
+        qc.invalidateQueries({ queryKey: keys.kittyCash(tripId) });
+      })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'trip_members', filter }, () => {
         qc.invalidateQueries({ queryKey: keys.members(tripId) });
         qc.invalidateQueries({ queryKey: keys.locations(tripId) });
       })
       .on('system', {}, (msg) => {
         if (!isListenerReady(msg)) return;
-        for (const key of [keys.locations, keys.members, keys.bills, keys.shares, keys.settlements]) {
+        for (const key of [keys.locations, keys.members, keys.bills, keys.shares, keys.settlements, keys.places, keys.kitties, keys.kittyCash]) {
           qc.invalidateQueries({ queryKey: key(tripId) });
         }
       })

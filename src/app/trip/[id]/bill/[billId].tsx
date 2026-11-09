@@ -67,7 +67,7 @@ export default function BillDetail() {
           <View style={{ flex: 1, gap: 4 }}>
             <Text variant="heading">{b.title}</Text>
             <Text variant="caption" muted>
-              {nameOf(b.paid_by)} paid · {formatDate(b.bill_date)}
+              {b.kitty_id ? `Paid from the kitty (${nameOf(b.paid_by)} had it)` : `${nameOf(b.paid_by)} paid`} · {formatDate(b.bill_date)}
               {b.source === 'ai' ? ' · read from receipt' : ''}
             </Text>
           </View>
@@ -77,8 +77,10 @@ export default function BillDetail() {
           </View>
         </Row>
         {foreign ? (
-          <Text variant="caption" faint>
-            1 {b.currency} = {Number(b.fx_rate)} {base}
+          <Text variant="caption" faint testID="fx-lock">
+            🔒 1 {b.currency} = {Number(b.fx_rate)} {base}
+            {b.fx_source === 'ecb' ? ' · European Central Bank rate' : b.fx_source === 'manual' ? ' · rate entered by hand' : ''}
+            {b.fx_locked_at ? ` · locked ${formatDate(b.fx_locked_at.slice(0, 10))}` : ''}. Shares stay in {base} at this rate.
           </Text>
         ) : null}
         {photo ? (

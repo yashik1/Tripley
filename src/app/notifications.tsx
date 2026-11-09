@@ -14,7 +14,9 @@ function open(n: AppNotification) {
   const tripId = typeof n.data.trip_id === 'string' ? n.data.trip_id : n.trip_id;
   if (n.kind === 'invitation') return router.dismissTo('/');
   if (!tripId) return;
-  if (n.kind.startsWith('settlement')) router.push(`/trip/${tripId}/balances`);
+  if (n.kind === 'kitty_holder' || typeof n.data.kitty_id === 'string') router.push(`/trip/${tripId}/kitty`);
+  else if (n.kind === 'arrival' && typeof n.data.place_id === 'string') router.push(`/trip/${tripId}/place/${n.data.place_id}`);
+  else if (n.kind.startsWith('settlement')) router.push(`/trip/${tripId}/balances`);
   else if (n.kind.startsWith('bill') && typeof n.data.bill_id === 'string') router.push(`/trip/${tripId}/bill/${n.data.bill_id}`);
   else if (n.kind === 'member_joined') router.push(`/trip/${tripId}/people`);
   else router.push(`/trip/${tripId}/map`);
