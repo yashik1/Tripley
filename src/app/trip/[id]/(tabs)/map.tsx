@@ -10,10 +10,11 @@ import type { MapPerson, MapPlace } from '@/components/TripMap.types';
 import { Avatar, Banner, Button, Chip, IconButton, initials, Row, Text } from '@/components/ui';
 import { updateMySharing } from '@/lib/api';
 import { errorMessage } from '@/lib/errors';
-import { isStale, timeAgo } from '@/lib/format';
+import { isStale, timeAgo, todayISO } from '@/lib/format';
 import { describeOffset } from '@/lib/geo';
 import { directionsUrl } from '@/lib/map-links';
-import { keys, useLocations, usePlaces } from '@/lib/queries';
+import { keys, useItinerary, useLocations, usePlaces } from '@/lib/queries';
+import { stopsForMap, timeRange } from '@/lib/itinerary';
 import { useTripId } from '@/lib/trip-context';
 import { useTripData } from '@/lib/trip-hooks';
 import type { Member } from '@/lib/types';
@@ -27,6 +28,7 @@ export default function TripMapScreen() {
   const { me, members, byId, myMembership, active } = useTripData(id);
   const locations = useLocations(id);
   const placesQuery = usePlaces(id);
+  const itinerary = useItinerary(id);
   const sharing = useSharing();
   const [picking, setPicking] = useState(false);
   const [now, setNow] = useState(() => Date.now());
@@ -79,8 +81,20 @@ export default function TripMapScreen() {
         lng: p.lng,
         radiusM: p.radius_m,
         alerts: p.alerts,
-      })),
-    [placesQuery.data],
+      })).concat(
+        // The plan's stops for today (or the next day with stops).
+        stopsForMap(itinerary.data ?? [], todayISO()).map((s) => ({
+          id: `stop:${s.id}`,
+          name: [timeRange(s), s.title].filter(Boolean).join(' '),
+          kind: 'other' as const,
+          emoji: '🗓️',
+          lat: s.lat!,
+          lng: s.lng!,
+          radiusM: 0,
+          alerts: false,
+        })),
+      ),
+    [placesQuery.data, itinerary.data],
   );
   const myPos = people.find((p) => p.isMe);
   const pinAt = (lat: number, lng: number) => {
@@ -114,7 +128,11 @@ export default function TripMapScreen() {
         places={places}
         focusId={focusId}
         onSelect={setFocusId}
-        onPlacePress={(placeId) => router.push({ pathname: '/trip/[id]/place/[placeId]', params: { id, placeId } })}
+        onPlacePress={(placeId) =>
+          placeId.startsWith('stop:')
+            ? router.push({ pathname: '/trip/[id]/plan/[itemId]', params: { id, itemId: placeId.slice(5) } })
+            : router.push({ pathname: '/trip/[id]/place/[placeId]', params: { id, placeId } })
+        }
         picking={picking}
         onPick={pinAt}
         fitToken={fitToken}

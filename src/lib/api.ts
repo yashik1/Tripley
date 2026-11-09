@@ -16,6 +16,9 @@ import type {
   BillDetail,
   Invitation,
   InviteResult,
+  ItineraryComment,
+  ItineraryItem,
+  ItineraryRsvp,
   Kitty,
   KittyOwnCash,
   Member,
@@ -23,6 +26,7 @@ import type {
   Place,
   PlaceKind,
   Profile,
+  RsvpStatus,
   SentInvitation,
   Settlement,
   SharingMode,
@@ -495,6 +499,63 @@ export async function updatePlace(
 
 export async function deletePlace(id: string): Promise<void> {
   check(await supabase.from('trip_places').delete().eq('id', id));
+}
+
+// ---------------------------------------------------------------- itinerary
+
+export type ItineraryInput = Pick<
+  ItineraryItem,
+  'day' | 'title' | 'starts_at' | 'ends_at' | 'place_name' | 'address' | 'lat' | 'lng' | 'notes'
+>;
+
+export async function listItinerary(tripId: string): Promise<ItineraryItem[]> {
+  return check(
+    await supabase
+      .from('itinerary_items')
+      .select('*')
+      .eq('trip_id', tripId)
+      .order('day')
+      .order('position')
+      .order('created_at'),
+  ) as ItineraryItem[];
+}
+
+export async function listRsvps(tripId: string): Promise<ItineraryRsvp[]> {
+  return check(await supabase.from('itinerary_rsvps').select('item_id, user_id, status').eq('trip_id', tripId)) as ItineraryRsvp[];
+}
+
+export async function addItineraryItem(tripId: string, input: ItineraryInput): Promise<ItineraryItem> {
+  return check(await supabase.from('itinerary_items').insert({ trip_id: tripId, ...input }).select('*').single()) as ItineraryItem;
+}
+
+export async function updateItineraryItem(id: string, input: Partial<ItineraryInput>): Promise<void> {
+  check(await supabase.from('itinerary_items').update(input).eq('id', id));
+}
+
+export async function deleteItineraryItem(id: string): Promise<void> {
+  check(await supabase.from('itinerary_items').delete().eq('id', id));
+}
+
+export async function moveItineraryItem(id: string, up: boolean): Promise<void> {
+  check(await supabase.rpc('move_itinerary_item', { p_item: id, p_up: up }));
+}
+
+export async function setRsvp(itemId: string, status: RsvpStatus | null): Promise<void> {
+  check(await supabase.rpc('set_itinerary_rsvp', { p_item: itemId, p_status: status }));
+}
+
+export async function listItineraryComments(itemId: string): Promise<ItineraryComment[]> {
+  return check(
+    await supabase.from('itinerary_comments').select('*').eq('item_id', itemId).order('created_at'),
+  ) as ItineraryComment[];
+}
+
+export async function addItineraryComment(tripId: string, itemId: string, body: string): Promise<void> {
+  check(await supabase.from('itinerary_comments').insert({ trip_id: tripId, item_id: itemId, body }));
+}
+
+export async function deleteItineraryComment(id: string): Promise<void> {
+  check(await supabase.from('itinerary_comments').delete().eq('id', id));
 }
 
 /** Upload a photo (already resized to JPEG) for a place or memory into the trip's folder. */

@@ -75,7 +75,7 @@ function placeElement(p: MapPlace, onPress?: (id: string) => void): HTMLElement 
 }
 
 function updatePlace(root: HTMLElement, p: MapPlace) {
-  (root.querySelector('.tripley-place') as HTMLElement).textContent = placeEmoji(p.kind);
+  (root.querySelector('.tripley-place') as HTMLElement).textContent = p.emoji ?? placeEmoji(p.kind);
   (root.querySelector('.tripley-place-label') as HTMLElement).textContent = p.name;
 }
 

@@ -130,6 +130,32 @@ export type Place = {
   created_at: string;
 };
 
+export type RsvpStatus = 'going' | 'maybe' | 'not_going';
+
+/** A stop or activity in the shared day-by-day plan. Times are "HH:MM:SS" (local to the trip). */
+export type ItineraryItem = {
+  id: string;
+  trip_id: string;
+  day: string;
+  position: number;
+  title: string;
+  starts_at: string | null;
+  ends_at: string | null;
+  place_name: string | null;
+  address: string | null;
+  lat: number | null;
+  lng: number | null;
+  notes: string | null;
+  created_by: string;
+  updated_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ItineraryRsvp = { item_id: string; user_id: string; status: RsvpStatus };
+
+export type ItineraryComment = { id: string; item_id: string; trip_id: string; user_id: string; body: string; created_at: string };
+
 export type Kitty = {
   id: string;
   trip_id: string;

@@ -11,6 +11,7 @@ Group trips without the "where are you?" texts and the spreadsheet at the end.
 - **Bills split for you.** Whoever paid adds the bill, taps who had which item, and Tripley works out every share: shared items, tax, service, tip, discounts, other currencies. No maths. People who were within 150 m of the payer are picked automatically ("Split between the 2 of you here"), with one tap to include everyone.
 - **Locked exchange rates.** A foreign-currency bill uses the European Central Bank rate for its date (or one you type), locked when saved and shown on the bill, so later swings never change anyone's share.
 - **Settle up.** "You owe Maya ₹1,240" → **Pay** opens UPI / PhonePe / Paytm, Venmo / Zelle / Cash App, Revolut / Monzo / Wise / PayPal, or shows a SEPA QR code for euro bank transfers, ordered for the trip's region → **Mark as paid** → Maya taps **Got it**.
+- **Shared plan.** A day-by-day itinerary (Today / Day 1 / Day 2…): add the museum slot or the dinner booking with a time and place, say Going / Maybe / Not going, comment, see clashes, and get directions. The next day's stops show on the map.
 - **Cash kitty.** Pool cash with one person for taxis and street food. Put cash in, spend from it, hand it over; Tripley shows what's left and who holds it, and it flows into everyone's balances so leftovers come back on settling up.
 - **Works offline.** The web app installs to the home screen and opens without a connection (a service worker keeps the app and recent map tiles; trips, bills and balances are kept on the device). Bills added offline wait on the device and are sent once, exactly once, when you're back online.
 - **Accounts.** Sign up with email and password, log in on any device, reset a forgotten password by email. Guests can try it with just a name and save their account later without losing their trips.
@@ -261,6 +262,8 @@ npm run export:web       # production web build into dist/
 
 `npm run test:db` needs the Postgres 16 server binaries (`/usr/lib/postgresql/16/bin`, or set `PGBIN`). It starts a throwaway database, loads a small stand-in for Supabase's `auth`/`storage` schemas (`tests/db/supabase-stub.sql`) and the real migrations, then acts as different users.
 
+Security and money-integrity checks (two-connection race tests for the cash kitty, the AI scan quota and the subscription webhook; who can call which function; storage and location rules) are in `tests/db/security.test.ts`; the itinerary's rules in `tests/db/itinerary.test.ts`. See [docs/SECURITY_REVIEW.md](docs/SECURITY_REVIEW.md) for the review, results and deployment steps.
+
 ### End-to-end test (three people, three browsers)
 
 `tests/e2e/trip-flow.cjs` drives the whole story against the web app and a local Supabase:
@@ -291,7 +294,11 @@ To run it locally:
 
 `tests/e2e/roadmap.cjs` (`npm run test:e2e:roadmap`, same build as the accounts test) follows three people in Rome: pinning the hotel and an arrival alert when one of them gets there; the friend finder; a dinner split only between the two who were nearby; a dollar bill with the rate locked; a cash kitty (cash in, spending, handing over); a SEPA QR code; and a bill saved offline, the app reopened with no connection, then synced exactly once.
 
-`tests/e2e/accounts.cjs` (`npm run test:e2e:accounts`) covers accounts against a web build with `EXPO_PUBLIC_AUTH_METHODS=password,guest`: the landing page; sign up; log out and back in; forgot password, with the reset link (read from the local mail catcher on :54324) opened in a different browser; a guest saving their account and logging in elsewhere with their trip intact; signing up from an invite; and a duplicate email.
+`tests/e2e/plan.cjs` (`npm run test:e2e:plan`, same build) covers the shared plan: two people add stops, see a clash, answer Going, comment (and the other is notified), see a stop on the map, and reopen the plan offline.
+
+Every browser suite fails if the site's Content-Security-Policy blocks anything.
+
+`tests/e2e/accounts.cjs` (`npm run test:e2e:accounts`) covers accounts against a web build with `EXPO_PUBLIC_AUTH_METHODS=password,guest`: the landing page; sign up; log out and back in; forgot password, with the reset link (read from the local mail catcher on :54324) opened in a different browser; a guest saving their account and logging in elsewhere with their trip intact; signing up from an invite; a duplicate email; and one browser used by two accounts in turn, with nothing of the first left on the device.
 
 ---
 

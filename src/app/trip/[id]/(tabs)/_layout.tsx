@@ -15,6 +15,7 @@ export default function TripTabs() {
         sceneStyle: { backgroundColor: t.bg },
       }}>
       <Tabs.Screen name="map" options={{ title: 'Map', tabBarIcon: ({ color }) => <Icon name="map" color={color as string} size={22} /> }} />
+      <Tabs.Screen name="plan" options={{ title: 'Plan', tabBarIcon: ({ color }) => <Icon name="calendar" color={color as string} size={22} /> }} />
       <Tabs.Screen name="bills" options={{ title: 'Bills', tabBarIcon: ({ color }) => <Icon name="bills" color={color as string} size={22} /> }} />
       <Tabs.Screen
         name="balances"

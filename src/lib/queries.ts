@@ -41,6 +41,9 @@ export const keys = {
   places: (id: string) => ['places', id] as const,
   kitties: (id: string) => ['kitties', id] as const,
   kittyCash: (id: string) => ['kittyCash', id] as const,
+  itinerary: (id: string) => ['itinerary', id] as const,
+  rsvps: (id: string) => ['rsvps', id] as const,
+  itineraryComments: (itemId: string) => ['itineraryComments', itemId] as const,
 };
 
 export const useTrips = () => useQuery({ queryKey: keys.trips, queryFn: api.listMyTrips });
@@ -65,6 +68,11 @@ export const usePlaces = (id: string) => useQuery({ queryKey: keys.places(id), q
 export const useKitties = (id: string) => useQuery({ queryKey: keys.kitties(id), queryFn: () => api.listKitties(id), enabled: !!id });
 export const useKittyOwnCash = (id: string) =>
   useQuery({ queryKey: keys.kittyCash(id), queryFn: () => api.listKittyOwnCash(id), enabled: !!id });
+export const useItinerary = (id: string) =>
+  useQuery({ queryKey: keys.itinerary(id), queryFn: () => api.listItinerary(id), enabled: !!id });
+export const useRsvps = (id: string) => useQuery({ queryKey: keys.rsvps(id), queryFn: () => api.listRsvps(id), enabled: !!id });
+export const useItineraryComments = (itemId: string) =>
+  useQuery({ queryKey: keys.itineraryComments(itemId), queryFn: () => api.listItineraryComments(itemId), enabled: !!itemId });
 export const useFriends = () => useQuery({ queryKey: keys.friends, queryFn: api.myTripFriends });
 
 /** Live updates for one trip while its screens are open. */
@@ -105,13 +113,24 @@ export function useTripRealtime(tripId: string) {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'kitty_own_cash' }, () => {
         qc.invalidateQueries({ queryKey: keys.kittyCash(tripId) });
       })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'itinerary_items', filter }, () => {
+        qc.invalidateQueries({ queryKey: keys.itinerary(tripId) });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'itinerary_rsvps', filter }, () => {
+        qc.invalidateQueries({ queryKey: keys.rsvps(tripId) });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'itinerary_comments', filter }, (payload) => {
+        const row = (payload.new ?? payload.old) as { item_id?: string } | undefined;
+        if (row?.item_id) qc.invalidateQueries({ queryKey: keys.itineraryComments(row.item_id) });
+        else qc.invalidateQueries({ queryKey: ['itineraryComments'] });
+      })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'trip_members', filter }, () => {
         qc.invalidateQueries({ queryKey: keys.members(tripId) });
         qc.invalidateQueries({ queryKey: keys.locations(tripId) });
       })
       .on('system', {}, (msg) => {
         if (!isListenerReady(msg)) return;
-        for (const key of [keys.locations, keys.members, keys.bills, keys.shares, keys.settlements, keys.places, keys.kitties, keys.kittyCash]) {
+        for (const key of [keys.locations, keys.members, keys.bills, keys.shares, keys.settlements, keys.places, keys.kitties, keys.kittyCash, keys.itinerary, keys.rsvps]) {
           qc.invalidateQueries({ queryKey: key(tripId) });
         }
       })

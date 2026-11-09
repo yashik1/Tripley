@@ -16,8 +16,10 @@
 --  6. Locations: hidden as soon as a trip ends and deleted at that moment, even
 --     where the hourly clean-up job (pg_cron) isn't available.
 --
--- Forward-only and safe to re-run on a database that already has the earlier
--- migrations: no data is deleted except stale locations of ended trips.
+-- Forward-only. Running it deletes no data: it adds tables, columns, functions,
+-- triggers and policies, replaces some functions and policies, sets bucket
+-- limits and tightens function privileges. (From then on, ending a trip
+-- deletes that trip's last known positions straight away.)
 
 -- ---------------------------------------------------------------------------
 -- 0. Functions created from now on are not callable by everyone by default.
