@@ -10,7 +10,7 @@ import { Platform, Pressable, View } from 'react-native';
 
 import { placeEmoji } from '@/components/TripMap.types';
 import { Banner, Button, Card, Chip, Field, Row, Screen, Segmented, Stack, Text } from '@/components/ui';
-import { createPost, uploadTripPhoto } from '@/lib/api';
+import { createPost, enterChallenge, uploadTripPhoto } from '@/lib/api';
 import { errorMessage, isNetworkError } from '@/lib/errors';
 import { pickPhoto } from '@/lib/photos';
 import { keys, usePlaces } from '@/lib/queries';
@@ -27,7 +27,7 @@ export default function NewPost() {
   const id = useTripId();
   const t = useTheme();
   const qc = useQueryClient();
-  const params = useLocalSearchParams<{ kind?: string }>();
+  const params = useLocalSearchParams<{ kind?: string; challenge?: string }>();
   const { isOrganizer } = useTripData(id);
   const places = usePlaces(id);
   const fix = useMyFix();
@@ -68,7 +68,7 @@ export default function NewPost() {
         paths.push(await uploadTripPhoto(id, photos[i]));
       }
       setBusy('Posting…');
-      await createPost({
+      const postId = await createPost({
         tripId: id,
         kind,
         body: body.trim() || null,
@@ -77,7 +77,12 @@ export default function NewPost() {
         lat: kind === 'place' ? point?.lat ?? null : null,
         lng: kind === 'place' ? point?.lng ?? null : null,
       });
-      await Promise.all([qc.invalidateQueries({ queryKey: keys.feed(id) }), qc.invalidateQueries({ queryKey: keys.recentPosts })]);
+      if (params.challenge) await enterChallenge(params.challenge, postId);
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: keys.feed(id) }),
+        qc.invalidateQueries({ queryKey: keys.recentPosts }),
+        qc.invalidateQueries({ queryKey: keys.challenges(id) }),
+      ]);
       if (router.canGoBack()) router.back();
       else router.replace({ pathname: '/trip/[id]/feed', params: { id } });
     } catch (e) {
@@ -88,7 +93,7 @@ export default function NewPost() {
 
   return (
     <Screen footer={<Button title={busy ?? (kind === 'announcement' ? 'Announce' : 'Post')} icon="send" onPress={post} loading={!!busy} testID="post-submit" />}>
-      <RouterStack.Screen options={{ title: 'New post' }} />
+      <RouterStack.Screen options={{ title: params.challenge ? 'Challenge entry' : 'New post' }} />
       <Segmented<Kind> options={options} value={kind} onChange={setKind} />
       <Field
         label={kind === 'announcement' ? 'Announcement for everyone' : kind === 'update' ? 'What’s happening?' : 'Add a caption (optional)'}

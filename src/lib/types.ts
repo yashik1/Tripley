@@ -232,6 +232,30 @@ export type Poll = {
   poll_votes: { user_id: string; option_id: string }[];
 };
 
+export type TripTask = {
+  id: string;
+  trip_id: string;
+  kind: 'packing' | 'group';
+  title: string;
+  created_by: string;
+  assignee_id: string | null;
+  done: boolean;
+  done_by: string | null;
+  done_at: string | null;
+  created_at: string;
+};
+
+export type Challenge = {
+  id: string;
+  trip_id: string;
+  created_by: string;
+  title: string;
+  description: string | null;
+  emoji: string;
+  created_at: string;
+  challenge_entries: { post_id: string; user_id: string }[];
+};
+
 export type PostComment = { id: string; post_id: string; trip_id: string; user_id: string; body: string; created_at: string };
 
 /** Which notifications someone wants (unset = the default). */

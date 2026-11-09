@@ -23,6 +23,7 @@ import { keys, useInvitations, useItinerary, useNotifications, usePolls, useRece
 import { pollIsOpen } from '@/lib/group-decisions';
 import { ActivityRow } from '@/components/ActivityRow';
 import { featuredTrip, greeting, planningSteps, tripStatus } from '@/lib/trip-status';
+import { packingStep } from '@/lib/preparation';
 import type { TripStats, TripWithCount } from '@/lib/types';
 import { useAuth } from '@/providers/AuthProvider';
 import { radius, space, useTheme } from '@/theme';
@@ -266,7 +267,7 @@ function FeaturedTrip({ trip, stats }: { trip: TripWithCount; stats?: TripStats 
   const t = useTheme();
   const today = todayISO();
   const status = tripStatus(trip, today);
-  const progress = planningSteps(trip, stats);
+  const progress = planningSteps(trip, stats, [packingStep(stats)]);
   const next = progress.steps.find((s) => !s.done);
   const count = trip.trip_members?.[0]?.count ?? 1;
   const dates = formatDateRange(trip.starts_on, trip.ends_on);
@@ -385,7 +386,7 @@ export function TripCard({ trip, stats, me }: { trip: TripWithCount; stats?: Tri
   const status = tripStatus(trip, todayISO());
   const count = trip.trip_members?.[0]?.count ?? 1;
   const dates = formatDateRange(trip.starts_on, trip.ends_on);
-  const progress = planningSteps(trip, stats);
+  const progress = planningSteps(trip, stats, [packingStep(stats)]);
   return (
     <Card onPress={() => router.push(`/trip/${trip.id}/overview`)} accessibilityLabel={`Open ${trip.name}`} testID={`trip-card-${trip.name}`}>
       <Row gap={space.md} align="flex-start">

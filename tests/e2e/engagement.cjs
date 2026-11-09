@@ -78,7 +78,7 @@ async function signUp(page, name, email) {
     await ana.goto(BASE);
     await ana.getByTestId('featured-trip').waitFor({ timeout: 15000 });
     expect((await ana.getByTestId('featured-countdown').innerText()).includes('In 10 days'), 'countdown: in 10 days');
-    expect((await ana.getByTestId('featured-progress').innerText()) === '20%', 'planning 20% (only the dates are done)');
+    expect((await ana.getByTestId('featured-progress').innerText()) === '17%', 'planning 17% (only the dates are done, 1 of 6)');
     await ana.getByTestId('reminder-invite').waitFor();
     ok('reminder: invite your travel buddies');
     await shot(ana, 'dashboard');
@@ -108,7 +108,7 @@ async function signUp(page, name, email) {
     await ana.goto(BASE);
     await ana.getByTestId('featured-trip').waitFor();
     await ana.waitForTimeout(1500);
-    expect((await ana.getByTestId('featured-progress').innerText()) === '60%', 'planning 60%: dates, friends and a plan');
+    expect((await ana.getByTestId('featured-progress').innerText()) === '50%', 'planning 50%: dates, friends and a plan (3 of 6)');
     expect((await ana.getByTestId('reminder-invite').count()) === 0, 'the invite reminder is gone once a friend joined');
 
     console.log('6. The trip overview');
@@ -258,6 +258,50 @@ async function signUp(page, name, email) {
     await ben.getByText('🏆 Pizza').waitFor({ timeout: 15000 });
     expect((await ben.getByText('Decided').count()) > 0, 'closed: Pizza won, and Ben sees it under Decided (his post notifications are off)');
     await shot(ana, 'poll-decided');
+
+    console.log('13. Getting ready: countdown, a private packing list, group tasks');
+    await ana.goto(`${BASE}/trip/${tripId}/overview`);
+    await ana.getByTestId('overview-prepare').click();
+    await ana.getByTestId('prep-countdown').waitFor({ timeout: 15000 });
+    expect((await ana.getByTestId('prep-countdown').innerText()) === '10 days until Lisbon!', 'countdown: 10 days until Lisbon!');
+    await ana.getByTestId('prep-starters').click();
+    await ana.getByTestId('task-Passport or ID').waitFor({ timeout: 15000 });
+    await ana.getByRole('checkbox', { name: 'Passport or ID' }).click();
+    await ana.waitForFunction(() => document.querySelector('[data-testid="prep-count"]')?.textContent === '1/10', null, { timeout: 10000 });
+    ok('Ana added common items and packed her passport (1/10)');
+    await ben.goto(`${BASE}/trip/${tripId}/prepare`);
+    await ben.getByText('Only you can see your packing list.').waitFor({ timeout: 15000 });
+    expect((await ben.getByTestId('task-Passport or ID').count()) === 0, 'Ben can’t see Ana’s packing list');
+    await ben.getByTestId('prep-input').fill('Snorkel');
+    await ben.getByTestId('prep-add').click();
+    await ben.getByRole('checkbox', { name: 'Snorkel' }).click();
+    await ben.getByTestId('prep-celebrate').waitFor({ timeout: 10000 });
+    ok('Ben packed everything and got a little celebration');
+    await ana.getByText('Group tasks').click();
+    await ana.getByTestId('prep-input').fill('Book the ferry');
+    await ana.getByText('Ben', { exact: true }).click();
+    await ana.getByTestId('prep-add').click();
+    await ana.getByText('For Ben').waitFor({ timeout: 15000 });
+    await ben.getByText('Group tasks').click();
+    await ben.getByRole('checkbox', { name: 'Book the ferry' }).click();
+    await ana.getByText('Done by Ben').waitFor({ timeout: 15000 });
+    ok('a group task assigned to Ben, ticked by Ben, seen by Ana live');
+    await shot(ana, 'get-ready');
+
+    console.log('14. A light-hearted challenge');
+    await ben.goto(`${BASE}/trip/${tripId}/challenges`);
+    await ben.getByTestId('challenge-start-Find the best local food').click();
+    await ben.getByTestId('challenge-Find the best local food').waitFor({ timeout: 15000 });
+    await ben.getByTestId('challenge-Find the best local food').getByTestId('challenge-enter').click();
+    await ben.getByText('Update', { exact: true }).click();
+    await ben.getByTestId('post-body').fill('Pastéis de nata at Manteigaria!');
+    await ben.getByTestId('post-submit').click();
+    await ben.waitForURL((u) => u.pathname.endsWith('/challenges'), { timeout: 15000 });
+    await ben.getByText(/1 entry/).waitFor({ timeout: 15000 });
+    ok('Ben started a challenge and entered with a post');
+    await ana.goto(`${BASE}/trip/${tripId}/feed`);
+    await ana.getByText('Ben Ortiz started a challenge: Find the best local food').waitFor({ timeout: 15000 });
+    ok('the group sees it in the feed');
 
     csp.assertNone();
     console.log('\nAll engagement checks passed.');

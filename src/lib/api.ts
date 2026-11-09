@@ -12,6 +12,7 @@ import { supabase } from './supabase';
 import type {
   Account,
   AppNotification,
+  Challenge,
   FeedPost,
   Bill,
   BillDetail,
@@ -40,6 +41,7 @@ import type {
   TripFriend,
   TripPreview,
   TripStats,
+  TripTask,
   TripWithCount,
 } from './types';
 
@@ -651,6 +653,39 @@ export async function closePoll(pollId: string): Promise<void> {
 
 export async function deletePoll(pollId: string): Promise<void> {
   check(await supabase.from('trip_polls').delete().eq('id', pollId));
+}
+
+// ---------------------------------------------------------------- getting ready
+
+/** Your packing list and the group's tasks (row-level security keeps others' packing private). */
+export async function listTasks(tripId: string): Promise<TripTask[]> {
+  return check(await supabase.from('trip_tasks').select('*').eq('trip_id', tripId).order('created_at')) as TripTask[];
+}
+
+export async function addTasks(tripId: string, kind: TripTask['kind'], titles: string[], assigneeId?: string | null): Promise<void> {
+  check(await supabase.from('trip_tasks').insert(titles.map((title) => ({ trip_id: tripId, kind, title, assignee_id: assigneeId ?? null }))));
+}
+
+export async function setTaskDone(id: string, done: boolean): Promise<void> {
+  check(await supabase.from('trip_tasks').update({ done }).eq('id', id));
+}
+
+export async function deleteTask(id: string): Promise<void> {
+  check(await supabase.from('trip_tasks').delete().eq('id', id));
+}
+
+export async function listChallenges(tripId: string): Promise<Challenge[]> {
+  return check(
+    await supabase.from('trip_challenges').select('*, challenge_entries(post_id, user_id)').eq('trip_id', tripId).order('created_at', { ascending: false }),
+  ) as Challenge[];
+}
+
+export async function createChallenge(tripId: string, title: string, description: string | null, emoji: string): Promise<string> {
+  return check(await supabase.rpc('create_challenge', { p_trip: tripId, p_title: title, p_description: description, p_emoji: emoji })) as string;
+}
+
+export async function enterChallenge(challengeId: string, postId: string): Promise<void> {
+  check(await supabase.rpc('enter_challenge', { p_challenge: challengeId, p_post: postId }));
 }
 
 // ---------------------------------------------------------------- itinerary

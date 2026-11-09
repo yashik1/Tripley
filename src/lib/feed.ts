@@ -34,6 +34,8 @@ export function eventText(event: FeedPost['event'], actor: string): string {
       return `${actor} suggested ${label} for the bucket list`;
     case 'poll_created':
       return `${actor} started a poll: ${label}`;
+    case 'challenge_started':
+      return `${actor} started a challenge: ${label}`;
     default:
       return `${actor} updated the trip`;
   }
@@ -56,6 +58,8 @@ export function eventEmoji(event: FeedPost['event']): string {
       return '💡';
     case 'poll_created':
       return '📊';
+    case 'challenge_started':
+      return '🏅';
     default:
       return '✨';
   }

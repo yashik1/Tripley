@@ -15,7 +15,8 @@ import { summarizeForUser, computePairBalances } from '@/lib/balances';
 import { formatMoney } from '@/lib/currency';
 import { formatDate, formatDateRange, todayISO } from '@/lib/format';
 import { rsvpSummary, timeRange } from '@/lib/itinerary';
-import { useFeed, useItinerary, usePlaces, usePolls, useRsvps, useSettlements, useShareRows, useSuggestions, useTripOverview } from '@/lib/queries';
+import { useChallenges, useFeed, useItinerary, usePlaces, usePolls, useRsvps, useSettlements, useShareRows, useSuggestions, useTasks, useTripOverview } from '@/lib/queries';
+import { packingStep, progress as taskProgress } from '@/lib/preparation';
 import { pollIsOpen } from '@/lib/group-decisions';
 import { ActivityRow } from '@/components/ActivityRow';
 import { useTripId } from '@/lib/trip-context';
@@ -37,6 +38,10 @@ export default function TripOverview() {
   const stats = overview.data?.[id];
   const feed = useFeed(id);
   const ideas = useSuggestions(id);
+  const tasks = useTasks(id);
+  const challenges = useChallenges(id);
+  const packing = taskProgress((tasks.data ?? []).filter((x) => x.kind === 'packing'));
+  const groupTasks = taskProgress((tasks.data ?? []).filter((x) => x.kind === 'group'));
   const polls = usePolls(id);
   const latest = (feed.data?.pages[0] ?? []).slice(0, 3);
 
@@ -56,12 +61,13 @@ export default function TripOverview() {
     members: members.length || Number(stats?.members ?? 1),
     stops: itinerary.data?.length ?? Number(stats?.stops ?? 0),
     stay_pinned: places.data ? places.data.some((p) => p.kind === 'stay') : !!stats?.stay_pinned,
-  });
+  }, [packingStep(packing.total ? { packing_total: packing.total, packing_done: packing.done } : stats)]);
   const fixStep: Record<string, () => void> = {
     dates: () => router.push(`/trip/${id}/settings`),
     friends: () => router.push(`/trip/${id}/invite`),
     stay: () => router.push(`/trip/${id}/map`),
     plan: () => router.push(`/trip/${id}/plan/new`),
+    packing: () => router.push(`/trip/${id}/prepare`),
     cover: () => router.push(`/trip/${id}/settings`),
   };
   const dates = formatDateRange(trip.starts_on, trip.ends_on);
@@ -158,6 +164,27 @@ export default function TripOverview() {
         )}
       </Stack>
 
+      {/* Countdown and preparation */}
+      {status.kind === 'upcoming' || status.kind === 'planning' || status.kind === 'ongoing' ? (
+        <Card onPress={() => router.push(`/trip/${id}/prepare`)} accessibilityLabel="Get ready: packing list and group tasks" testID="overview-prepare">
+          <Row gap={space.md}>
+            <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: t.coralSoft, alignItems: 'center', justifyContent: 'center' }}>
+              <Icon name="checklist" size={22} color={t.coralText} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text variant="label">
+                {status.kind === 'upcoming' && status.daysToGo ? `${status.daysToGo} ${status.daysToGo === 1 ? 'day' : 'days'} to go: get ready` : 'Get ready'}
+              </Text>
+              <Text variant="caption" muted>
+                {packing.total ? `Packing ${packing.done}/${packing.total}` : 'Start your packing list'}
+                {groupTasks.total ? ` · Group tasks ${groupTasks.done}/${groupTasks.total}` : ''}
+              </Text>
+            </View>
+            <Icon name="chevron" size={16} color={t.textFaint} />
+          </Row>
+        </Card>
+      ) : null}
+
       {/* Planning progress */}
       {status.kind !== 'completed' ? (
         <Card testID="planning-progress">
@@ -224,6 +251,12 @@ export default function TripOverview() {
             detail={`${(polls.data ?? []).filter((p) => pollIsOpen(p)).length} open`}
             sub={(polls.data ?? []).some((p) => pollIsOpen(p) && !p.poll_votes.some((v) => v.user_id === me)) ? 'Waiting for your vote' : undefined}
             onPress={() => router.push(`/trip/${id}/polls`)}
+          />
+          <SectionTile
+            icon="trophy"
+            title="Challenges"
+            detail={`${challenges.data?.length ?? 0} going`}
+            onPress={() => router.push(`/trip/${id}/challenges`)}
           />
           <SectionTile icon="map" title="Map" detail={`${places.data?.length ?? 0} places pinned`} onPress={() => router.push(`/trip/${id}/map`)} />
           <SectionTile
