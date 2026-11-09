@@ -211,6 +211,54 @@ async function signUp(page, name, email) {
     const all = await ana.locator('[data-testid^="post-"], [data-testid^="feed-event-"]').count();
     expect(firstPage <= 20 && all > 20, `first page ${firstPage} posts, all ${all} after scrolling`);
 
+    console.log('11. Bucket list: suggest, vote, add to the plan');
+    await ben.goto(`${BASE}/trip/${tripId}/ideas`);
+    await ben.getByTestId('suggest-idea').click();
+    await ben.getByTestId('idea-name').fill('Time Out Market');
+    await ben.getByTestId('idea-cost').fill('25');
+    await ben.getByTestId('save-idea').click();
+    await ben.getByTestId('idea-Time Out Market').waitFor({ timeout: 15000 });
+    ok('Ben suggested a place');
+    await ana.goto(`${BASE}/trip/${tripId}/ideas`);
+    const idea = ana.getByTestId('idea-Time Out Market');
+    await idea.waitFor({ timeout: 15000 });
+    expect((await idea.innerText()).includes('about €25.00'), 'shows the rough cost');
+    await idea.getByTestId('idea-vote').click();
+    await ana.waitForFunction(() => document.querySelector('[data-testid="idea-votes"]')?.textContent === '1', null, { timeout: 10000 });
+    ok('Ana voted for it');
+    await idea.getByTestId('idea-add-to-plan').click();
+    await idea.getByTestId('idea-in-plan').waitFor({ timeout: 15000 });
+    ok('added to the plan');
+    await ana.goto(`${BASE}/trip/${tripId}/plan`);
+    await ana.getByTestId('stop-Time Out Market').waitFor({ timeout: 15000 });
+    ok('it is now a stop in the schedule');
+    await shot(ana, 'bucket-list-to-plan');
+
+    console.log('12. Polls: ask, get reminded, vote, close');
+    await ana.goto(`${BASE}/trip/${tripId}/polls`);
+    await ana.getByTestId('start-poll').click();
+    await ana.getByTestId('poll-question').fill('Where should we eat tonight?');
+    await ana.getByTestId('poll-opt-0').fill('Taberna');
+    await ana.getByTestId('poll-opt-1').fill('Pizza');
+    await ana.getByTestId('save-poll').click();
+    await ana.getByTestId('poll-Where should we eat tonight?').waitFor({ timeout: 15000 });
+    ok('Ana started a poll');
+    await ben.goto(BASE);
+    await ben.getByTestId('reminder-poll').waitFor({ timeout: 15000 });
+    ok('Ben’s dashboard reminds him to vote');
+    await ben.getByTestId('reminder-poll').click();
+    await ben.getByTestId('poll-option-Pizza').click();
+    await ben.getByText(/1 vote · tap to change/).waitFor({ timeout: 10000 });
+    ok('Ben voted');
+    await ana.getByText('100% · 1').waitFor({ timeout: 15000 });
+    ok('Ana sees the result live');
+    await ana.getByTestId('poll-close').click();
+    await ana.getByText('🏆 Pizza').waitFor({ timeout: 10000 });
+    await ben.goto(`${BASE}/trip/${tripId}/polls`);
+    await ben.getByText('🏆 Pizza').waitFor({ timeout: 15000 });
+    expect((await ben.getByText('Decided').count()) > 0, 'closed: Pizza won, and Ben sees it under Decided (his post notifications are off)');
+    await shot(ana, 'poll-decided');
+
     csp.assertNone();
     console.log('\nAll engagement checks passed.');
   } finally {

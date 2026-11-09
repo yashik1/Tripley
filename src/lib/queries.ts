@@ -47,6 +47,8 @@ export const keys = {
   post: (id: string) => ['post', id] as const,
   postComments: (id: string) => ['postComments', id] as const,
   recentPosts: ['recentPosts'] as const,
+  suggestions: (id: string) => ['suggestions', id] as const,
+  polls: (id: string) => ['polls', id] as const,
   itinerary: (id: string) => ['itinerary', id] as const,
   rsvps: (id: string) => ['rsvps', id] as const,
   itineraryComments: (itemId: string) => ['itineraryComments', itemId] as const,
@@ -99,6 +101,9 @@ export const usePost = (id: string) => useQuery({ queryKey: keys.post(id), query
 export const usePostComments = (id: string) =>
   useQuery({ queryKey: keys.postComments(id), queryFn: () => api.listPostComments(id), enabled: !!id });
 export const useRecentPosts = () => useQuery({ queryKey: keys.recentPosts, queryFn: () => api.listRecentPosts(6), staleTime: 0 });
+export const useSuggestions = (id: string) =>
+  useQuery({ queryKey: keys.suggestions(id), queryFn: () => api.listSuggestions(id), enabled: !!id });
+export const usePolls = (id: string) => useQuery({ queryKey: keys.polls(id), queryFn: () => api.listPolls(id), enabled: !!id });
 export const useItinerary = (id: string) =>
   useQuery({ queryKey: keys.itinerary(id), queryFn: () => api.listItinerary(id), enabled: !!id });
 export const useRsvps = (id: string) => useQuery({ queryKey: keys.rsvps(id), queryFn: () => api.listRsvps(id), enabled: !!id });
@@ -171,6 +176,18 @@ export function useTripRealtime(tripId: string) {
         const row = (payload.new ?? payload.old) as { post_id?: string } | undefined;
         if (row?.post_id) qc.invalidateQueries({ queryKey: keys.postComments(row.post_id) });
       })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'trip_suggestions', filter }, () => {
+        qc.invalidateQueries({ queryKey: keys.suggestions(tripId) });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'suggestion_votes', filter }, () => {
+        qc.invalidateQueries({ queryKey: keys.suggestions(tripId) });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'trip_polls', filter }, () => {
+        qc.invalidateQueries({ queryKey: keys.polls(tripId) });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'poll_votes', filter }, () => {
+        qc.invalidateQueries({ queryKey: keys.polls(tripId) });
+      })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'trip_members', filter }, () => {
         qc.invalidateQueries({ queryKey: keys.members(tripId) });
         qc.invalidateQueries({ queryKey: keys.overview });
@@ -179,7 +196,7 @@ export function useTripRealtime(tripId: string) {
       })
       .on('system', {}, (msg) => {
         if (!isListenerReady(msg)) return;
-        for (const key of [keys.locations, keys.members, keys.bills, keys.shares, keys.settlements, keys.places, keys.kitties, keys.kittyCash, keys.itinerary, keys.rsvps, keys.feed]) {
+        for (const key of [keys.locations, keys.members, keys.bills, keys.shares, keys.settlements, keys.places, keys.kitties, keys.kittyCash, keys.itinerary, keys.rsvps, keys.feed, keys.suggestions, keys.polls]) {
           qc.invalidateQueries({ queryKey: key(tripId) });
         }
       })

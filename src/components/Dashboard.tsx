@@ -19,7 +19,8 @@ import { firstName, formatDateRange, timeAgo, todayISO } from '@/lib/format';
 import { isGuest } from '@/lib/guest';
 import { notificationIcon, openNotification } from '@/lib/notification-routes';
 import { takePendingJoin } from '@/lib/pending-join';
-import { keys, useInvitations, useItinerary, useNotifications, useRecentPosts, useRsvps, useTripOverview, useTrips } from '@/lib/queries';
+import { keys, useInvitations, useItinerary, useNotifications, usePolls, useRecentPosts, useRsvps, useTripOverview, useTrips } from '@/lib/queries';
+import { pollIsOpen } from '@/lib/group-decisions';
 import { ActivityRow } from '@/components/ActivityRow';
 import { featuredTrip, greeting, planningSteps, tripStatus } from '@/lib/trip-status';
 import type { TripStats, TripWithCount } from '@/lib/types';
@@ -317,6 +318,7 @@ function Reminders({ trip, stats, me }: { trip: TripWithCount; stats?: TripStats
   const t = useTheme();
   const itinerary = useItinerary(trip.id);
   const rsvps = useRsvps(trip.id);
+  const polls = usePolls(trip.id);
   const today = todayISO();
   const items: { key: string; icon: IconName; text: string; onPress: () => void; color: string; soft: string }[] = [];
   const unanswered = (itinerary.data ?? []).filter(
@@ -330,6 +332,17 @@ function Reminders({ trip, stats, me }: { trip: TripWithCount; stats?: TripStats
       onPress: () => router.push(`/trip/${trip.id}/plan`),
       color: t.primary,
       soft: t.primarySoft,
+    });
+  }
+  const toVote = (polls.data ?? []).filter((p) => pollIsOpen(p) && !p.poll_votes.some((v) => v.user_id === me));
+  if (toVote.length > 0) {
+    items.push({
+      key: 'poll',
+      icon: 'poll',
+      text: toVote.length === 1 ? `Vote: ${toVote[0].question}` : `Vote in ${toVote.length} polls`,
+      onPress: () => router.push(`/trip/${trip.id}/polls`),
+      color: t.coralText,
+      soft: t.coralSoft,
     });
   }
   if (stats && Number(stats.members) < 2) {

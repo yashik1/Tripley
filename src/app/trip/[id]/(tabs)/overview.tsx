@@ -15,7 +15,8 @@ import { summarizeForUser, computePairBalances } from '@/lib/balances';
 import { formatMoney } from '@/lib/currency';
 import { formatDate, formatDateRange, todayISO } from '@/lib/format';
 import { rsvpSummary, timeRange } from '@/lib/itinerary';
-import { useFeed, useItinerary, usePlaces, useRsvps, useSettlements, useShareRows, useTripOverview } from '@/lib/queries';
+import { useFeed, useItinerary, usePlaces, usePolls, useRsvps, useSettlements, useShareRows, useSuggestions, useTripOverview } from '@/lib/queries';
+import { pollIsOpen } from '@/lib/group-decisions';
 import { ActivityRow } from '@/components/ActivityRow';
 import { useTripId } from '@/lib/trip-context';
 import { useTripData } from '@/lib/trip-hooks';
@@ -35,6 +36,8 @@ export default function TripOverview() {
   const today = todayISO();
   const stats = overview.data?.[id];
   const feed = useFeed(id);
+  const ideas = useSuggestions(id);
+  const polls = usePolls(id);
   const latest = (feed.data?.pages[0] ?? []).slice(0, 3);
 
   const base = trip?.base_currency ?? 'USD';
@@ -214,6 +217,14 @@ export default function TripOverview() {
         <SectionTitle>The trip</SectionTitle>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
           <SectionTile icon="calendar" title="Plan" detail={`${itinerary.data?.length ?? stats?.stops ?? 0} plans`} onPress={() => router.push(`/trip/${id}/plan`)} />
+          <SectionTile icon="idea" title="Bucket list" detail={`${ideas.data?.length ?? 0} ideas`} onPress={() => router.push(`/trip/${id}/ideas`)} />
+          <SectionTile
+            icon="poll"
+            title="Polls"
+            detail={`${(polls.data ?? []).filter((p) => pollIsOpen(p)).length} open`}
+            sub={(polls.data ?? []).some((p) => pollIsOpen(p) && !p.poll_votes.some((v) => v.user_id === me)) ? 'Waiting for your vote' : undefined}
+            onPress={() => router.push(`/trip/${id}/polls`)}
+          />
           <SectionTile icon="map" title="Map" detail={`${places.data?.length ?? 0} places pinned`} onPress={() => router.push(`/trip/${id}/map`)} />
           <SectionTile
             icon="wallet"

@@ -72,13 +72,16 @@ describe('who can call which function', () => {
 
   it('signed in: exactly the app’s functions and the helpers row rules use', async () => {
     expect(await callable('authenticated')).toEqual([
+      'add_suggestion_to_plan',
       'can_read_bill',
       'can_see_profile',
       'can_share_location',
       'can_upload_now',
       'cancel_invitation',
       'close_kitty',
+      'close_poll',
       'create_kitty',
+      'create_poll',
       'create_post',
       'invite_by_email',
       'invite_by_phone',
@@ -102,9 +105,11 @@ describe('who can call which function', () => {
       'save_bill',
       'set_itinerary_rsvp',
       'toggle_reaction',
+      'toggle_suggestion_vote',
       'trip_is_active',
       'trip_preview',
       'try_uuid',
+      'vote_poll',
     ]);
   });
 

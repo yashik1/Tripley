@@ -197,6 +197,41 @@ export type FeedPost = {
   author?: { display_name: string; avatar_url: string | null } | null;
 };
 
+export type SuggestionCategory = 'food' | 'sight' | 'beach' | 'hike' | 'experience' | 'shopping' | 'nightlife' | 'other';
+
+/** A place or thing to do someone suggested for the trip, with everyone's votes. */
+export type Suggestion = {
+  id: string;
+  trip_id: string;
+  suggested_by: string;
+  category: SuggestionCategory;
+  name: string;
+  description: string | null;
+  address: string | null;
+  lat: number | null;
+  lng: number | null;
+  photo_path: string | null;
+  cost_minor: number | null;
+  cost_currency: string | null;
+  preferred_day: string | null;
+  itinerary_item_id: string | null;
+  created_at: string;
+  suggestion_votes: { user_id: string }[];
+};
+
+export type Poll = {
+  id: string;
+  trip_id: string;
+  created_by: string;
+  question: string;
+  allow_change: boolean;
+  closes_at: string | null;
+  closed_at: string | null;
+  created_at: string;
+  poll_options: { id: string; label: string; position: number }[];
+  poll_votes: { user_id: string; option_id: string }[];
+};
+
 export type PostComment = { id: string; post_id: string; trip_id: string; user_id: string; body: string; created_at: string };
 
 /** Which notifications someone wants (unset = the default). */

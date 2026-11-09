@@ -27,6 +27,7 @@ import type {
   NotificationPrefs,
   Place,
   PlaceKind,
+  Poll,
   PostComment,
   PostKind,
   Profile,
@@ -34,6 +35,7 @@ import type {
   SentInvitation,
   Settlement,
   SharingMode,
+  Suggestion,
   Trip,
   TripFriend,
   TripPreview,
@@ -591,6 +593,64 @@ export async function deletePostComment(id: string): Promise<void> {
 
 export async function updateNotificationPrefs(userId: string, prefs: NotificationPrefs): Promise<void> {
   check(await supabase.from('profiles').update({ notification_prefs: prefs }).eq('id', userId));
+}
+
+// ---------------------------------------------------------------- bucket list and polls
+
+export type SuggestionInput = Pick<
+  Suggestion,
+  'category' | 'name' | 'description' | 'address' | 'lat' | 'lng' | 'photo_path' | 'cost_minor' | 'cost_currency' | 'preferred_day'
+>;
+
+export async function listSuggestions(tripId: string): Promise<Suggestion[]> {
+  return check(
+    await supabase.from('trip_suggestions').select('*, suggestion_votes(user_id)').eq('trip_id', tripId).order('created_at', { ascending: false }),
+  ) as Suggestion[];
+}
+
+export async function addSuggestion(tripId: string, input: SuggestionInput): Promise<void> {
+  check(await supabase.from('trip_suggestions').insert({ trip_id: tripId, ...input }));
+}
+
+export async function deleteSuggestion(id: string): Promise<void> {
+  check(await supabase.from('trip_suggestions').delete().eq('id', id));
+}
+
+export async function toggleSuggestionVote(id: string): Promise<boolean> {
+  return check(await supabase.rpc('toggle_suggestion_vote', { p_suggestion: id })) as boolean;
+}
+
+/** Adds the suggestion to the plan (once; pressing again returns the same stop). */
+export async function addSuggestionToPlan(id: string, day?: string | null): Promise<string> {
+  return check(await supabase.rpc('add_suggestion_to_plan', { p_suggestion: id, p_day: day ?? null })) as string;
+}
+
+export async function listPolls(tripId: string): Promise<Poll[]> {
+  return check(
+    await supabase
+      .from('trip_polls')
+      .select('*, poll_options(id, label, position), poll_votes(user_id, option_id)')
+      .eq('trip_id', tripId)
+      .order('created_at', { ascending: false }),
+  ) as Poll[];
+}
+
+export async function createPoll(tripId: string, question: string, options: string[], closesAt: string | null, allowChange: boolean): Promise<string> {
+  return check(
+    await supabase.rpc('create_poll', { p_trip: tripId, p_question: question, p_options: options, p_closes_at: closesAt, p_allow_change: allowChange }),
+  ) as string;
+}
+
+export async function votePoll(pollId: string, optionId: string | null): Promise<void> {
+  check(await supabase.rpc('vote_poll', { p_poll: pollId, p_option: optionId }));
+}
+
+export async function closePoll(pollId: string): Promise<void> {
+  check(await supabase.rpc('close_poll', { p_poll: pollId }));
+}
+
+export async function deletePoll(pollId: string): Promise<void> {
+  check(await supabase.from('trip_polls').delete().eq('id', pollId));
 }
 
 // ---------------------------------------------------------------- itinerary

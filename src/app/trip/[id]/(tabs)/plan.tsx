@@ -7,6 +7,7 @@ import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
 
+import { PlanSwitch } from '@/components/GroupDecisions';
 import { Icon } from '@/components/Icon';
 import { Banner, Button, Card, EmptyState, Row, Screen, Stack, Text } from '@/components/ui';
 import { setRsvp } from '@/lib/api';
@@ -68,6 +69,7 @@ export default function PlanTab() {
           />
         ) : undefined
       }>
+      <PlanSwitch tripId={id} value="plan" />
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
