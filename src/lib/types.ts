@@ -6,6 +6,7 @@ export type Profile = {
   avatar_url: string | null;
   default_currency: string;
   payment_handles: PaymentHandles;
+  notification_prefs?: NotificationPrefs;
 };
 
 export type Account = {
@@ -172,6 +173,34 @@ export type ItineraryItem = {
 export type ItineraryRsvp = { item_id: string; user_id: string; status: RsvpStatus };
 
 export type ItineraryComment = { id: string; item_id: string; trip_id: string; user_id: string; body: string; created_at: string };
+
+export type PostKind = 'update' | 'photos' | 'place' | 'announcement' | 'event';
+export const REACTIONS = ['❤️', '😂', '😮', '👏', '🔥', '👍'] as const;
+export type ReactionEmoji = (typeof REACTIONS)[number];
+
+/** A post in a trip's activity feed, with its photos, reactions and comment count. */
+export type FeedPost = {
+  id: string;
+  trip_id: string;
+  author_id: string | null;
+  kind: PostKind;
+  body: string | null;
+  place_name: string | null;
+  lat: number | null;
+  lng: number | null;
+  event: { type: string; label?: string; [key: string]: unknown } | null;
+  created_at: string;
+  post_photos: { path: string; position: number }[];
+  post_reactions: { user_id: string; emoji: string }[];
+  post_comments: { count: number }[];
+  trip?: { name: string } | null;
+  author?: { display_name: string; avatar_url: string | null } | null;
+};
+
+export type PostComment = { id: string; post_id: string; trip_id: string; user_id: string; body: string; created_at: string };
+
+/** Which notifications someone wants (unset = the default). */
+export type NotificationPrefs = { posts?: boolean; announcements?: boolean; comments?: boolean; reactions?: boolean };
 
 export type Kitty = {
   id: string;

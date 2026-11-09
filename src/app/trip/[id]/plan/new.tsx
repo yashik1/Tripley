@@ -29,6 +29,8 @@ export default function PlanItemForm() {
   const itinerary = useItinerary(id);
   const existing = itemId ? itinerary.data?.find((i) => i.id === itemId) : undefined;
   if (itemId && !existing) return itinerary.isLoading || loading ? <Loading /> : <Missing />;
+  // Wait for the trip so the day choices (and the default day) come from its dates.
+  if (loading || !trip) return <Loading />;
   return <Form key={existing?.id ?? 'new'} tripId={id} existing={existing} initialDay={dayParam} trip={trip} items={itinerary.data ?? []} />;
 }
 
@@ -59,7 +61,9 @@ function Form({
   const fix = useMyFix();
   const today = todayISO();
   const days = useMemo(() => planDays(trip ?? { starts_on: null, ends_on: null }, items, today), [trip, items, today]);
-  const [day, setDay] = useState(existing?.day ?? initialDay ?? days[0]?.day ?? today);
+  const [chosenDay, setDay] = useState(existing?.day ?? initialDay ?? days[0]?.day ?? today);
+  // Only days the trip allows can be picked (the server checks this too).
+  const day = days.some((d) => d.day === chosenDay) ? chosenDay : days[0]?.day ?? today;
   const [title, setTitle] = useState(existing?.title ?? '');
   const [start, setStart] = useState(shortTime(existing?.starts_at ?? null) ?? '');
   const [end, setEnd] = useState(shortTime(existing?.ends_at ?? null) ?? '');

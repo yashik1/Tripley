@@ -12,6 +12,7 @@ import { supabase } from './supabase';
 import type {
   Account,
   AppNotification,
+  FeedPost,
   Bill,
   BillDetail,
   Invitation,
@@ -23,8 +24,11 @@ import type {
   KittyOwnCash,
   Member,
   MemberLocation,
+  NotificationPrefs,
   Place,
   PlaceKind,
+  PostComment,
+  PostKind,
   Profile,
   RsvpStatus,
   SentInvitation,
@@ -517,6 +521,76 @@ export async function updatePlace(
 
 export async function deletePlace(id: string): Promise<void> {
   check(await supabase.from('trip_places').delete().eq('id', id));
+}
+
+// ---------------------------------------------------------------- activity feed
+
+const FEED_SELECT =
+  '*, author:profiles(display_name, avatar_url), post_photos(path, position), post_reactions(user_id, emoji), post_comments(count)';
+export const FEED_PAGE = 20;
+
+/** One page of a trip's feed, newest first; pass the oldest time seen to get the next page. */
+export async function listFeed(tripId: string, before?: string): Promise<FeedPost[]> {
+  let q = supabase.from('trip_posts').select(FEED_SELECT).eq('trip_id', tripId).order('created_at', { ascending: false }).limit(FEED_PAGE);
+  if (before) q = q.lt('created_at', before);
+  return check(await q) as FeedPost[];
+}
+
+/** Latest posts across all your trips (row-level security limits it to your trips). */
+export async function listRecentPosts(limit = 6): Promise<FeedPost[]> {
+  return check(
+    await supabase.from('trip_posts').select(`${FEED_SELECT}, trip:trips(name)`).order('created_at', { ascending: false }).limit(limit),
+  ) as FeedPost[];
+}
+
+export async function getPost(id: string): Promise<FeedPost | null> {
+  return check(await supabase.from('trip_posts').select(FEED_SELECT).eq('id', id).maybeSingle()) as FeedPost | null;
+}
+
+export async function createPost(input: {
+  tripId: string;
+  kind: Exclude<PostKind, 'event'>;
+  body?: string | null;
+  photos?: string[];
+  placeName?: string | null;
+  lat?: number | null;
+  lng?: number | null;
+}): Promise<string> {
+  return check(
+    await supabase.rpc('create_post', {
+      p_trip: input.tripId,
+      p_kind: input.kind,
+      p_body: input.body ?? null,
+      p_photos: input.photos ?? [],
+      p_place_name: input.placeName ?? null,
+      p_lat: input.lat ?? null,
+      p_lng: input.lng ?? null,
+    }),
+  ) as string;
+}
+
+export async function deletePost(id: string): Promise<void> {
+  check(await supabase.from('trip_posts').delete().eq('id', id));
+}
+
+export async function toggleReaction(postId: string, emoji: string): Promise<boolean> {
+  return check(await supabase.rpc('toggle_reaction', { p_post: postId, p_emoji: emoji })) as boolean;
+}
+
+export async function listPostComments(postId: string): Promise<PostComment[]> {
+  return check(await supabase.from('post_comments').select('*').eq('post_id', postId).order('created_at')) as PostComment[];
+}
+
+export async function addPostComment(tripId: string, postId: string, body: string): Promise<void> {
+  check(await supabase.from('post_comments').insert({ trip_id: tripId, post_id: postId, body }));
+}
+
+export async function deletePostComment(id: string): Promise<void> {
+  check(await supabase.from('post_comments').delete().eq('id', id));
+}
+
+export async function updateNotificationPrefs(userId: string, prefs: NotificationPrefs): Promise<void> {
+  check(await supabase.from('profiles').update({ notification_prefs: prefs }).eq('id', userId));
 }
 
 // ---------------------------------------------------------------- itinerary

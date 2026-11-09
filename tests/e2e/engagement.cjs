@@ -121,6 +121,96 @@ async function signUp(page, name, email) {
     expect(overview.includes('Lisbon, Portugal'), 'shows the destination');
     await shot(ana, 'overview');
 
+    console.log('7. The feed tells the trip’s story by itself');
+    await ana.goto(`${BASE}/trip/${tripId}/feed`);
+    await ana.getByText('Ana Costa started the trip').waitFor({ timeout: 15000 }).catch(() => ana.getByText('You started the trip').waitFor({ timeout: 5000 }));
+    await ana.getByText('Ben Ortiz joined the trip 👋').waitFor({ timeout: 15000 });
+    await ana.getByText('You added "Tram 28" to the plan').waitFor();
+    ok('started, joined and planned show up without anyone posting');
+
+    console.log('8. Updates, photos, reactions and comments');
+    await ana.getByTestId('compose-update').click();
+    await ana.getByTestId('post-body').fill('Can’t wait for Lisbon!');
+    await ana.getByTestId('post-submit').click();
+    await ana.getByText('Can’t wait for Lisbon!').waitFor({ timeout: 15000 });
+    ok('Ana posted an update');
+    await ben.goto(`${BASE}/trip/${tripId}/feed`);
+    await ben.getByText('Can’t wait for Lisbon!').waitFor({ timeout: 15000 });
+    expect((await ben.getByTestId('compose-announcement').count()) === 0, 'only the organizer can announce');
+    await ben.getByTestId('compose-photos').click();
+    const chooser = ben.waitForEvent('filechooser');
+    await ben.getByTestId('post-add-photo').click();
+    await (await chooser).setFiles('assets/images/icon.png');
+    await ben.locator('img').first().waitFor({ timeout: 15000 });
+    await ben.getByTestId('post-body').fill('Packing already');
+    await ben.getByTestId('post-submit').click();
+    await ben.getByTestId('post-photos').first().waitFor({ timeout: 30000 });
+    await ben.getByTestId('post-photos').first().locator('img').first().waitFor({ timeout: 15000 });
+    ok('Ben shared a photo; it shows from the private folder');
+    await ana.getByTestId('post-photos').first().waitFor({ timeout: 15000 });
+    ok('it reached Ana’s feed live');
+    await ana.getByTestId('post-photos').first().getByTestId('react-open').click();
+    await ana.getByTestId('react-🔥').click();
+    await ana.getByTestId('post-photos').first().getByTestId('reaction-🔥').waitFor({ timeout: 10000 });
+    ok('Ana reacted 🔥');
+    await ana.getByTestId('post-photos').first().getByText('Comment').click();
+    await ana.getByTestId('post-comment').fill('Gorgeous!');
+    await ana.getByTestId('post-comment-send').click();
+    await ana.getByText('Gorgeous!').waitFor();
+    await ben.goto(`${BASE}/notifications`);
+    await ben.getByText('Ana Costa commented: Gorgeous!').waitFor({ timeout: 15000 });
+    ok('Ben was told about the comment');
+    await shot(ana, 'post-with-comment');
+
+    console.log('9. Announcements and notification choices');
+    await ben.goto(`${BASE}/profile`);
+    await ben.getByTestId('pref-posts').click();
+    await ben.waitForTimeout(1500);
+    await ana.goto(`${BASE}/trip/${tripId}/feed`);
+    await ana.getByTestId('compose-announcement').click();
+    await ana.getByTestId('post-body').fill('Meet at the airport at 7');
+    await ana.getByTestId('post-submit').click();
+    await ana.getByText('Meet at the airport at 7').waitFor({ timeout: 15000 });
+    await ana.getByTestId('compose-update').click();
+    await ana.getByTestId('post-body').fill('Quiet update');
+    await ana.getByTestId('post-submit').click();
+    await ana.getByText('Quiet update').waitFor({ timeout: 15000 });
+    await ben.goto(`${BASE}/notifications`);
+    await ben.getByText(/Meet at the airport at 7/).waitFor({ timeout: 15000 });
+    await ben.waitForTimeout(1000);
+    expect((await ben.getByText(/Quiet update/).count()) === 0, 'Ben, who turned post notifications off, still gets announcements but not updates');
+    await shot(ana, 'feed');
+
+    console.log('10. Long feeds load page by page');
+    const token = (page) =>
+      page.evaluate(() => {
+        const key = Object.keys(localStorage).find((k) => k.endsWith('-auth-token'));
+        return JSON.parse(localStorage.getItem(key)).access_token;
+      });
+    const api = /EXPO_PUBLIC_SUPABASE_URL/.test('') ? '' : 'http://127.0.0.1:54321';
+    for (const [page, count] of [[ana, 10], [ben, 10]]) {
+      const jwt = await token(page);
+      for (let i = 0; i < count; i++) {
+        const r = await fetch(`${api}/rest/v1/rpc/create_post`, {
+          method: 'POST',
+          headers: { apikey: process.env.ANON_KEY || 'sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH', Authorization: `Bearer ${jwt}`, 'content-type': 'application/json' },
+          body: JSON.stringify({ p_trip: tripId, p_kind: 'update', p_body: `Filler ${i}` }),
+        });
+        if (!r.ok) throw new Error(`posting filler failed: ${r.status} ${await r.text()}`);
+      }
+    }
+    await ana.goto(`${BASE}/trip/${tripId}/feed`);
+    await ana.getByText('Filler 9').first().waitFor({ timeout: 15000 });
+    const firstPage = await ana.locator('[data-testid^="post-"], [data-testid^="feed-event-"]').count();
+    await ana.mouse.move(200, 450);
+    for (let i = 0; i < 12 && !(await ana.getByText('You’re all caught up').filter({ visible: true }).count()); i++) {
+      await ana.mouse.wheel(0, 3000);
+      await ana.waitForTimeout(800);
+    }
+    await ana.getByText('You’re all caught up').waitFor({ timeout: 15000 });
+    const all = await ana.locator('[data-testid^="post-"], [data-testid^="feed-event-"]').count();
+    expect(firstPage <= 20 && all > 20, `first page ${firstPage} posts, all ${all} after scrolling`);
+
     csp.assertNone();
     console.log('\nAll engagement checks passed.');
   } finally {

@@ -15,7 +15,8 @@ import { summarizeForUser, computePairBalances } from '@/lib/balances';
 import { formatMoney } from '@/lib/currency';
 import { formatDate, formatDateRange, todayISO } from '@/lib/format';
 import { rsvpSummary, timeRange } from '@/lib/itinerary';
-import { useItinerary, usePlaces, useRsvps, useSettlements, useShareRows, useTripOverview } from '@/lib/queries';
+import { useFeed, useItinerary, usePlaces, useRsvps, useSettlements, useShareRows, useTripOverview } from '@/lib/queries';
+import { ActivityRow } from '@/components/ActivityRow';
 import { useTripId } from '@/lib/trip-context';
 import { useTripData } from '@/lib/trip-hooks';
 import { planningSteps, tripStatus } from '@/lib/trip-status';
@@ -33,6 +34,8 @@ export default function TripOverview() {
   const settlements = useSettlements(id);
   const today = todayISO();
   const stats = overview.data?.[id];
+  const feed = useFeed(id);
+  const latest = (feed.data?.pages[0] ?? []).slice(0, 3);
 
   const base = trip?.base_currency ?? 'USD';
   const spent = (shares.data ?? []).reduce((a, s) => a + s.amountBaseMinor, 0);
@@ -193,6 +196,18 @@ export default function TripOverview() {
       ) : (
         <Banner tone="info" icon="calendar">This trip has ended. Everything is still here to look back on and settle up.</Banner>
       )}
+
+      {/* Latest from the group */}
+      {latest.length > 0 ? (
+        <Stack gap={space.sm}>
+          <SectionTitle action={<Pressable onPress={() => router.push(`/trip/${id}/feed`)} accessibilityRole="link"><Text variant="label" color={t.primary}>Open the feed</Text></Pressable>}>
+            Latest from the group
+          </SectionTitle>
+          <Card style={{ paddingVertical: space.xs, gap: 0 }}>
+            {latest.map((p, i) => <ActivityRow key={p.id} post={p} me={me} first={i === 0} />)}
+          </Card>
+        </Stack>
+      ) : null}
 
       {/* Every part of the trip */}
       <Stack gap={space.sm}>

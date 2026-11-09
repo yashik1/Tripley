@@ -130,7 +130,7 @@ export default function PlanItem() {
         {(comments.data ?? []).length === 0 ? <Text variant="caption" faint>No comments yet. Share a tip or ask a question.</Text> : null}
         {(comments.data ?? []).map((c) => (
           <Row key={c.id} gap={space.sm} align="flex-start">
-            <Avatar id={c.user_id} name={nameOf(c.user_id)} url={byId.get(c.user_id)?.profile.avatar_url} size={32} />
+            <Avatar id={c.user_id} name={byId.get(c.user_id)?.profile.display_name || nameOf(c.user_id)} url={byId.get(c.user_id)?.profile.avatar_url} size={32} />
             <View style={{ flex: 1, gap: 2 }}>
               <Text variant="caption" muted>
                 {c.user_id === me ? 'You' : firstName(nameOf(c.user_id))} · {timeAgo(c.created_at)}

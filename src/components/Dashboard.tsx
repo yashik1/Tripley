@@ -19,7 +19,8 @@ import { firstName, formatDateRange, timeAgo, todayISO } from '@/lib/format';
 import { isGuest } from '@/lib/guest';
 import { notificationIcon, openNotification } from '@/lib/notification-routes';
 import { takePendingJoin } from '@/lib/pending-join';
-import { keys, useInvitations, useItinerary, useNotifications, useRsvps, useTripOverview, useTrips } from '@/lib/queries';
+import { keys, useInvitations, useItinerary, useNotifications, useRecentPosts, useRsvps, useTripOverview, useTrips } from '@/lib/queries';
+import { ActivityRow } from '@/components/ActivityRow';
 import { featuredTrip, greeting, planningSteps, tripStatus } from '@/lib/trip-status';
 import type { TripStats, TripWithCount } from '@/lib/types';
 import { useAuth } from '@/providers/AuthProvider';
@@ -34,6 +35,7 @@ export function Dashboard() {
   const overview = useTripOverview();
   const invitations = useInvitations();
   const notifications = useNotifications();
+  const recent = useRecentPosts();
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const today = todayISO();
@@ -66,6 +68,7 @@ export function Dashboard() {
     overview.refetch();
     invitations.refetch();
     notifications.refetch();
+    recent.refetch();
   };
 
   const respond = async (id: string, accept: boolean) => {
@@ -198,8 +201,17 @@ export function Dashboard() {
             {/* E. Reminders from real data */}
             {featured ? <Reminders trip={featured} stats={overview.data?.[featured.id]} me={me} /> : null}
 
-            {/* D. Recent activity */}
-            {(notifications.data ?? []).length > 0 ? (
+            {/* D. Recent activity: the group's posts, or notifications before anyone has posted */}
+            {(recent.data ?? []).length > 0 ? (
+              <Stack gap={space.sm}>
+                <SectionTitle action={<Button title="Notifications" kind="ghost" small onPress={() => router.push('/notifications')} />}>Recent activity</SectionTitle>
+                <Card style={{ paddingVertical: space.xs, gap: 0 }} testID="recent-activity">
+                  {recent.data!.map((p, i) => (
+                    <ActivityRow key={p.id} post={p} me={me} showTrip={all.length > 1} first={i === 0} />
+                  ))}
+                </Card>
+              </Stack>
+            ) : (notifications.data ?? []).length > 0 ? (
               <Stack gap={space.sm}>
                 <SectionTitle action={<Button title="See all" kind="ghost" small onPress={() => router.push('/notifications')} />}>Recent activity</SectionTitle>
                 <Card style={{ paddingVertical: space.xs, gap: 0 }}>

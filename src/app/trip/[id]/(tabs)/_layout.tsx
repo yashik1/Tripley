@@ -18,9 +18,10 @@ export default function TripTabs() {
       <Tabs.Screen name="overview" options={{ title: 'Overview', tabBarIcon: ({ color }) => <Icon name="home" color={color as string} size={22} /> }} />
       <Tabs.Screen name="plan" options={{ title: 'Plan', tabBarIcon: ({ color }) => <Icon name="calendar" color={color as string} size={22} /> }} />
       <Tabs.Screen name="map" options={{ title: 'Map', tabBarIcon: ({ color }) => <Icon name="map" color={color as string} size={22} /> }} />
+      <Tabs.Screen name="feed" options={{ title: 'Feed', tabBarIcon: ({ color }) => <Icon name="feed" color={color as string} size={22} /> }} />
       <Tabs.Screen name="bills" options={{ title: 'Money', tabBarIcon: ({ color }) => <Icon name="wallet" color={color as string} size={22} /> }} />
-      <Tabs.Screen name="people" options={{ title: 'People', tabBarIcon: ({ color }) => <Icon name="people" color={color as string} size={22} /> }} />
-      {/* Reached from Money (Bills | Balances), so not its own tab. */}
+      {/* Reached from the overview (people) and Money (Bills | Balances), so no tab of their own. */}
+      <Tabs.Screen name="people" options={{ title: 'People', tabBarButton: () => null, tabBarItemStyle: { display: 'none' } }} />
       <Tabs.Screen name="balances" options={{ title: 'Balances', tabBarButton: () => null, tabBarItemStyle: { display: 'none' } }} />
     </Tabs>
   );

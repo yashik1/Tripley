@@ -64,6 +64,8 @@ function SignedInServices({ userId, children }: { userId: string | null; childre
       if (kind === 'invitation') router.push('/');
       else if (tripId && (kind === 'kitty_holder' || typeof data.kitty_id === 'string')) router.push(`/trip/${tripId}/kitty`);
       else if (tripId && kind === 'itinerary_comment' && typeof data.item_id === 'string') router.push(`/trip/${tripId}/plan/${data.item_id}`);
+      else if (tripId && kind.startsWith('post') && typeof data.post_id === 'string') router.push(`/trip/${tripId}/post/${data.post_id}`);
+      else if (tripId && kind.startsWith('poll') && typeof data.poll_id === 'string') router.push(`/trip/${tripId}/poll/${data.poll_id}`);
       else if (tripId && kind.startsWith('settlement')) router.push(`/trip/${tripId}/balances`);
       else if (tripId && kind.startsWith('bill')) router.push(`/trip/${tripId}/bills`);
       else if (tripId) router.push(`/trip/${tripId}/overview`);

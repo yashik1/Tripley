@@ -2,7 +2,7 @@
  * React Query hooks + Supabase Realtime subscriptions. Realtime events either
  * patch the cache directly (map dots) or invalidate the affected queries.
  */
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 
 import * as api from './api';
@@ -43,6 +43,10 @@ export const keys = {
   kittyCash: (id: string) => ['kittyCash', id] as const,
   overview: ['overview'] as const,
   cover: (path: string) => ['cover', path] as const,
+  feed: (id: string) => ['feed', id] as const,
+  post: (id: string) => ['post', id] as const,
+  postComments: (id: string) => ['postComments', id] as const,
+  recentPosts: ['recentPosts'] as const,
   itinerary: (id: string) => ['itinerary', id] as const,
   rsvps: (id: string) => ['rsvps', id] as const,
   itineraryComments: (itemId: string) => ['itineraryComments', itemId] as const,
@@ -82,6 +86,19 @@ export const usePhotoUrl = (path: string | null | undefined) =>
     gcTime: 9 * 60_000,
     refetchInterval: 8 * 60_000,
   });
+/** A trip's feed, 20 posts at a time (older pages load as you scroll). */
+export const useFeed = (id: string) =>
+  useInfiniteQuery({
+    queryKey: keys.feed(id),
+    queryFn: ({ pageParam }) => api.listFeed(id, pageParam),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (last) => (last.length < api.FEED_PAGE ? undefined : last[last.length - 1].created_at),
+    enabled: !!id,
+  });
+export const usePost = (id: string) => useQuery({ queryKey: keys.post(id), queryFn: () => api.getPost(id), enabled: !!id });
+export const usePostComments = (id: string) =>
+  useQuery({ queryKey: keys.postComments(id), queryFn: () => api.listPostComments(id), enabled: !!id });
+export const useRecentPosts = () => useQuery({ queryKey: keys.recentPosts, queryFn: () => api.listRecentPosts(6), staleTime: 0 });
 export const useItinerary = (id: string) =>
   useQuery({ queryKey: keys.itinerary(id), queryFn: () => api.listItinerary(id), enabled: !!id });
 export const useRsvps = (id: string) => useQuery({ queryKey: keys.rsvps(id), queryFn: () => api.listRsvps(id), enabled: !!id });
@@ -140,6 +157,20 @@ export function useTripRealtime(tripId: string) {
         if (row?.item_id) qc.invalidateQueries({ queryKey: keys.itineraryComments(row.item_id) });
         else qc.invalidateQueries({ queryKey: ['itineraryComments'] });
       })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'trip_posts', filter }, () => {
+        qc.invalidateQueries({ queryKey: keys.feed(tripId) });
+        qc.invalidateQueries({ queryKey: keys.recentPosts });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'post_reactions', filter }, (payload) => {
+        qc.invalidateQueries({ queryKey: keys.feed(tripId) });
+        const row = (payload.new ?? payload.old) as { post_id?: string } | undefined;
+        if (row?.post_id) qc.invalidateQueries({ queryKey: keys.post(row.post_id) });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'post_comments', filter }, (payload) => {
+        qc.invalidateQueries({ queryKey: keys.feed(tripId) });
+        const row = (payload.new ?? payload.old) as { post_id?: string } | undefined;
+        if (row?.post_id) qc.invalidateQueries({ queryKey: keys.postComments(row.post_id) });
+      })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'trip_members', filter }, () => {
         qc.invalidateQueries({ queryKey: keys.members(tripId) });
         qc.invalidateQueries({ queryKey: keys.overview });
@@ -148,7 +179,7 @@ export function useTripRealtime(tripId: string) {
       })
       .on('system', {}, (msg) => {
         if (!isListenerReady(msg)) return;
-        for (const key of [keys.locations, keys.members, keys.bills, keys.shares, keys.settlements, keys.places, keys.kitties, keys.kittyCash, keys.itinerary, keys.rsvps]) {
+        for (const key of [keys.locations, keys.members, keys.bills, keys.shares, keys.settlements, keys.places, keys.kitties, keys.kittyCash, keys.itinerary, keys.rsvps, keys.feed]) {
           qc.invalidateQueries({ queryKey: key(tripId) });
         }
       })
