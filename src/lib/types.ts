@@ -17,6 +17,19 @@ export type Account = {
   ai_scans_period: string | null;
 };
 
+/** What deleting the signed-in account will do (account_deletion_preview()). */
+export type DeletionPreview = {
+  /** Trips nobody else is on: deleted with everything in them. */
+  trips_deleted: { id: string; name: string }[];
+  /** Shared trips: you leave; if you organized one, new_organizer takes over. */
+  trips_left: { id: string; name: string; new_organizer: string | null }[];
+  /** Open cash kitties in shared trips where you hold the group's cash. */
+  kitties_held: number;
+  pro: boolean;
+  /** Stored photos that are removed with the account. */
+  files: { bucket: string; path: string }[];
+};
+
 export type Trip = {
   id: string;
   name: string;

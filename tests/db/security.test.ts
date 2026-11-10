@@ -72,6 +72,7 @@ describe('who can call which function', () => {
 
   it('signed in: exactly the app’s functions and the helpers row rules use', async () => {
     expect(await callable('authenticated')).toEqual([
+      'account_deletion_preview',
       'add_suggestion_to_plan',
       'can_read_bill',
       'can_see_profile',
@@ -84,6 +85,7 @@ describe('who can call which function', () => {
       'create_kitty',
       'create_poll',
       'create_post',
+      'delete_my_account',
       'enter_challenge',
       'invite_by_email',
       'invite_by_phone',

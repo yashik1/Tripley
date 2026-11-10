@@ -34,7 +34,7 @@ export function supportEmail(raw: string | undefined = process.env.EXPO_PUBLIC_S
 export function contactBlocks(email: string | null): LegalBlock[] {
   if (email) {
     return [
-      { text: `Email ${email} with any question about these documents, or to ask for a copy of your data, a correction, or deletion of your account. We reply within one month.` },
+      { text: `Email ${email} with any question about these documents, or to ask for a copy of your data or a correction. We reply within one month. You can delete your account yourself in the app, from Profile, then Delete account.` },
       { text: 'For a privacy request, write from the email address or phone number on your account if you can, so we can confirm it’s you. If you’re in India, this address is also our grievance contact under the DPDP Act.' },
     ];
   }
@@ -46,6 +46,7 @@ export function contactBlocks(email: string | null): LegalBlock[] {
     {
       list: [
         'Open Profile to edit your name, payment details, notification settings and badge privacy.',
+        'Delete your account yourself, at any time, from Profile, then Delete account.',
         'Pause location sharing at any time from the trip’s map.',
         'Delete your own posts and comments, or leave a trip, from inside the trip.',
         'Sign out to remove the copy of your trips kept on this device.',
@@ -63,7 +64,7 @@ export const PRIVACY: LegalDoc = {
     'We collect what Tripley needs to run your trips: your name, how you sign in, the trips you’re on and what you add to them.',
     'Your location is shared only with people on the same trip, only while the trip is on and you’re sharing. We keep only your latest position, never a history, and delete it after the trip ends.',
     'We don’t sell your data, show ads, or use third-party analytics or advertising trackers.',
-    'You can see and change most of your data in the app, and ask us for a copy or to delete your account.',
+    'You can see and change most of your data in the app, delete your account there yourself, and ask us for a copy.',
   ],
   sections: [
     {
@@ -221,7 +222,8 @@ export const PRIVACY: LegalDoc = {
             'Shared location: until the trip ends or you leave it (see above).',
             'AI receipt results: one day. Scan records: 90 days.',
             'Your account and trips: for as long as you have an account. Trip records such as bills, payments and plans are shared with your group, so what you added to a trip stays for the others after you leave it.',
-            'When an account is deleted, we delete or anonymise its personal data within one month, except where the law requires us to keep something longer. Bills and payments stay in the group’s records under an anonymous name so everyone’s balances still add up.',
+            'When you delete your account, your sign-in details, name, payment details, posts, comments, photos, packing lists and location are deleted straight away. Trips nobody else is on are deleted too. On shared trips, bills, payments and plans stay in the group’s records under the name “Former member”, so everyone’s balances still add up.',
+            'Any copies in backups are overwritten as the backups are replaced.',
             'Server logs: kept only for a limited time by our hosting provider.',
             'Data on your device: the copy kept for offline use is tied to your account and removed when you sign out.',
           ],
@@ -238,7 +240,8 @@ export const PRIVACY: LegalDoc = {
             'See and correct your profile, payment details and notification settings in Profile.',
             'Pause location sharing, and turn off location, camera, photos, contacts or notification access in your device settings.',
             'Delete your own posts and comments, and leave a trip.',
-            'Ask us for a copy of your data, to correct or delete it, or object to how we use it, using “Contact us”. We reply within one month, or sooner if your law requires.',
+            'Delete your account and the data that goes with it, in Profile, then Delete account. It takes effect straight away.',
+            'Ask us for a copy of your data, to correct it, or object to how we use it, using “Contact us”. We reply within one month, or sooner if your law requires.',
           ],
         },
         {
@@ -459,7 +462,7 @@ export const TERMS: LegalDoc = {
       heading: 'Ending',
       blocks: [
         {
-          text: 'You can stop using Tripley at any time and ask us to delete your account. We may suspend or close an account that seriously or repeatedly breaks these terms, or where the law requires; where it’s reasonable, we’ll tell you why. Parts of these terms that by their nature should continue (such as content licences already used, and limits on liability) continue after that.',
+          text: 'You can stop using Tripley at any time, and delete your account from your profile. Deleting it doesn’t cancel a Tripley Pro subscription; cancel that in your app store. We may suspend or close an account that seriously or repeatedly breaks these terms, or where the law requires; where it’s reasonable, we’ll tell you why. Parts of these terms that by their nature should continue (such as content licences already used, and limits on liability) continue after that.',
         },
       ],
     },

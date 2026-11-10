@@ -207,6 +207,8 @@ export function useTripRealtime(tripId: string) {
         qc.invalidateQueries({ queryKey: keys.challenges(tripId) });
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'trip_members', filter }, () => {
+        // The trip too: a role change means the organizer changed (the old one deleted their account).
+        qc.invalidateQueries({ queryKey: keys.trip(tripId) });
         qc.invalidateQueries({ queryKey: keys.members(tripId) });
         qc.invalidateQueries({ queryKey: keys.overview });
         qc.invalidateQueries({ queryKey: keys.trips });
@@ -214,7 +216,7 @@ export function useTripRealtime(tripId: string) {
       })
       .on('system', {}, (msg) => {
         if (!isListenerReady(msg)) return;
-        for (const key of [keys.locations, keys.members, keys.bills, keys.shares, keys.settlements, keys.places, keys.kitties, keys.kittyCash, keys.itinerary, keys.rsvps, keys.feed, keys.suggestions, keys.polls, keys.tasks, keys.challenges]) {
+        for (const key of [keys.trip, keys.locations, keys.members, keys.bills, keys.shares, keys.settlements, keys.places, keys.kitties, keys.kittyCash, keys.itinerary, keys.rsvps, keys.feed, keys.suggestions, keys.polls, keys.tasks, keys.challenges]) {
           qc.invalidateQueries({ queryKey: key(tripId) });
         }
       })

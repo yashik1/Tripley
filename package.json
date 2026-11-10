@@ -83,6 +83,7 @@
     "test:e2e:plan": "node tests/e2e/plan.cjs",
     "test:e2e:engagement": "node tests/e2e/engagement.cjs",
     "test:e2e:legal": "node tests/e2e/legal.cjs",
+    "test:e2e:delete-account": "node tests/e2e/delete-account.cjs",
     "screens": "node tests/e2e/screens.cjs"
   },
   "private": true,

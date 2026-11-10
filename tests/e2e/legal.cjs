@@ -85,18 +85,16 @@ const path = (page) => new URL(page.url()).pathname;
     await page.getByTestId('guest-continue').click();
     await page.getByTestId('home-profile').waitFor({ timeout: 20000 });
     await page.goto(`${BASE}/profile`);
-    await page.getByTestId('delete-account-help').waitFor();
-    expect(
-      (await page.getByTestId('delete-account-help').innerText()).includes('Privacy Policy'),
-      'profile explains where to ask for a copy or deletion',
-    );
+    await page.getByTestId('data-help').waitFor();
+    expect((await page.getByTestId('data-help').innerText()).includes('Privacy Policy'), 'profile explains where to ask for a copy of your data');
+    expect(await page.getByTestId('delete-account-open').isVisible(), 'profile has a Delete account button');
     await page.getByTestId('link-privacy').scrollIntoViewIfNeeded();
     await shot(page, 'profile-links');
     await page.getByTestId('link-terms').click();
     await page.getByTestId('legal-terms').waitFor();
     expect(path(page) === '/terms', 'profile links to the terms while signed in');
     await page.goBack();
-    await page.getByTestId('delete-account-help').waitFor();
+    await page.getByTestId('data-help').waitFor();
     ok('back returns to the profile');
 
     console.log('Phone-sized screen, dark mode');

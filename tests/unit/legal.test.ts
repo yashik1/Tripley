@@ -92,6 +92,16 @@ describe('the privacy policy matches what the code does', () => {
     expect(api).toContain('SIGNED_URL_SECONDS = 600');
   });
 
+  it('lets people delete their account themselves, keeping only anonymous money records', () => {
+    expect(privacy).toContain('Delete your account and the data that goes with it, in Profile, then Delete account.');
+    expect(privacy).toContain('under the name “Former member”');
+    expect(terms).toContain('delete your account from your profile');
+    expect(JSON.stringify(contactBlocks(null))).toContain('Delete your account yourself');
+    expect(migrations).toContain('delete from auth.users where id = v_uid;');
+    expect(migrations).toContain("set display_name = 'Former member',");
+    expect(migrations).toContain('delete from public.trip_posts where author_id = v_uid;');
+  });
+
   it('keeps packing lists private', () => {
     expect(privacy).toContain('Your packing list is visible only to you');
     expect(migrations).toContain("using (public.is_trip_member(trip_id) and (kind = 'group' or created_by = auth.uid()));");

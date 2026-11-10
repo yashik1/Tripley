@@ -11,6 +11,7 @@ import type { ScannedReceipt } from './receipt';
 import { supabase } from './supabase';
 import type {
   Account,
+  DeletionPreview,
   AppNotification,
   Challenge,
   FeedPost,
@@ -75,6 +76,28 @@ export async function getAccount(): Promise<Account | null> {
   return check(
     await supabase.from('accounts').select('plan, plan_expires_at, ai_scans_used, ai_scans_period').eq('user_id', id).maybeSingle(),
   ) as Account | null;
+}
+
+export async function accountDeletionPreview(): Promise<DeletionPreview> {
+  return check(await supabase.rpc('account_deletion_preview')) as DeletionPreview;
+}
+
+/**
+ * Deletes the signed-in account. Stored photos go first, through the Storage
+ * API (which removes the files themselves); the server refuses to delete the
+ * account while any remain, so a failure here leaves everything in place and
+ * can simply be tried again.
+ */
+export async function deleteMyAccount(): Promise<void> {
+  const { files } = await accountDeletionPreview();
+  const byBucket = new Map<string, string[]>();
+  for (const f of files) byBucket.set(f.bucket, [...(byBucket.get(f.bucket) ?? []), f.path]);
+  for (const [bucket, paths] of byBucket) {
+    for (let i = 0; i < paths.length; i += 100) {
+      check(await supabase.storage.from(bucket).remove(paths.slice(i, i + 100)));
+    }
+  }
+  check(await supabase.rpc('delete_my_account'));
 }
 
 export function isPro(account: Account | null | undefined): boolean {

@@ -206,6 +206,8 @@ export function Button({
       testID={testID}
       accessibilityRole="button"
       accessibilityState={{ disabled: !!inactive, busy: !!loading }}
+      // Also what tells screen readers on the web that it's off.
+      disabled={!!inactive}
       onPress={inactive ? undefined : onPress}
       style={({ pressed }) => [
         styles.button,

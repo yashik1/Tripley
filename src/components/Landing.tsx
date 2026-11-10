@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useRef, type ComponentRef, type ReactNode } from 'react';
 import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -9,7 +9,7 @@ import { radius, space, useTheme } from '@/theme';
 import { Brand } from './AuthLayout';
 import { Icon, type IconName } from './Icon';
 import { LegalLinks } from './Legal';
-import { Button, Row, Stack, Text } from './ui';
+import { Banner, Button, Row, Stack, Text } from './ui';
 
 const FEATURES: { icon: IconName; title: string; body: string }[] = [
   {
@@ -157,6 +157,8 @@ function Preview() {
 export function Landing() {
   const t = useTheme();
   const { session } = useAuth();
+  // Set when an account has just been deleted (src/app/delete-account.tsx).
+  const { deleted } = useLocalSearchParams<{ deleted?: string }>();
   const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
   const { width } = useWindowDimensions();
   const wide = width >= 900;
@@ -185,6 +187,16 @@ export function Landing() {
             )}
           </Row>
         </View>
+
+        {deleted === '1' && !signedIn ? (
+          <View style={{ paddingHorizontal: space.lg, paddingTop: space.lg }}>
+            <View style={styles.container} testID="account-deleted">
+              <Banner tone="success" title="Your account was deleted" icon="check">
+                Your sign-in details, posts and photos are gone. Thanks for travelling with Tripley.
+              </Banner>
+            </View>
+          </View>
+        ) : null}
 
         {/* Hero */}
         <Section>

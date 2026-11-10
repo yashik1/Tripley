@@ -175,11 +175,12 @@ export default function Profile() {
         }}
       />
       <Stack gap={space.sm} style={{ alignItems: 'center' }}>
+        <Button title="Delete account" icon="trash" kind="ghost" small onPress={() => router.push('/delete-account')} testID="delete-account-open" />
         <LegalLinks center />
-        <Text variant="caption" faint center style={{ color: t.textFaint }} testID="delete-account-help">
+        <Text variant="caption" faint center style={{ color: t.textFaint }} testID="data-help">
           {email
-            ? `To get a copy of your data or delete your account, email ${email}.`
-            : 'To get a copy of your data or delete your account, see “Contact us” in the Privacy Policy.'}
+            ? `For a copy of your data, email ${email}.`
+            : 'For a copy of your data, see “Contact us” in the Privacy Policy.'}
         </Text>
       </Stack>
     </Screen>

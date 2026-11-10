@@ -306,6 +306,8 @@ To run it locally:
 
 Every browser suite fails if the site's Content-Security-Policy blocks anything.
 
+`tests/e2e/delete-account.cjs` (`npm run test:e2e:delete-account`, same build) deletes a real account: the organizer of a shared trip, with a photo post and a bill, deletes from her profile. Her login stops working, her post and photo are gone, the other member becomes the organizer and still owes his share, and the same email can sign up again as a new account. A guest deletes too. The database rules are in `tests/db/account-deletion.test.ts`.
+
 `tests/e2e/legal.cjs` (`npm run test:e2e:legal`, same build) checks the Privacy Policy and Terms pages: reachable from the home page, log-in, sign-up and profile, by direct link, and readable on a phone-sized screen.
 
 `tests/e2e/accounts.cjs` (`npm run test:e2e:accounts`) covers accounts against a web build with `EXPO_PUBLIC_AUTH_METHODS=password,guest`: the landing page; sign up; log out and back in; forgot password, with the reset link (read from the local mail catcher on :54324) opened in a different browser; a guest saving their account and logging in elsewhere with their trip intact; signing up from an invite; a duplicate email; and one browser used by two accounts in turn, with nothing of the first left on the device.
@@ -322,7 +324,15 @@ Google Play also asks for a short video showing the in-app explanation and permi
 
 **Privacy Policy and Terms.** Both are in the app at `/privacy` and `/terms` (text in `src/lib/legal.ts`), linked from the home page, log-in, sign-up, the join page, the Pro screen and the profile. Use `https://<your domain>/privacy` as the privacy policy URL in both store listings. They describe what the app does today; if you change what is collected or how long it is kept, change the text too (`tests/unit/legal.test.ts` checks the retention periods against the migrations). They are a plain-language draft, not legal advice: have a lawyer review them before a public launch.
 
+**Account deletion.** Both stores require it, and it is in the app: Profile → Delete account (`src/app/delete-account.tsx`, migration `20261117000000_account_deletion.sql`). The screen first shows what will happen, then asks the person to type DELETE.
+
+- Trips nobody else is on are deleted. Shared trips stay: the person leaves, and if they organized one, the longest-standing other member becomes the organizer and is told.
+- Their posts, comments, photos, packing lists, location and sign-in record are deleted. Photos are removed through the Storage API first, so the files themselves go; the database refuses to delete the account while any remain.
+- Bills, payments, plans, ideas and polls stay in shared trips so balances still add up. They show as "Former member", backed by an empty placeholder profile.
+- It does not cancel a Tripley Pro subscription (the screen says so), and a debt to or from the person can no longer be marked as paid from their side.
+
+For Google Play's "account deletion URL", link to `https://<your domain>/privacy`, which explains the steps.
+
 Still needed before submitting to the stores:
 
 - A public contact address: set `EXPO_PUBLIC_SUPPORT_EMAIL` and redeploy.
-- In-app account deletion. Apple and Google both require it for apps that let people create accounts; today the profile points people to the Privacy Policy's contact section instead.
