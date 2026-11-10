@@ -11,6 +11,7 @@ import {
   Text as RNText,
   TextInput,
   View,
+  type AccessibilityRole,
   type StyleProp,
   type TextInputProps,
   type TextStyle,
@@ -129,9 +130,14 @@ export function Text({
   numberOfLines,
   center,
   testID,
+  accessibilityRole,
+  onPress,
 }: {
   children: ReactNode;
   testID?: string;
+  /** e.g. 'header' for headings screen readers can jump between, or 'link'. */
+  accessibilityRole?: AccessibilityRole;
+  onPress?: () => void;
   variant?: TextVariant;
   muted?: boolean;
   faint?: boolean;
@@ -144,6 +150,8 @@ export function Text({
   return (
     <RNText
       testID={testID}
+      accessibilityRole={accessibilityRole}
+      onPress={onPress}
       numberOfLines={numberOfLines}
       style={[
         textStyles[variant],

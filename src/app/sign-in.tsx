@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Platform, Pressable, View } from 'react-native';
 
 import { AuthLayout, AuthSwitch, PasswordField } from '@/components/AuthLayout';
+import { AgreeNote } from '@/components/Legal';
 import { defaultCountry, PhoneInput, toE164 } from '@/components/PhoneInput';
 import { Banner, Button, Divider, Field, Row, Segmented, Stack, Text } from '@/components/ui';
 import { logInWithPassword } from '@/lib/account';
@@ -244,6 +245,7 @@ export default function SignIn() {
           <AuthSwitch prompt="Just trying it out?" action="Continue as a guest" onPress={() => setGuestOpen(true)} testID="open-guest" />
         )
       ) : null}
+      <AgreeNote />
     </AuthLayout>
   );
 }

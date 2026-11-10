@@ -203,6 +203,7 @@ Tripley runs in the Railway project **tripley**: the open-source Supabase stack 
 | `EXPO_PUBLIC_SUPABASE_ANON_KEY` | Public anon key, printed in the `supabase` gateway's deploy logs |
 | `EXPO_PUBLIC_AUTH_METHODS` | `password,guest` |
 | `EXPO_PUBLIC_APP_DOMAIN` | `${{RAILWAY_PUBLIC_DOMAIN}}` |
+| `EXPO_PUBLIC_SUPPORT_EMAIL` | Not set yet. The public contact address for the Privacy Policy and Terms; add it, then redeploy `web` |
 | `NODE_ENV` | `production` |
 
 **`auth` variables:**
@@ -305,6 +306,8 @@ To run it locally:
 
 Every browser suite fails if the site's Content-Security-Policy blocks anything.
 
+`tests/e2e/legal.cjs` (`npm run test:e2e:legal`, same build) checks the Privacy Policy and Terms pages: reachable from the home page, log-in, sign-up and profile, by direct link, and readable on a phone-sized screen.
+
 `tests/e2e/accounts.cjs` (`npm run test:e2e:accounts`) covers accounts against a web build with `EXPO_PUBLIC_AUTH_METHODS=password,guest`: the landing page; sign up; log out and back in; forgot password, with the reset link (read from the local mail catcher on :54324) opened in a different browser; a guest saving their account and logging in elsewhere with their trip intact; signing up from an invite; a duplicate email; and one browser used by two accounts in turn, with nothing of the first left on the device.
 
 ---
@@ -313,8 +316,13 @@ Every browser suite fails if the site's Content-Security-Policy blocks anything.
 
 Both stores review background location. Suggested wording for the review notes / Play declaration:
 
-> Tripley shows the live location of friends who are on a trip together. Location is shared only with members of trips the user has joined, only while the trip is active, and can be paused at any time from the map. The app needs background location so friends can still see each other when the phone is locked or the app is closed. Only the latest position is stored, and it is deleted 24 hours after the trip ends.
+> Tripley shows the live location of friends who are on a trip together. Location is shared only with members of trips the user has joined, only while the trip is active, and can be paused at any time from the map. The app needs background location so friends can still see each other when the phone is locked or the app is closed. Only the latest position is stored. It is deleted as soon as the organizer ends the trip, or automatically within 3 days of the trip's end date.
 
 Google Play also asks for a short video showing the in-app explanation and permission prompt (Map tab → "Turn on location").
 
-You'll also need a privacy policy covering location, phone numbers, receipt photos and payments.
+**Privacy Policy and Terms.** Both are in the app at `/privacy` and `/terms` (text in `src/lib/legal.ts`), linked from the home page, log-in, sign-up, the join page, the Pro screen and the profile. Use `https://<your domain>/privacy` as the privacy policy URL in both store listings. They describe what the app does today; if you change what is collected or how long it is kept, change the text too (`tests/unit/legal.test.ts` checks the retention periods against the migrations). They are a plain-language draft, not legal advice: have a lawyer review them before a public launch.
+
+Still needed before submitting to the stores:
+
+- A public contact address: set `EXPO_PUBLIC_SUPPORT_EMAIL` and redeploy.
+- In-app account deletion. Apple and Google both require it for apps that let people create accounts; today the profile points people to the Privacy Policy's contact section instead.

@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 
 import { AuthLayout, AuthSwitch, PasswordField } from '@/components/AuthLayout';
+import { AgreeNote } from '@/components/Legal';
 import { Banner, Button, Field, Stack, Text } from '@/components/ui';
 import { signUpWithPassword } from '@/lib/account';
 import { hasAuth } from '@/lib/auth-methods';
@@ -70,6 +71,7 @@ export default function SignUp() {
         <PasswordField value={password} onChangeText={setPassword} onSubmitEditing={submit} newPassword testID="signup-password" />
         {error ? <Banner tone="danger">{error}</Banner> : null}
         <Button title="Create account" onPress={submit} loading={busy} testID="signup-submit" />
+        <AgreeNote action="creating an account" />
         <Text variant="caption" faint center>
           Your location is shared only with people on trips you join, only while those trips are on.
         </Text>

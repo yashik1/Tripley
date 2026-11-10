@@ -3,6 +3,7 @@ import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Platform, View } from 'react-native';
 
+import { AgreeNote } from '@/components/Legal';
 import { Avatar, Banner, Button, Card, Field, Loading, Row, Screen, Stack, Text } from '@/components/ui';
 import { isConfigured } from '@/config';
 import { joinTripByCode, tripPreview } from '@/lib/api';
@@ -157,6 +158,7 @@ export default function JoinTrip() {
                 {accounts ? 'No sign-up needed. A guest account lives only in this browser; you can save it later.' : 'No sign-up needed. Your account stays on this device.'}
               </Text>
               {otherSignIn && !accounts ? <Button title="I have an account, sign in" kind="ghost" small onPress={() => signInFirst('/sign-in')} testID="join-trip" /> : null}
+              <AgreeNote action="joining" />
             </Stack>
           ) : !accounts ? (
             <Button title="Sign in to join" onPress={() => signInFirst('/sign-in')} testID="join-trip" />

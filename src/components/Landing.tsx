@@ -8,6 +8,7 @@ import { useAuth } from '@/providers/AuthProvider';
 import { radius, space, useTheme } from '@/theme';
 import { Brand } from './AuthLayout';
 import { Icon, type IconName } from './Icon';
+import { LegalLinks } from './Legal';
 import { Button, Row, Stack, Text } from './ui';
 
 const FEATURES: { icon: IconName; title: string; body: string }[] = [
@@ -282,7 +283,10 @@ export function Landing() {
             <Text variant="caption" faint>
               Your location is shared only with people on your trips, only while the trip is on. You can pause anytime.
             </Text>
-            <Text variant="caption" faint>© {new Date().getFullYear()} Tripley</Text>
+            <Row gap={space.lg} style={{ flexWrap: 'wrap' }}>
+              <Text variant="caption" faint>© {new Date().getFullYear()} Tripley</Text>
+              <LegalLinks />
+            </Row>
           </Stack>
         </View>
       </ScrollView>

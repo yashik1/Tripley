@@ -125,6 +125,9 @@ function AppNavigator() {
       {/* Opened from the reset email, signed out; the link signs you in. */}
       <Stack.Screen name="reset-password" options={{ headerShown: false, title: 'Choose a new password' }} />
       <Stack.Screen name="auth/callback" options={{ headerShown: false }} />
+      {/* Public, signed in or out (app stores link to these). */}
+      <Stack.Screen name="privacy" options={{ title: 'Privacy Policy' }} />
+      <Stack.Screen name="terms" options={{ title: 'Terms of Use' }} />
     </Stack>
   );
 

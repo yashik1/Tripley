@@ -4,6 +4,7 @@ import { useState } from 'react';
 
 import { ChangePasswordCard, NotificationPrefsCard, PassportCard, SaveAccountCard } from '@/components/AccountCards';
 import { CurrencyPicker } from '@/components/CurrencyPicker';
+import { LegalLinks } from '@/components/Legal';
 import { Avatar, Banner, Button, Card, Field, Row, Screen, SectionTitle, Stack, Text } from '@/components/ui';
 import { isPro, updateProfile } from '@/lib/api';
 import { queuedCount } from '@/lib/outbox';
@@ -11,6 +12,7 @@ import { hasAuth } from '@/lib/auth-methods';
 import { confirm } from '@/lib/confirm';
 import { errorMessage } from '@/lib/errors';
 import { isGuest } from '@/lib/guest';
+import { supportEmail } from '@/lib/legal';
 import { isValidIban, normalizeHandles, type PaymentHandles } from '@/lib/payment-links';
 import { useAccount } from '@/lib/queries';
 import { useAuth } from '@/providers/AuthProvider';
@@ -62,6 +64,7 @@ export default function Profile() {
 
   const pro = isPro(account.data);
   const guest = isGuest(user);
+  const email = supportEmail();
   const contact = guest ? 'Guest account' : user?.phone ? `+${user.phone.replace(/^\+/, '')}` : user?.email ?? '';
 
   return (
@@ -171,9 +174,14 @@ export default function Profile() {
           }
         }}
       />
-      <Text variant="caption" faint center style={{ color: t.textFaint }}>
-        To delete your account and data, contact support from the app store listing.
-      </Text>
+      <Stack gap={space.sm} style={{ alignItems: 'center' }}>
+        <LegalLinks center />
+        <Text variant="caption" faint center style={{ color: t.textFaint }} testID="delete-account-help">
+          {email
+            ? `To get a copy of your data or delete your account, email ${email}.`
+            : 'To get a copy of your data or delete your account, see “Contact us” in the Privacy Policy.'}
+        </Text>
+      </Stack>
     </Screen>
   );
 }

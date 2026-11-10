@@ -5,6 +5,7 @@ import { Linking, View } from 'react-native';
 import type { PurchasesPackage } from 'react-native-purchases';
 
 import { Icon } from '@/components/Icon';
+import { LegalLinks } from '@/components/Legal';
 import { Banner, Button, Card, Row, Screen, Stack, Text } from '@/components/ui';
 import { isPro } from '@/lib/api';
 import { errorMessage } from '@/lib/errors';
@@ -137,6 +138,7 @@ export default function Pro() {
       )}
       {!pro && available ? <Button title="Restore purchase" kind="ghost" onPress={restore} loading={busy === 'restore'} /> : null}
       <Button title="Not now" kind="ghost" onPress={() => router.back()} />
+      <LegalLinks center />
     </Screen>
   );
 }
