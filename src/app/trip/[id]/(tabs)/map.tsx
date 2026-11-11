@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
@@ -11,7 +11,7 @@ import type { MapPerson, MapPlace, MapTarget } from '@/components/TripMap.types'
 import { Avatar, Banner, Button, Chip, IconButton, initials, Row, Text } from '@/components/ui';
 import { updateMySharing } from '@/lib/api';
 import { errorMessage } from '@/lib/errors';
-import { isStale, timeAgo, todayISO } from '@/lib/format';
+import { formatDate, isStale, timeAgo, todayISO } from '@/lib/format';
 import { describeOffset } from '@/lib/geo';
 import { centreOf, pinKindFor, type GeoResult } from '@/lib/geocode';
 import { directionsUrl } from '@/lib/map-links';
@@ -32,6 +32,8 @@ export default function TripMapScreen() {
   const placesQuery = usePlaces(id);
   const itinerary = useItinerary(id);
   const sharing = useSharing();
+  // ?day=2026-12-02: show that day's stops, numbered, with the walk between them (from the plan's route card).
+  const { day: routeDay } = useLocalSearchParams<{ day?: string }>();
   const [picking, setPicking] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const [focusId, setFocusId] = useState<string | null>(null);
@@ -75,6 +77,14 @@ export default function TripMapScreen() {
         }),
     [locations.data, byId, me, now],
   );
+  const dayStops = useMemo(
+    () =>
+      routeDay
+        ? (itinerary.data ?? []).filter((i) => i.day === routeDay && i.lat != null && i.lng != null).sort((a, b) => a.position - b.position)
+        : stopsForMap(itinerary.data ?? [], todayISO()),
+    [itinerary.data, routeDay],
+  );
+  const route = useMemo(() => (routeDay ? dayStops.map((s) => ({ lat: s.lat!, lng: s.lng! })) : null), [routeDay, dayStops]);
   const places: MapPlace[] = useMemo(
     () =>
       (placesQuery.data ?? []).map((p) => ({
@@ -86,10 +96,10 @@ export default function TripMapScreen() {
         radiusM: p.radius_m,
         alerts: p.alerts,
       })).concat(
-        // The plan's stops for today (or the next day with stops).
-        stopsForMap(itinerary.data ?? [], todayISO()).map((s) => ({
+        // The plan's stops for today (or the next day with stops), or the day whose route is shown.
+        dayStops.map((s, k) => ({
           id: `stop:${s.id}`,
-          name: [timeRange(s), s.title].filter(Boolean).join(' '),
+          name: [routeDay ? `${k + 1}.` : null, timeRange(s), s.title].filter(Boolean).join(' '),
           kind: 'other' as const,
           emoji: '🗓️',
           lat: s.lat!,
@@ -98,7 +108,7 @@ export default function TripMapScreen() {
           alerts: false,
         })),
       ),
-    [placesQuery.data, itinerary.data],
+    [placesQuery.data, dayStops, routeDay],
   );
   const myPos = people.find((p) => p.isMe);
   // Search near the destination, else the pins, else wherever the group is.
@@ -153,6 +163,7 @@ export default function TripMapScreen() {
         onPick={pinAt}
         fitToken={fitToken}
         target={target}
+        route={route}
       />
 
       <View style={styles.topOverlay} pointerEvents="box-none">
@@ -243,6 +254,9 @@ export default function TripMapScreen() {
         </Row>
         <Row gap={space.xs} style={{ flexWrap: 'wrap' }}>
           <Chip label="📍 Pin a place" selected={picking} onPress={() => setPicking((v) => !v)} testID="pin-place" />
+          {routeDay ? (
+            <Chip label={`🧭 Walk for ${formatDate(routeDay)} ✕`} selected onPress={() => router.setParams({ day: undefined })} testID="map-route-chip" />
+          ) : null}
           <Chip label={keepAwake ? 'Screen on' : 'Keep screen on'} selected={keepAwake} onPress={() => setKeepAwake((v) => !v)} />
         </Row>
 

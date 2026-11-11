@@ -19,6 +19,7 @@ Group trips without the "where are you?" texts and the spreadsheet at the end.
 - **Get ready.** A private packing list, shared group tasks with assignees, and optional light-hearted challenges.
 - **Travel passport and memories.** Badges earned from real activity (private unless you share them), and a recap after the trip where you choose what to share.
 - **Shared plan.** A day-by-day itinerary (Today / Day 1 / Day 2…): add the museum slot or the dinner booking with a time and place, say Going / Maybe / Not going, comment, see clashes, and get directions. The next day's stops show on the map.
+- **Walking route for each day.** The plan measures the day's walk (from the pinned hotel, and back if you like) and suggests a shorter order: booked times stay in time order, sights are fitted where there's time to walk to them, and stops without a map point keep their place. It warns when a booking can't be reached on foot in time. Save the order in a tap (the organizer, or anyone moving only stops they added), walk it in Google Maps, or see it numbered on the trip map. Distances are straight lines between stops with an allowance for streets, so no paid routing service is needed (`src/lib/route.ts`).
 - **Cash kitty.** Pool cash with one person for taxis and street food. Put cash in, spend from it, hand it over; Tripley shows what's left and who holds it, and it flows into everyone's balances so leftovers come back on settling up.
 - **Works offline.** The web app installs to the home screen and opens without a connection (a service worker keeps the app and recent map tiles; trips, bills and balances are kept on the device). Bills added offline wait on the device and are sent once, exactly once, when you're back online.
 - **Accounts.** Sign up with email and password, log in on any device, reset a forgotten password by email. Guests can try it with just a name and save their account later without losing their trips.
@@ -308,6 +309,8 @@ To run it locally:
 `tests/e2e/plan.cjs` (`npm run test:e2e:plan`, same build) covers the shared plan: two people add stops, see a clash, answer Going, comment (and the other is notified), see a stop on the map, and reopen the plan offline.
 
 Every browser suite fails if the site's Content-Security-Policy blocks anything.
+
+`tests/e2e/route.cjs` (`npm run test:e2e:route`, same build) plans a zig-zag day from a pinned hotel, checks the suggested order keeps the bookings in time and fits sights after lunch, saves it, sees the tight-connection warning, opens the walk in Google Maps and shows it numbered on the map. Unit tests: `tests/unit/route.test.ts`; who may save an order: `tests/db/reorder-day.test.ts`.
 
 `tests/e2e/places-polls.cjs` (`npm run test:e2e:places-polls`, same build) covers address search (a trip destination, a bucket-list idea, a plan stop and a feed find, each found on the map), the calendar and clock pickers, searching the map and pinning a result, and polls with several choices that the organizer edits. The search server is replaced by canned answers in its format. Database rules: `tests/db/polls-edit.test.ts`.
 

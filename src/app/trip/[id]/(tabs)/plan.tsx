@@ -9,12 +9,13 @@ import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
 
 import { PlanSwitch } from '@/components/GroupDecisions';
 import { Icon } from '@/components/Icon';
+import { RouteCard } from '@/components/RouteCard';
 import { Banner, Button, Card, EmptyState, Row, Screen, Stack, Text } from '@/components/ui';
 import { setRsvp } from '@/lib/api';
 import { errorMessage } from '@/lib/errors';
 import { formatDate, todayISO } from '@/lib/format';
 import { defaultDay, findConflicts, planDays, RSVP_OPTIONS, rsvpSummary, timeRange } from '@/lib/itinerary';
-import { keys, useItinerary, useRsvps } from '@/lib/queries';
+import { keys, useItinerary, usePlaces, useRsvps } from '@/lib/queries';
 import { useTripId } from '@/lib/trip-context';
 import { useTripData } from '@/lib/trip-hooks';
 import type { ItineraryItem, RsvpStatus } from '@/lib/types';
@@ -24,8 +25,9 @@ export default function PlanTab() {
   const id = useTripId();
   const t = useTheme();
   const qc = useQueryClient();
-  const { trip, me, active } = useTripData(id);
+  const { trip, me, active, isOrganizer } = useTripData(id);
   const itinerary = useItinerary(id);
+  const places = usePlaces(id);
   const rsvps = useRsvps(id);
   const items = useMemo(() => itinerary.data ?? [], [itinerary.data]);
   const today = todayISO();
@@ -125,6 +127,17 @@ export default function PlanTab() {
         />
       ) : (
         <Stack gap={space.sm}>
+          <RouteCard
+            key={selected}
+            tripId={id}
+            day={selected}
+            dayLabel={label}
+            items={dayItems}
+            places={places.data ?? []}
+            me={me}
+            isOrganizer={isOrganizer}
+            active={active}
+          />
           {dayItems.map((item) => {
             const r = rsvpSummary(rsvps.data ?? [], item.id, me);
             const clash = conflicts.get(item.id);

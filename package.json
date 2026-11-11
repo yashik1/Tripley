@@ -85,6 +85,7 @@
     "test:e2e:legal": "node tests/e2e/legal.cjs",
     "test:e2e:delete-account": "node tests/e2e/delete-account.cjs",
     "test:e2e:places-polls": "node tests/e2e/places-polls.cjs",
+    "test:e2e:route": "node tests/e2e/route.cjs",
     "screens": "node tests/e2e/screens.cjs"
   },
   "private": true,

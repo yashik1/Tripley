@@ -104,6 +104,7 @@ describe('who can call which function', () => {
       'new_invite_code',
       'record_payment_received',
       'regenerate_invite_code',
+      'reorder_itinerary_day',
       'respond_to_invitation',
       'respond_to_settlement',
       'save_bill',

@@ -51,6 +51,8 @@ export type TripMapProps = {
   fitToken?: number;
   /** A place found by search: the map flies there and marks it. Change `key` to fly again. */
   target?: MapTarget | null;
+  /** A day's walk, in order: drawn as a line, and the map fits around it. */
+  route?: { lat: number; lng: number }[] | null;
 };
 
 export type MapTarget = { key: string; lat: number; lng: number; label: string };

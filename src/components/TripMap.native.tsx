@@ -6,7 +6,7 @@ import { config } from '@/config';
 import { circleRing } from '@/lib/geo';
 import { boundsOf, placeEmoji, type TripMapProps } from './TripMap.types';
 
-export function TripMap({ people, places = [], focusId, onSelect, onPlacePress, picking, onPick, fitToken = 0, target }: TripMapProps) {
+export function TripMap({ people, places = [], focusId, onSelect, onPlacePress, picking, onPick, fitToken = 0, target, route }: TripMapProps) {
   const camera = useRef<CameraRef>(null);
   const fitted = useRef(-1);
   // Arrival zones for places with alerts on.
@@ -37,6 +37,23 @@ export function TripMap({ people, places = [], focusId, onSelect, onPlacePress, 
     if (target) camera.current?.flyTo({ center: [target.lng, target.lat], zoom: 16, duration: 900 });
   }, [target?.key]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const routeKey = (route ?? []).map((p) => `${p.lat.toFixed(5)},${p.lng.toFixed(5)}`).join(';');
+  const routeLine = useMemo<GeoJSON.FeatureCollection>(
+    () => ({
+      type: 'FeatureCollection',
+      features:
+        route && route.length >= 2
+          ? [{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: route.map((p) => [p.lng, p.lat]) } }]
+          : [],
+    }),
+    [routeKey], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+  useEffect(() => {
+    if (!route || route.length < 2) return;
+    const b = boundsOf(route);
+    if (b) camera.current?.fitBounds(b, { padding: { top: 170, bottom: 320, left: 60, right: 60 }, duration: 600 });
+  }, [routeKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <Map
       style={StyleSheet.absoluteFill}
@@ -50,6 +67,14 @@ export function TripMap({ people, places = [], focusId, onSelect, onPlacePress, 
       <GeoJSONSource id="tripley-zones" data={zones}>
         <Layer id="tripley-zones-fill" type="fill" paint={{ 'fill-color': '#117C78', 'fill-opacity': 0.12 }} />
         <Layer id="tripley-zones-line" type="line" paint={{ 'line-color': '#117C78', 'line-width': 1.5 }} />
+      </GeoJSONSource>
+      <GeoJSONSource id="tripley-route" data={routeLine}>
+        <Layer
+          id="tripley-route-line"
+          type="line"
+          layout={{ 'line-cap': 'round', 'line-join': 'round' }}
+          paint={{ 'line-color': '#E4572E', 'line-width': 4, 'line-opacity': 0.85, 'line-dasharray': [1.5, 1.5] }}
+        />
       </GeoJSONSource>
       {places.map((p) => (
         <Marker key={`place-${p.id}`} id={`place-${p.id}`} lngLat={[p.lng, p.lat]} anchor="bottom" onPress={() => onPlacePress?.(p.id)}>

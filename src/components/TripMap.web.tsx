@@ -22,6 +22,17 @@ const FALLBACK_STYLE: maplibregl.StyleSpecification = {
 };
 
 const ZONES = 'tripley-zones';
+const ROUTE = 'tripley-route';
+
+function routeData(route: { lat: number; lng: number }[] | null | undefined): GeoJSON.FeatureCollection {
+  return {
+    type: 'FeatureCollection',
+    features:
+      route && route.length >= 2
+        ? [{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: route.map((p) => [p.lng, p.lat]) } }]
+        : [],
+  };
+}
 
 function pinElement(p: MapPerson, onSelect?: (id: string) => void): HTMLElement {
   const root = document.createElement('div');
@@ -108,16 +119,16 @@ function zonesData(places: MapPlace[]): GeoJSON.FeatureCollection {
   };
 }
 
-export function TripMap({ people, places = [], focusId, onSelect, onPlacePress, picking, onPick, fitToken = 0, target }: TripMapProps) {
+export function TripMap({ people, places = [], focusId, onSelect, onPlacePress, picking, onPick, fitToken = 0, target, route }: TripMapProps) {
   const container = useRef<HTMLDivElement | null>(null);
   const targetMarker = useRef<maplibregl.Marker | null>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const markers = useRef(new globalThis.Map<string, maplibregl.Marker>());
   const placeMarkers = useRef(new globalThis.Map<string, maplibregl.Marker>());
   const fitted = useRef(-1);
-  const latest = useRef({ onSelect, onPlacePress, picking, onPick, places });
+  const latest = useRef({ onSelect, onPlacePress, picking, onPick, places, route });
   useEffect(() => {
-    latest.current = { onSelect, onPlacePress, picking, onPick, places };
+    latest.current = { onSelect, onPlacePress, picking, onPick, places, route };
   });
 
   useEffect(() => {
@@ -148,6 +159,16 @@ export function TripMap({ people, places = [], focusId, onSelect, onPlacePress, 
         m.addSource(ZONES, { type: 'geojson', data: zonesData(latest.current.places) });
         m.addLayer({ id: `${ZONES}-fill`, type: 'fill', source: ZONES, paint: { 'fill-color': '#117C78', 'fill-opacity': 0.12 } });
         m.addLayer({ id: `${ZONES}-line`, type: 'line', source: ZONES, paint: { 'line-color': '#117C78', 'line-width': 1.5, 'line-dasharray': [2, 2] } });
+      }
+      if (!m.getSource(ROUTE)) {
+        m.addSource(ROUTE, { type: 'geojson', data: routeData(latest.current.route) });
+        m.addLayer({
+          id: `${ROUTE}-line`,
+          type: 'line',
+          source: ROUTE,
+          layout: { 'line-cap': 'round', 'line-join': 'round' },
+          paint: { 'line-color': '#E4572E', 'line-width': 4, 'line-opacity': 0.85, 'line-dasharray': [1.5, 1.5] },
+        });
       }
     });
     m.on('click', (e) => {
@@ -243,6 +264,18 @@ export function TripMap({ people, places = [], focusId, onSelect, onPlacePress, 
     const p = people.find((x) => x.id === focusId);
     if (p && map.current) map.current.flyTo({ center: [p.lng, p.lat], zoom: 15, duration: 800 });
   }, [focusId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // A day's walk: draw it and fit the map around it.
+  const routeKey = (route ?? []).map((p) => `${p.lat.toFixed(5)},${p.lng.toFixed(5)}`).join(';');
+  useEffect(() => {
+    const m = map.current;
+    if (!m) return;
+    (m.getSource(ROUTE) as maplibregl.GeoJSONSource | undefined)?.setData(routeData(route));
+    if (route && route.length >= 2) {
+      const b = boundsOf(route);
+      if (b) m.fitBounds([[b[0], b[1]], [b[2], b[3]]], { padding: { top: 170, bottom: 320, left: 60, right: 60 }, duration: 600, maxZoom: 16 });
+    }
+  }, [routeKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // A search result: fly there and mark it until the search is cleared.
   useEffect(() => {

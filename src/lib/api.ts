@@ -797,6 +797,11 @@ export async function moveItineraryItem(id: string, up: boolean): Promise<void> 
   check(await supabase.rpc('move_itinerary_item', { p_item: id, p_up: up }));
 }
 
+/** Save a new order for one day's stops (every stop of that day, each once). */
+export async function reorderItineraryDay(tripId: string, day: string, itemIds: string[]): Promise<void> {
+  check(await supabase.rpc('reorder_itinerary_day', { p_trip: tripId, p_day: day, p_items: itemIds }));
+}
+
 export async function setRsvp(itemId: string, status: RsvpStatus | null): Promise<void> {
   check(await supabase.rpc('set_itinerary_rsvp', { p_item: itemId, p_status: status }));
 }
