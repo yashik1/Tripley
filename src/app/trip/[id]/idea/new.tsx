@@ -1,16 +1,18 @@
 /** Suggest a place or activity for the group's bucket list. */
 import { useQueryClient } from '@tanstack/react-query';
 import { Image } from 'expo-image';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
 
+import { FoundNote, PlaceField } from '@/components/PlaceField';
 import { placeEmoji } from '@/components/TripMap.types';
 import { Banner, Button, Card, Chip, Field, Row, Screen, Stack, Text } from '@/components/ui';
 import { addSuggestion, uploadTripPhoto } from '@/lib/api';
 import { parseAmount } from '@/lib/currency';
 import { errorMessage, isNetworkError } from '@/lib/errors';
 import { formatDate, todayISO } from '@/lib/format';
+import type { GeoResult } from '@/lib/geocode';
 import { CATEGORIES } from '@/lib/group-decisions';
 import { planDays } from '@/lib/itinerary';
 import { pickPhoto } from '@/lib/photos';
@@ -18,6 +20,7 @@ import { keys, useItinerary, usePlaces } from '@/lib/queries';
 import { useTripId } from '@/lib/trip-context';
 import { useTripData } from '@/lib/trip-hooks';
 import type { SuggestionCategory } from '@/lib/types';
+import { useSearchNear } from '@/lib/use-search-near';
 import { useMyFix } from '@/location/compass';
 import { radius, space, useTheme } from '@/theme';
 
@@ -29,13 +32,21 @@ export default function SuggestIdea() {
   const places = usePlaces(id);
   const itinerary = useItinerary(id);
   const fix = useMyFix();
+  const near = useSearchNear(id);
+  // Pre-filled from a search on the map.
+  const params = useLocalSearchParams<{ name?: string; address?: string; lat?: string; lng?: string }>();
+  const fromMap =
+    params.lat && params.lng && Number.isFinite(Number(params.lat)) && Number.isFinite(Number(params.lng))
+      ? { lat: Number(params.lat), lng: Number(params.lng) }
+      : null;
   const base = trip?.base_currency ?? 'USD';
   const days = useMemo(() => planDays(trip ?? { starts_on: null, ends_on: null }, itinerary.data ?? [], todayISO()), [trip, itinerary.data]);
   const [category, setCategory] = useState<SuggestionCategory>('food');
-  const [name, setName] = useState('');
+  const [name, setName] = useState((params.name ?? '').slice(0, 120));
   const [description, setDescription] = useState('');
-  const [address, setAddress] = useState('');
-  const [point, setPoint] = useState<{ lat: number; lng: number } | null>(null);
+  const [address, setAddress] = useState((params.address ?? '').slice(0, 300));
+  const [point, setPoint] = useState<{ lat: number; lng: number } | null>(fromMap);
+  const [found, setFound] = useState<Pick<GeoResult, 'address'> | null>(fromMap && params.address ? { address: params.address } : null);
   const [cost, setCost] = useState('');
   const [day, setDay] = useState<string | null>(null);
   const [photo, setPhoto] = useState<string | null>(null);
@@ -84,13 +95,59 @@ export default function SuggestIdea() {
       <Field label="Name" testID="idea-name" value={name} onChangeText={setName} placeholder="Time Out Market" maxLength={120} />
       <Field label="Why go? (optional)" value={description} onChangeText={setDescription} placeholder="Huge food hall, something for everyone" maxLength={1000} multiline />
       <Card>
-        <Field label="Address (optional)" value={address} onChangeText={setAddress} placeholder="Av. 24 de Julho 49, Lisboa" maxLength={300} />
+        <PlaceField
+          label="Where is it? (optional)"
+          testID="idea-address"
+          value={address}
+          near={near}
+          onChangeText={(text) => {
+            setAddress(text);
+            if (found) {
+              setFound(null);
+              setPoint(null);
+            }
+          }}
+          onPick={(r) => {
+            setAddress(r.address);
+            setPoint({ lat: r.lat, lng: r.lng });
+            setFound(r);
+            if (!name.trim()) setName(r.name.slice(0, 120));
+          }}
+          found={!!found}
+          placeholder="Search by name or address"
+        />
+        <FoundNote found={found} typed={address} testID="idea-address-note" />
         <Row gap={space.xs} style={{ flexWrap: 'wrap' }}>
-          {fix ? <Chip label="📍 Where I am now" selected={!!point && point.lat === fix.lat} onPress={() => setPoint({ lat: fix.lat, lng: fix.lng })} /> : null}
+          {fix ? (
+            <Chip
+              label="📍 Where I am now"
+              selected={!!point && point.lat === fix.lat}
+              onPress={() => {
+                setFound(null);
+                setPoint({ lat: fix.lat, lng: fix.lng });
+              }}
+            />
+          ) : null}
           {(places.data ?? []).slice(0, 6).map((p) => (
-            <Chip key={p.id} label={`${placeEmoji(p.kind)} ${p.name}`} selected={point?.lat === p.lat && point?.lng === p.lng} onPress={() => setPoint({ lat: p.lat, lng: p.lng })} />
+            <Chip
+              key={p.id}
+              label={`${placeEmoji(p.kind)} ${p.name}`}
+              selected={point?.lat === p.lat && point?.lng === p.lng}
+              onPress={() => {
+                setFound(null);
+                setPoint({ lat: p.lat, lng: p.lng });
+              }}
+            />
           ))}
-          {point ? <Chip label="No map point" onPress={() => setPoint(null)} /> : null}
+          {point ? (
+            <Chip
+              label="No map point"
+              onPress={() => {
+                setFound(null);
+                setPoint(null);
+              }}
+            />
+          ) : null}
         </Row>
       </Card>
       <Row gap={space.md} align="flex-start">

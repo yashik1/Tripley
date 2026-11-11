@@ -12,6 +12,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Platform, Pressable, View } from 'react-native';
 
 import { CurrencyPicker } from '@/components/CurrencyPicker';
+import { DateTimeField } from '@/components/DateTimeField';
 import { Icon } from '@/components/Icon';
 import { Avatar, Banner, Button, Card, Chip, Field, IconButton, Loading, Row, Screen, SectionTitle, Segmented, Stack, Text } from '@/components/ui';
 import { isPro, receiptUrl, saveBill, ScanError, scanReceipt, uploadReceipt, type SaveBillPayload } from '@/lib/api';
@@ -551,7 +552,7 @@ function BillForm({
         <View style={{ flex: 1 }}>
           <CurrencyPicker label="Currency" value={currency} onChange={(code) => setCurrency(code)} />
         </View>
-        <Field label="Date" value={date} onChangeText={changeDate} placeholder="YYYY-MM-DD" style={{ flex: 1 }} autoCapitalize="none" />
+        <DateTimeField mode="date" label="Date" value={date} onChangeText={changeDate} style={{ flex: 1 }} testID="bill-date" />
       </Row>
       {currency !== base ? (
         <Field

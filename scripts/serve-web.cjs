@@ -37,6 +37,8 @@ function securityHeaders(env, https) {
     'https://tiles.openfreemap.org',
     originOf(env.EXPO_PUBLIC_MAP_STYLE_URL),
     'https://api.frankfurter.dev',
+    // Address and place search (src/lib/geocode.ts).
+    originOf(env.EXPO_PUBLIC_GEOCODER_URL) || 'https://photon.komoot.io',
     ...(webPurchases ? ['https://api.revenuecat.com', 'https://api.stripe.com'] : []),
     ...String(env.CSP_CONNECT_EXTRA || '').split(/\s+/).filter((x) => /^(https|wss):\/\/[^\s;,']+$/.test(x)),
   ].filter(Boolean);

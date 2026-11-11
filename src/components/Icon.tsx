@@ -56,6 +56,8 @@ const ICONS = {
   send: ['paperplane', 'send'],
   ticket: ['ticket', 'confirmation_number'],
   megaphone: ['megaphone', 'campaign'],
+  clock: ['clock', 'schedule'],
+  search: ['magnifyingglass', 'search'],
 } as const satisfies Record<string, readonly [string, AndroidSymbol]>;
 
 export type IconName = keyof typeof ICONS;

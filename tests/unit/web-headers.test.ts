@@ -10,11 +10,11 @@ const env = { EXPO_PUBLIC_SUPABASE_URL: 'https://api.tripley.test/' };
 const directive = (csp: string, name: string) => csp.split('; ').find((d) => d.startsWith(`${name} `)) ?? '';
 
 describe('web security headers', () => {
-  it('limits scripts and connections to this site, the API, the map and exchange rates', () => {
+  it('limits scripts and connections to this site, the API, the map, exchange rates and address search', () => {
     const csp = securityHeaders(env, true)['Content-Security-Policy'];
     expect(directive(csp, 'script-src')).toBe("script-src 'self'");
     expect(directive(csp, 'connect-src')).toBe(
-      "connect-src 'self' blob: data: https://api.tripley.test wss://api.tripley.test https://tiles.openfreemap.org https://api.frankfurter.dev",
+      "connect-src 'self' blob: data: https://api.tripley.test wss://api.tripley.test https://tiles.openfreemap.org https://api.frankfurter.dev https://photon.komoot.io",
     );
     expect(directive(csp, 'img-src')).toBe("img-src 'self' data: blob: https: https://api.tripley.test");
     expect(csp).toContain("frame-ancestors 'none'");
@@ -43,6 +43,12 @@ describe('web security headers', () => {
     expect(directive(csp, 'connect-src')).toContain('https://ok.example wss://ws.example');
     expect(csp).not.toContain('script-src *');
     expect(csp).not.toContain('evil;');
+  });
+
+  it('a self-hosted address search server replaces the public one', () => {
+    const csp = securityHeaders({ ...env, EXPO_PUBLIC_GEOCODER_URL: 'https://geo.tripley.test/' }, true)['Content-Security-Policy'];
+    expect(directive(csp, 'connect-src')).toContain('https://geo.tripley.test');
+    expect(directive(csp, 'connect-src')).not.toContain('photon.komoot.io');
   });
 
   it('web purchases add only the payment provider’s hosts', () => {

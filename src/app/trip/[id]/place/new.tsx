@@ -33,15 +33,17 @@ export default function NewPlace() {
   const id = useTripId();
   const t = useTheme();
   const qc = useQueryClient();
-  const params = useLocalSearchParams<{ lat?: string; lng?: string }>();
+  // name, kind and note come pre-filled from a search on the map.
+  const params = useLocalSearchParams<{ lat?: string; lng?: string; name?: string; kind?: string; note?: string }>();
   const lat = Number(params.lat);
   const lng = Number(params.lng);
-  const [kind, setKind] = useState<PlaceKind>('stay');
-  const [name, setName] = useState('');
-  const [note, setNote] = useState('');
-  const [alerts, setAlerts] = useState(true);
+  const startKind = PLACE_KINDS.find((k) => k.kind === params.kind) ?? PLACE_KINDS[0];
+  const [kind, setKind] = useState<PlaceKind>(startKind.kind);
+  const [name, setName] = useState((params.name ?? '').slice(0, 80));
+  const [note, setNote] = useState((params.note ?? '').slice(0, 500));
+  const [alerts, setAlerts] = useState(startKind.alertsByDefault);
   const [alertsTouched, setAlertsTouched] = useState(false);
-  const [radiusM, setRadiusM] = useState(150);
+  const [radiusM, setRadiusM] = useState(startKind.kind === 'airport' ? 500 : 150);
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);

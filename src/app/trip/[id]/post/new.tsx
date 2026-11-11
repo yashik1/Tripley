@@ -8,6 +8,7 @@ import { router, Stack as RouterStack, useLocalSearchParams } from 'expo-router'
 import { useState } from 'react';
 import { Platform, Pressable, View } from 'react-native';
 
+import { FoundNote, PlaceField } from '@/components/PlaceField';
 import { placeEmoji } from '@/components/TripMap.types';
 import { Banner, Button, Card, Chip, Field, Row, Screen, Segmented, Stack, Text } from '@/components/ui';
 import { createPost, enterChallenge, uploadTripPhoto } from '@/lib/api';
@@ -16,7 +17,9 @@ import { pickPhoto } from '@/lib/photos';
 import { keys, usePlaces } from '@/lib/queries';
 import { useTripId } from '@/lib/trip-context';
 import { useTripData } from '@/lib/trip-hooks';
+import type { GeoResult } from '@/lib/geocode';
 import type { PostKind } from '@/lib/types';
+import { useSearchNear } from '@/lib/use-search-near';
 import { useMyFix } from '@/location/compass';
 import { radius, space, useTheme } from '@/theme';
 
@@ -36,6 +39,8 @@ export default function NewPost() {
   const [photos, setPhotos] = useState<string[]>([]);
   const [placeName, setPlaceName] = useState('');
   const [point, setPoint] = useState<{ lat: number; lng: number } | null>(null);
+  const [found, setFound] = useState<GeoResult | null>(null);
+  const near = useSearchNear(id);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -109,16 +114,51 @@ export default function NewPost() {
 
       {kind === 'place' ? (
         <Card>
-          <Field label="Place" testID="post-place" value={placeName} onChangeText={setPlaceName} placeholder="Manteigaria, Chiado" maxLength={120} />
-          <Text variant="caption" muted>{point ? 'On the map, with directions for the group.' : 'Add a map point so people can get directions.'}</Text>
+          <PlaceField
+            label="Place"
+            testID="post-place"
+            value={placeName}
+            near={near}
+            onChangeText={(text) => {
+              setPlaceName(text);
+              if (found) {
+                setFound(null);
+                setPoint(null);
+              }
+            }}
+            onPick={(r) => {
+              setPlaceName(r.name.slice(0, 120));
+              setPoint({ lat: r.lat, lng: r.lng });
+              setFound(r);
+            }}
+            found={!!found}
+            placeholder="Search by name or address"
+            maxLength={120}
+          />
+          {found ? (
+            <FoundNote found={found} typed={placeName} />
+          ) : (
+            <Text variant="caption" muted>{point ? 'On the map, with directions for the group.' : 'Search for it, or add a map point below, so people can get directions.'}</Text>
+          )}
           <Row gap={space.xs} style={{ flexWrap: 'wrap' }}>
-            {fix ? <Chip label="📍 Where I am now" selected={!!point && point.lat === fix.lat} onPress={() => setPoint({ lat: fix.lat, lng: fix.lng })} testID="post-here" /> : null}
+            {fix ? (
+              <Chip
+                label="📍 Where I am now"
+                selected={!!point && point.lat === fix.lat}
+                onPress={() => {
+                  setFound(null);
+                  setPoint({ lat: fix.lat, lng: fix.lng });
+                }}
+                testID="post-here"
+              />
+            ) : null}
             {(places.data ?? []).slice(0, 6).map((p) => (
               <Chip
                 key={p.id}
                 label={`${placeEmoji(p.kind)} ${p.name}`}
                 selected={point?.lat === p.lat && point?.lng === p.lng}
                 onPress={() => {
+                  setFound(null);
                   setPoint({ lat: p.lat, lng: p.lng });
                   if (!placeName.trim()) setPlaceName(p.name);
                 }}

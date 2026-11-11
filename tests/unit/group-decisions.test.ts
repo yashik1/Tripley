@@ -11,9 +11,11 @@ const poll = (votes: [string, string][], extra: Partial<Poll> = {}): Poll => ({
   created_by: 'me',
   question: 'Where should we eat?',
   allow_change: true,
+  multiple: false,
   closes_at: null,
   closed_at: null,
   created_at: '',
+  updated_at: null,
   poll_options: [
     { id: 'b', label: 'Pizza', position: 1 },
     { id: 'a', label: 'Taberna', position: 0 },
@@ -36,6 +38,17 @@ describe('pollResults', () => {
   });
   it('no votes: nobody leads', () => {
     expect(pollResults(poll([]), 'me', NOW).options.every((o) => !o.leading && o.percent === 0)).toBe(true);
+  });
+  it('more than one choice: counts people, so percentages can add up past 100', () => {
+    const r = pollResults(poll([['me', 'a'], ['me', 'c'], ['sam', 'a']], { multiple: true }), 'me', NOW);
+    expect(r.total).toBe(2);
+    expect(r.myVotes).toEqual(['a', 'c']);
+    expect(r.myVote).toBe('a');
+    expect(r.options.map((o) => [o.label, o.count, o.percent, o.mine])).toEqual([
+      ['Taberna', 2, 100, true],
+      ['Pizza', 0, 0, false],
+      ['Ramen', 1, 50, true],
+    ]);
   });
   it('ties share the lead', () => {
     expect(pollResults(poll([['x', 'a'], ['y', 'b']]), 'me', NOW).options.filter((o) => o.leading).map((o) => o.label)).toEqual(['Taberna', 'Pizza']);

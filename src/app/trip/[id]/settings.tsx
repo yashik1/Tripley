@@ -3,6 +3,8 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { Switch, View } from 'react-native';
 
+import { DateTimeField } from '@/components/DateTimeField';
+import { FoundNote, PlaceField } from '@/components/PlaceField';
 import { Banner, Button, Card, Field, Loading, Row, Screen, SectionTitle, Stack, Text } from '@/components/ui';
 import { deleteTrip, leaveTrip, regenerateInviteCode, setTripCover, updateMySharing, updateTrip } from '@/lib/api';
 import { pickPhoto } from '@/lib/photos';
@@ -30,6 +32,9 @@ function TripSettingsForm({ id, trip, isOrganizer, active }: { id: string; trip:
   const sharing = useSharing();
   const [name, setName] = useState(trip.name);
   const [destination, setDestination] = useState(trip.destination ?? '');
+  const [destPoint, setDestPoint] = useState<{ lat: number; lng: number; address: string } | null>(
+    trip.destination_lat != null && trip.destination_lng != null ? { lat: trip.destination_lat, lng: trip.destination_lng, address: trip.destination ?? '' } : null,
+  );
   const [start, setStart] = useState(trip.starts_on ?? '');
   const [end, setEnd] = useState(trip.ends_on ?? '');
   const [busy, setBusy] = useState<string | null>(null);
@@ -64,7 +69,15 @@ function TripSettingsForm({ id, trip, isOrganizer, active }: { id: string; trip:
     run('save', async () => {
       if (!name.trim()) throw new Error('Give the trip a name.');
       if ((start && !isISODate(start)) || (end && !isISODate(end))) throw new Error('Dates should look like 2026-12-20.');
-      await updateTrip(id, { name: name.trim(), destination: destination.trim() || null, starts_on: start || null, ends_on: end || null });
+      if (start && end && end < start) throw new Error('The trip ends before it starts.');
+      await updateTrip(id, {
+        name: name.trim(),
+        destination: destination.trim() || null,
+        destination_lat: destPoint?.lat ?? null,
+        destination_lng: destPoint?.lng ?? null,
+        starts_on: start || null,
+        ends_on: end || null,
+      });
       setSaved(true);
     });
 
@@ -120,10 +133,27 @@ function TripSettingsForm({ id, trip, isOrganizer, active }: { id: string; trip:
       </Card>
       <Card>
         <Field label="Trip name" value={name} onChangeText={setName} maxLength={80} />
-        <Field label="Destination" value={destination} onChangeText={setDestination} placeholder="Lisbon, Portugal" maxLength={80} testID="settings-destination" />
-        <Row gap={space.md}>
-          <Field label="Starts" value={start} onChangeText={setStart} placeholder="YYYY-MM-DD" style={{ flex: 1 }} autoCapitalize="none" />
-          <Field label="Ends" value={end} onChangeText={setEnd} placeholder="YYYY-MM-DD" style={{ flex: 1 }} autoCapitalize="none" />
+        <PlaceField
+          label="Destination"
+          testID="settings-destination"
+          scope="area"
+          value={destination}
+          onChangeText={(text) => {
+            setDestination(text);
+            setDestPoint(null);
+          }}
+          onPick={(r) => {
+            setDestination(r.short.slice(0, 80));
+            setDestPoint({ lat: r.lat, lng: r.lng, address: r.address });
+          }}
+          found={!!destPoint}
+          placeholder="Search a town, region or country"
+          maxLength={80}
+        />
+        <FoundNote found={destPoint} typed={destination} />
+        <Row gap={space.md} align="flex-start">
+          <DateTimeField mode="date" label="Starts" value={start} onChangeText={setStart} style={{ flex: 1 }} testID="settings-start" />
+          <DateTimeField mode="date" label="Ends" value={end} onChangeText={setEnd} min={start || undefined} style={{ flex: 1 }} testID="settings-end" />
         </Row>
         <Text variant="caption" faint>Currency: {trip.base_currency} (can&apos;t change once bills are added)</Text>
         <Button title="Save" onPress={save} loading={busy === 'save'} />

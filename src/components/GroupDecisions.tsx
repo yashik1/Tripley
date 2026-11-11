@@ -157,8 +157,14 @@ export function PollCard({ poll, me, nameOf, canModerate, active }: { poll: Poll
   const [error, setError] = useState<string | null>(null);
   const r = pollResults(poll, me);
   const closing = closingLabel(poll);
-  const canClose = r.open && (poll.created_by === me || canModerate);
-  const canVote = r.open && active && (poll.allow_change || !r.myVote);
+  const canManage = poll.created_by === me || canModerate;
+  const canClose = r.open && canManage;
+  // A fixed more-than-one poll still lets you add picks, just not take them back.
+  const canVote = r.open && active && (poll.allow_change || poll.multiple || !r.myVote);
+  const tap = (o: { id: string; mine: boolean }) => {
+    if (poll.multiple) return votePoll(poll.id, o.id);
+    return votePoll(poll.id, o.mine ? null : o.id);
+  };
   const run = async (fn: () => Promise<unknown>) => {
     setBusy(true);
     setError(null);
@@ -175,11 +181,22 @@ export function PollCard({ poll, me, nameOf, canModerate, active }: { poll: Poll
     <Card testID={`poll-${poll.question}`}>
       <View style={{ gap: 2 }}>
         <Row gap={space.sm} style={{ justifyContent: 'space-between' }}>
-          <Text variant="caption" muted>
+          <Text variant="caption" muted style={{ flex: 1 }}>
             {poll.created_by === me ? 'You asked' : `${firstName(nameOf(poll.created_by))} asked`}
             {closing ? ` · ${closing}` : ''}
+            {poll.updated_at ? ' · edited' : ''}
           </Text>
-          {canModerate || poll.created_by === me ? (
+          {canManage && r.open && active ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Edit poll"
+              hitSlop={8}
+              testID="poll-edit"
+              onPress={() => router.push({ pathname: '/trip/[id]/poll/new', params: { id: poll.trip_id, pollId: poll.id } })}>
+              <Icon name="edit" size={16} color={t.textFaint} />
+            </Pressable>
+          ) : null}
+          {canManage ? (
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Remove poll"
@@ -192,22 +209,23 @@ export function PollCard({ poll, me, nameOf, canModerate, active }: { poll: Poll
           ) : null}
         </Row>
         <Text variant="heading">{poll.question}</Text>
+        {poll.multiple && r.open ? <Text variant="caption" muted>Pick as many as you like</Text> : null}
       </View>
       <View style={{ gap: space.xs }}>
         {r.options.map((o) => (
           <Pressable
             key={o.id}
-            onPress={canVote && !busy ? () => run(() => votePoll(poll.id, o.mine ? null : o.id)) : undefined}
+            onPress={canVote && !busy ? () => run(() => tap(o)) : undefined}
             disabled={!canVote || busy}
-            accessibilityRole="button"
-            accessibilityState={{ selected: o.mine, disabled: !canVote }}
+            accessibilityRole={poll.multiple ? 'checkbox' : 'button'}
+            accessibilityState={poll.multiple ? { checked: o.mine, disabled: !canVote } : { selected: o.mine, disabled: !canVote }}
             accessibilityLabel={`${o.label}: ${o.count} ${o.count === 1 ? 'vote' : 'votes'}${o.mine ? ', your vote' : ''}`}
             testID={`poll-option-${o.label}`}
             style={{ minHeight: 44, borderRadius: radius.md, borderWidth: 1, borderColor: o.mine ? t.primary : t.border, overflow: 'hidden', justifyContent: 'center' }}>
             <ResultBar percent={r.total ? o.percent : 0} color={o.mine ? t.primarySoft : o.leading && !r.open ? t.yellowSoft : t.surfaceAlt} />
             <Row style={{ paddingHorizontal: space.md, justifyContent: 'space-between' }}>
               <Text variant="label" style={{ flex: 1 }}>
-                {!r.open && o.leading ? '🏆 ' : o.mine ? '✓ ' : ''}
+                {!r.open && o.leading ? '🏆 ' : poll.multiple ? (o.mine ? '☑ ' : '☐ ') : o.mine ? '✓ ' : ''}
                 {o.label}
               </Text>
               <Text variant="caption" muted style={{ fontWeight: '700' }}>{r.total ? `${o.percent}% · ${o.count}` : ''}</Text>
@@ -217,8 +235,20 @@ export function PollCard({ poll, me, nameOf, canModerate, active }: { poll: Poll
       </View>
       <Row style={{ justifyContent: 'space-between' }}>
         <Text variant="caption" faint>
-          {r.total} {r.total === 1 ? 'vote' : 'votes'}
-          {r.open ? (r.myVote ? (poll.allow_change ? ' · tap to change' : ' · your vote is in') : ' · tap an option to vote') : ''}
+          {poll.multiple ? `${r.total} ${r.total === 1 ? 'person' : 'people'} voted` : `${r.total} ${r.total === 1 ? 'vote' : 'votes'}`}
+          {r.open
+            ? poll.multiple
+              ? r.myVote
+                ? poll.allow_change
+                  ? ' · tap to add or remove'
+                  : ' · you can add more'
+                : ' · tap every option that works'
+              : r.myVote
+                ? poll.allow_change
+                  ? ' · tap to change'
+                  : ' · your vote is in'
+                : ' · tap an option to vote'
+            : ''}
         </Text>
         {canClose ? <Button title="Close poll" small kind="ghost" onPress={() => run(() => closePoll(poll.id))} testID="poll-close" /> : null}
       </Row>

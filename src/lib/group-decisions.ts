@@ -33,27 +33,34 @@ export function pollIsOpen(poll: Pick<Poll, 'closed_at' | 'closes_at'>, now = Da
 
 export type PollResult = {
   open: boolean;
+  /** How many people voted (in a more-than-one poll, someone can pick several options). */
   total: number;
+  /** Your first pick, or null. */
   myVote: string | null;
+  /** All your picks. */
+  myVotes: string[];
   options: { id: string; label: string; count: number; percent: number; mine: boolean; leading: boolean }[];
 };
 
 export function pollResults(poll: Poll, me: string, now = Date.now()): PollResult {
   const options = [...poll.poll_options].sort((a, b) => a.position - b.position);
-  const total = poll.poll_votes.length;
+  // Percentages are of people who voted, so a more-than-one poll can add up past 100%.
+  const total = new Set(poll.poll_votes.map((v) => v.user_id)).size;
   const counts = options.map((o) => poll.poll_votes.filter((v) => v.option_id === o.id).length);
   const top = Math.max(0, ...counts);
-  const myVote = poll.poll_votes.find((v) => v.user_id === me)?.option_id ?? null;
+  const mine = new Set(poll.poll_votes.filter((v) => v.user_id === me).map((v) => v.option_id));
+  const myVotes = options.filter((o) => mine.has(o.id)).map((o) => o.id);
   return {
     open: pollIsOpen(poll, now),
     total,
-    myVote,
+    myVote: myVotes[0] ?? null,
+    myVotes,
     options: options.map((o, i) => ({
       id: o.id,
       label: o.label,
       count: counts[i],
       percent: total ? Math.round((counts[i] / total) * 100) : 0,
-      mine: myVote === o.id,
+      mine: mine.has(o.id),
       leading: top > 0 && counts[i] === top,
     })),
   };

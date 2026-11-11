@@ -49,7 +49,11 @@ export type TripMapProps = {
   onPick?: (lat: number, lng: number) => void;
   /** Change this number to re-fit the map around everyone. */
   fitToken?: number;
+  /** A place found by search: the map flies there and marks it. Change `key` to fly again. */
+  target?: MapTarget | null;
 };
+
+export type MapTarget = { key: string; lat: number; lng: number; label: string };
 
 export type Bounds = [west: number, south: number, east: number, north: number];
 

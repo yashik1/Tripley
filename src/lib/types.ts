@@ -43,6 +43,9 @@ export type Trip = {
   created_at: string;
   /** Where the trip goes, e.g. "Lisbon, Portugal" (optional). */
   destination: string | null;
+  /** Map point of the destination, when it was picked from address search. */
+  destination_lat: number | null;
+  destination_lng: number | null;
   /** Cover photo in the private trip-photos bucket (shown through a signed link). */
   cover_path: string | null;
 };
@@ -239,9 +242,13 @@ export type Poll = {
   created_by: string;
   question: string;
   allow_change: boolean;
+  /** People can pick more than one option. */
+  multiple: boolean;
   closes_at: string | null;
   closed_at: string | null;
   created_at: string;
+  /** Set when whoever started it, or the organizer, edited it. */
+  updated_at: string | null;
   poll_options: { id: string; label: string; position: number }[];
   poll_votes: { user_id: string; option_id: string }[];
 };

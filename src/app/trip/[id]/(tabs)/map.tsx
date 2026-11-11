@@ -5,13 +5,15 @@ import { useEffect, useMemo, useState } from 'react';
 import { Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { Icon } from '@/components/Icon';
+import { PlaceField } from '@/components/PlaceField';
 import { TripMap } from '@/components/TripMap';
-import type { MapPerson, MapPlace } from '@/components/TripMap.types';
+import type { MapPerson, MapPlace, MapTarget } from '@/components/TripMap.types';
 import { Avatar, Banner, Button, Chip, IconButton, initials, Row, Text } from '@/components/ui';
 import { updateMySharing } from '@/lib/api';
 import { errorMessage } from '@/lib/errors';
 import { isStale, timeAgo, todayISO } from '@/lib/format';
 import { describeOffset } from '@/lib/geo';
+import { centreOf, pinKindFor, type GeoResult } from '@/lib/geocode';
 import { directionsUrl } from '@/lib/map-links';
 import { keys, useItinerary, useLocations, usePlaces } from '@/lib/queries';
 import { stopsForMap, timeRange } from '@/lib/itinerary';
@@ -25,7 +27,7 @@ export default function TripMapScreen() {
   const id = useTripId();
   const t = useTheme();
   const qc = useQueryClient();
-  const { me, members, byId, myMembership, active } = useTripData(id);
+  const { me, members, byId, myMembership, active, trip } = useTripData(id);
   const locations = useLocations(id);
   const placesQuery = usePlaces(id);
   const itinerary = useItinerary(id);
@@ -37,6 +39,8 @@ export default function TripMapScreen() {
   const [keepAwake, setKeepAwake] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [result, setResult] = useState<GeoResult | null>(null);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 30_000);
@@ -97,6 +101,18 @@ export default function TripMapScreen() {
     [placesQuery.data, itinerary.data],
   );
   const myPos = people.find((p) => p.isMe);
+  // Search near the destination, else the pins, else wherever the group is.
+  const dLat = trip?.destination_lat ?? null;
+  const dLng = trip?.destination_lng ?? null;
+  const near = useMemo(
+    () => (dLat != null && dLng != null ? { lat: dLat, lng: dLng } : centreOf(places) ?? centreOf(people)),
+    [dLat, dLng, places, people],
+  );
+  const target: MapTarget | null = result ? { key: result.id, lat: result.lat, lng: result.lng, label: result.name } : null;
+  const clearSearch = () => {
+    setResult(null);
+    setSearch('');
+  };
   const pinAt = (lat: number, lng: number) => {
     setPicking(false);
     router.push({ pathname: '/trip/[id]/place/new', params: { id, lat: lat.toFixed(6), lng: lng.toFixed(6) } });
@@ -136,9 +152,27 @@ export default function TripMapScreen() {
         picking={picking}
         onPick={pinAt}
         fitToken={fitToken}
+        target={target}
       />
 
       <View style={styles.topOverlay} pointerEvents="box-none">
+        {!picking ? (
+          <PlaceField
+            value={search}
+            onChangeText={(text) => {
+              setSearch(text);
+              if (!text.trim()) setResult(null);
+            }}
+            onPick={(r) => {
+              setSearch(r.name);
+              setResult(r);
+              setFocusId(null);
+            }}
+            near={near}
+            placeholder="Search the map: a place or an address"
+            testID="map-search"
+          />
+        ) : null}
         {picking ? (
           <Banner
             tone="info"
@@ -164,6 +198,45 @@ export default function TripMapScreen() {
       </View>
 
       <View style={[styles.sheet, { backgroundColor: t.surface, borderColor: t.border }]}>
+        {result ? (
+          <View style={{ gap: space.sm, paddingBottom: space.sm, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: t.border }} testID="map-search-card">
+            <Row gap={space.sm} style={{ alignItems: 'flex-start' }}>
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text variant="heading" numberOfLines={1}>{result.name}</Text>
+                <Text variant="caption" muted numberOfLines={2}>{result.address}</Text>
+              </View>
+              <IconButton icon="close" label="Clear search" onPress={clearSearch} size={18} />
+            </Row>
+            <Row gap={space.xs} style={{ flexWrap: 'wrap' }}>
+              <Button
+                title="Pin it"
+                icon="pin"
+                small
+                testID="map-search-pin"
+                onPress={() =>
+                  router.push({
+                    pathname: '/trip/[id]/place/new',
+                    params: { id, lat: result.lat.toFixed(6), lng: result.lng.toFixed(6), name: result.name, kind: pinKindFor(result.category), note: result.address },
+                  })
+                }
+              />
+              <Button
+                title="Add to bucket list"
+                icon="idea"
+                small
+                kind="secondary"
+                testID="map-search-idea"
+                onPress={() =>
+                  router.push({
+                    pathname: '/trip/[id]/idea/new',
+                    params: { id, name: result.name, address: result.address, lat: String(result.lat), lng: String(result.lng) },
+                  })
+                }
+              />
+              <Button title="Directions" icon="directions" small kind="ghost" onPress={() => Linking.openURL(directionsUrl(result.lat, result.lng))} />
+            </Row>
+          </View>
+        ) : null}
         <Row style={{ justifyContent: 'space-between' }}>
           <Text variant="heading">Who&apos;s where</Text>
           <Chip label="Fit all" onPress={() => { setFocusId(null); setFitToken((n) => n + 1); }} />

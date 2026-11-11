@@ -79,6 +79,22 @@ function updatePlace(root: HTMLElement, p: MapPlace) {
   (root.querySelector('.tripley-place-label') as HTMLElement).textContent = p.name;
 }
 
+function targetElement(label: string): HTMLElement {
+  const root = document.createElement('div');
+  root.style.cssText = 'display:flex;flex-direction:column;align-items:center;z-index:3;pointer-events:none;';
+  root.dataset.testid = 'map-search-target';
+  root.setAttribute('aria-label', `Search result: ${label}`);
+  const pin = document.createElement('div');
+  pin.style.cssText =
+    'width:34px;height:34px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:#E4572E;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.35);';
+  const text = document.createElement('div');
+  text.style.cssText =
+    'margin-top:8px;background:#172B3A;color:#fff;border-radius:8px;padding:2px 7px;font:600 11px system-ui,sans-serif;white-space:nowrap;max-width:180px;overflow:hidden;text-overflow:ellipsis;';
+  text.textContent = label;
+  root.append(pin, text);
+  return root;
+}
+
 function zonesData(places: MapPlace[]): GeoJSON.FeatureCollection {
   return {
     type: 'FeatureCollection',
@@ -92,8 +108,9 @@ function zonesData(places: MapPlace[]): GeoJSON.FeatureCollection {
   };
 }
 
-export function TripMap({ people, places = [], focusId, onSelect, onPlacePress, picking, onPick, fitToken = 0 }: TripMapProps) {
+export function TripMap({ people, places = [], focusId, onSelect, onPlacePress, picking, onPick, fitToken = 0, target }: TripMapProps) {
   const container = useRef<HTMLDivElement | null>(null);
+  const targetMarker = useRef<maplibregl.Marker | null>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const markers = useRef(new globalThis.Map<string, maplibregl.Marker>());
   const placeMarkers = useRef(new globalThis.Map<string, maplibregl.Marker>());
@@ -226,6 +243,16 @@ export function TripMap({ people, places = [], focusId, onSelect, onPlacePress, 
     const p = people.find((x) => x.id === focusId);
     if (p && map.current) map.current.flyTo({ center: [p.lng, p.lat], zoom: 15, duration: 800 });
   }, [focusId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // A search result: fly there and mark it until the search is cleared.
+  useEffect(() => {
+    const m = map.current;
+    targetMarker.current?.remove();
+    targetMarker.current = null;
+    if (!m || !target) return;
+    targetMarker.current = new maplibregl.Marker({ element: targetElement(target.label), anchor: 'bottom' }).setLngLat([target.lng, target.lat]).addTo(m);
+    m.flyTo({ center: [target.lng, target.lat], zoom: 16, duration: 900 });
+  }, [target?.key]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>

@@ -6,7 +6,7 @@ import { config } from '@/config';
 import { circleRing } from '@/lib/geo';
 import { boundsOf, placeEmoji, type TripMapProps } from './TripMap.types';
 
-export function TripMap({ people, places = [], focusId, onSelect, onPlacePress, picking, onPick, fitToken = 0 }: TripMapProps) {
+export function TripMap({ people, places = [], focusId, onSelect, onPlacePress, picking, onPick, fitToken = 0, target }: TripMapProps) {
   const camera = useRef<CameraRef>(null);
   const fitted = useRef(-1);
   // Arrival zones for places with alerts on.
@@ -32,6 +32,10 @@ export function TripMap({ people, places = [], focusId, onSelect, onPlacePress, 
     const p = people.find((x) => x.id === focusId);
     if (p) camera.current?.flyTo({ center: [p.lng, p.lat], zoom: 15, duration: 800 });
   }, [focusId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (target) camera.current?.flyTo({ center: [target.lng, target.lat], zoom: 16, duration: 900 });
+  }, [target?.key]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <Map
@@ -59,6 +63,16 @@ export function TripMap({ people, places = [], focusId, onSelect, onPlacePress, 
           </View>
         </Marker>
       ))}
+      {target ? (
+        <Marker key={`target-${target.key}`} id="search-target" lngLat={[target.lng, target.lat]} anchor="bottom">
+          <View style={styles.pin} accessibilityLabel={`Search result: ${target.label}`}>
+            <View style={styles.target} />
+            <View style={[styles.label, { marginTop: 8 }]}>
+              <Text style={styles.labelText} numberOfLines={1}>{target.label}</Text>
+            </View>
+          </View>
+        </Marker>
+      ) : null}
       {people.map((p) => (
         <Marker key={p.id} id={p.id} lngLat={[p.lng, p.lat]} anchor="bottom" onPress={() => onSelect?.(p.id)}>
           <View style={styles.pin} accessibilityLabel={`${p.name}, ${p.ago}`}>
@@ -107,6 +121,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     elevation: 3,
+  },
+  target: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    borderBottomLeftRadius: 0,
+    transform: [{ rotate: '-45deg' }],
+    backgroundColor: '#E4572E',
+    borderWidth: 3,
+    borderColor: '#fff',
+    elevation: 5,
   },
   placeLabel: { marginTop: 3, backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 6, paddingHorizontal: 5, paddingVertical: 1 },
   placeLabelText: { color: '#111418', fontSize: 10, fontWeight: '600', maxWidth: 120 },

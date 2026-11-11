@@ -139,6 +139,8 @@ export async function createTrip(input: {
   starts_on?: string | null;
   ends_on?: string | null;
   destination?: string | null;
+  destination_lat?: number | null;
+  destination_lng?: number | null;
 }): Promise<Trip> {
   const organizer_id = await uid();
   return check(
@@ -148,7 +150,9 @@ export async function createTrip(input: {
 
 export async function updateTrip(
   id: string,
-  patch: Partial<Pick<Trip, 'name' | 'starts_on' | 'ends_on' | 'invite_enabled' | 'ended_at' | 'destination' | 'cover_path'>>,
+  patch: Partial<
+    Pick<Trip, 'name' | 'starts_on' | 'ends_on' | 'invite_enabled' | 'ended_at' | 'destination' | 'destination_lat' | 'destination_lng' | 'cover_path'>
+  >,
 ): Promise<void> {
   check(await supabase.from('trips').update(patch).eq('id', id));
 }
@@ -654,16 +658,48 @@ export async function listPolls(tripId: string): Promise<Poll[]> {
   return check(
     await supabase
       .from('trip_polls')
-      .select('*, poll_options(id, label, position), poll_votes(user_id, option_id)')
+      // Named: poll_votes also links polls to options, so the plain name is ambiguous.
+      .select('*, poll_options!poll_options_poll_id_fkey(id, label, position), poll_votes(user_id, option_id)')
       .eq('trip_id', tripId)
       .order('created_at', { ascending: false }),
   ) as Poll[];
 }
 
-export async function createPoll(tripId: string, question: string, options: string[], closesAt: string | null, allowChange: boolean): Promise<string> {
+export async function createPoll(
+  tripId: string,
+  question: string,
+  options: string[],
+  closesAt: string | null,
+  allowChange: boolean,
+  multiple = false,
+): Promise<string> {
   return check(
-    await supabase.rpc('create_poll', { p_trip: tripId, p_question: question, p_options: options, p_closes_at: closesAt, p_allow_change: allowChange }),
+    await supabase.rpc('create_poll', {
+      p_trip: tripId,
+      p_question: question,
+      p_options: options,
+      p_closes_at: closesAt,
+      p_allow_change: allowChange,
+      p_multiple: multiple,
+    }),
   ) as string;
+}
+
+/** Edit an open poll (whoever started it, or the organizer). Options left out are removed with their votes. */
+export async function updatePoll(
+  pollId: string,
+  input: { question: string; options: { id?: string | null; label: string }[]; closesAt: string | null; allowChange: boolean; multiple: boolean },
+): Promise<void> {
+  check(
+    await supabase.rpc('update_poll', {
+      p_poll: pollId,
+      p_question: input.question,
+      p_options: input.options.map((o) => ({ id: o.id ?? null, label: o.label })),
+      p_closes_at: input.closesAt,
+      p_allow_change: input.allowChange,
+      p_multiple: input.multiple,
+    }),
+  );
 }
 
 export async function votePoll(pollId: string, optionId: string | null): Promise<void> {

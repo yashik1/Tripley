@@ -7,6 +7,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { router, Stack as RouterStack, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 
+import { DateTimeField } from '@/components/DateTimeField';
+import { FoundNote, PlaceField } from '@/components/PlaceField';
 import { placeEmoji } from '@/components/TripMap.types';
 import { Banner, Button, Card, Chip, Field, Loading, Row, Screen, Stack, Text } from '@/components/ui';
 import { addItineraryItem, updateItineraryItem, type ItineraryInput } from '@/lib/api';
@@ -16,7 +18,9 @@ import { parseTime, planDays, shortTime } from '@/lib/itinerary';
 import { keys, useItinerary, usePlaces } from '@/lib/queries';
 import { useTripId } from '@/lib/trip-context';
 import { useTripData } from '@/lib/trip-hooks';
+import type { GeoResult } from '@/lib/geocode';
 import type { ItineraryItem } from '@/lib/types';
+import { useSearchNear } from '@/lib/use-search-near';
 import { useMyFix } from '@/location/compass';
 import { space } from '@/theme';
 
@@ -59,6 +63,7 @@ function Form({
   const qc = useQueryClient();
   const places = usePlaces(tripId);
   const fix = useMyFix();
+  const near = useSearchNear(tripId);
   const today = todayISO();
   const days = useMemo(() => planDays(trip ?? { starts_on: null, ends_on: null }, items, today), [trip, items, today]);
   const [chosenDay, setDay] = useState(existing?.day ?? initialDay ?? days[0]?.day ?? today);
@@ -73,6 +78,23 @@ function Form({
   const [point, setPoint] = useState<Point>(
     existing?.lat != null && existing.lng != null ? { lat: existing.lat, lng: existing.lng, label: existing.place_name ?? 'Saved spot' } : null,
   );
+  // Set when the place came from search, so editing the text afterwards un-checks it.
+  const [found, setFound] = useState<Pick<GeoResult, 'address'> | null>(
+    existing?.lat != null && existing.address ? { address: existing.address } : null,
+  );
+  const pick = (r: GeoResult, fillName: boolean) => {
+    if (fillName || !placeName.trim()) setPlaceName(r.name.slice(0, 120));
+    setAddress(r.address.slice(0, 300));
+    setPoint({ lat: r.lat, lng: r.lng, label: r.name });
+    setFound(r);
+  };
+  const typed = (set: (v: string) => void) => (text: string) => {
+    set(text);
+    if (found) {
+      setFound(null);
+      setPoint(null);
+    }
+  };
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -130,15 +152,35 @@ function Form({
       </Stack>
 
       <Row gap={space.md} align="flex-start">
-        <Field label="Starts" testID="stop-start" value={start} onChangeText={setStart} placeholder="10:00" style={{ flex: 1 }} keyboardType="numbers-and-punctuation" maxLength={8} />
-        <Field label="Ends (optional)" testID="stop-end" value={end} onChangeText={setEnd} placeholder="11:30" style={{ flex: 1 }} keyboardType="numbers-and-punctuation" maxLength={8} />
+        <DateTimeField mode="time" label="Starts" testID="stop-start" value={start} onChangeText={setStart} placeholder="10:00" style={{ flex: 1 }} />
+        <DateTimeField mode="time" label="Ends (optional)" testID="stop-end" value={end} onChangeText={setEnd} placeholder="11:30" style={{ flex: 1 }} />
       </Row>
       {timeError && (start || end) ? <Text variant="caption" muted>{timeError}</Text> : null}
 
       <Card>
         <Text variant="label">Where</Text>
-        <Field label="Place" testID="stop-place" value={placeName} onChangeText={setPlaceName} placeholder="Museu Nacional do Azulejo" maxLength={120} />
-        <Field label="Address (optional)" value={address} onChangeText={setAddress} placeholder="R. Madre Deus 4, Lisboa" maxLength={300} />
+        <PlaceField
+          label="Place"
+          testID="stop-place"
+          value={placeName}
+          near={near}
+          onChangeText={typed(setPlaceName)}
+          onPick={(r) => pick(r, true)}
+          found={!!found}
+          placeholder="Search a place: Museu Nacional do Azulejo"
+          maxLength={120}
+        />
+        <PlaceField
+          label="Address (optional)"
+          testID="stop-address"
+          value={address}
+          near={near}
+          onChangeText={typed(setAddress)}
+          onPick={(r) => pick(r, false)}
+          found={!!found}
+          placeholder="Or search the address"
+        />
+        <FoundNote found={found} typed={address || placeName} testID="stop-found" />
         <Text variant="caption" muted>
           {point ? `On the map: ${point.label}` : 'Add a map point so it shows on the map with directions.'}
         </Text>
@@ -149,6 +191,7 @@ function Form({
               label={`${placeEmoji(p.kind)} ${p.name}`}
               selected={point?.lat === p.lat && point?.lng === p.lng}
               onPress={() => {
+                setFound(null);
                 setPoint({ lat: p.lat, lng: p.lng, label: p.name });
                 if (!placeName.trim()) setPlaceName(p.name);
               }}
@@ -158,11 +201,22 @@ function Form({
             <Chip
               label="📍 Where I am now"
               selected={point?.label === 'Where I was'}
-              onPress={() => setPoint({ lat: fix.lat, lng: fix.lng, label: 'Where I was' })}
+              onPress={() => {
+                setFound(null);
+                setPoint({ lat: fix.lat, lng: fix.lng, label: 'Where I was' });
+              }}
               testID="stop-here"
             />
           ) : null}
-          {point ? <Chip label="No map point" onPress={() => setPoint(null)} /> : null}
+          {point ? (
+            <Chip
+              label="No map point"
+              onPress={() => {
+                setFound(null);
+                setPoint(null);
+              }}
+            />
+          ) : null}
         </Row>
       </Card>
 

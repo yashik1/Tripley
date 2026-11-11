@@ -11,7 +11,7 @@
  * people to what they can do themselves in the app.
  */
 
-export const LEGAL_UPDATED = '9 November 2026';
+export const LEGAL_UPDATED = '10 November 2026';
 
 /** One paragraph (optionally with a bold lead-in) or a bulleted list. */
 export type LegalBlock = { text: string; lead?: string } | { list: string[] };
@@ -179,6 +179,7 @@ export const PRIVACY: LegalDoc = {
             'Twilio and our email provider: sending sign-in codes and account emails, if you sign in that way.',
             'Google or Apple: if you choose to sign in with them.',
             'OpenFreeMap: the map images. It receives your IP address and the area of the map on your screen, not the location you share.',
+            'Photon by komoot: address and place search. It receives what you type into a search box, a rough area to search near (such as the trip’s destination) and your IP address, not the location you share.',
             'Frankfurter: exchange rates. No personal data is sent.',
           ],
         },

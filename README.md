@@ -13,7 +13,9 @@ Group trips without the "where are you?" texts and the spreadsheet at the end.
 - **Settle up.** "You owe Maya ₹1,240" → **Pay** opens UPI / PhonePe / Paytm, Venmo / Zelle / Cash App, Revolut / Monzo / Wise / PayPal, or shows a SEPA QR code for euro bank transfers, ordered for the trip's region → **Mark as paid** → Maya taps **Got it**.
 - **Trip home and dashboard.** A colourful dashboard with the trip that matters now (countdown, travellers, real planning progress), quick actions, reminders worked out from the group's plans, and recent activity. Each trip opens on an overview with a cover photo (or an illustrated postcard), what's next and a getting-ready checklist.
 - **Activity feed.** Updates, photos (private to the trip), places you found and organizer announcements, with emoji reactions and comments; the feed also tells the trip's story by itself (joined, pinned, planned). Everyone picks which notifications they get.
-- **Bucket list and polls.** Suggest places and things to do, vote, and turn the favourites into plans (once). Polls for "where should we eat?" with live results.
+- **Bucket list and polls.** Suggest places and things to do, vote, and turn the favourites into plans (once). Polls for "where should we eat?" with live results; a poll can take one choice or several, and whoever started it (or the organizer) can edit it while it's open.
+- **Real places.** Destinations, ideas, plan stops and finds are searched by name or address ("Time Out Market", "Av. 24 de Julho 49") and picked from real places, so they're on the map with directions; the form shows whether a place was found. The map has its own search: fly to a place, then pin it or add it to the bucket list. Search uses OpenStreetMap data through Photon.
+- **Dates and times without typing.** Every date and time field has a calendar or clock button (the browser's own picker on the web, the system picker on phones); typing still works.
 - **Get ready.** A private packing list, shared group tasks with assignees, and optional light-hearted challenges.
 - **Travel passport and memories.** Badges earned from real activity (private unless you share them), and a recap after the trip where you choose what to share.
 - **Shared plan.** A day-by-day itinerary (Today / Day 1 / Day 2…): add the museum slot or the dinner booking with a time and place, say Going / Maybe / Not going, comment, see clashes, and get directions. The next day's stops show on the map.
@@ -203,6 +205,7 @@ Tripley runs in the Railway project **tripley**: the open-source Supabase stack 
 | `EXPO_PUBLIC_SUPABASE_ANON_KEY` | Public anon key, printed in the `supabase` gateway's deploy logs |
 | `EXPO_PUBLIC_AUTH_METHODS` | `password,guest` |
 | `EXPO_PUBLIC_APP_DOMAIN` | `${{RAILWAY_PUBLIC_DOMAIN}}` |
+| `EXPO_PUBLIC_GEOCODER_URL` | Not set: address search uses the free public Photon server. Set it to your own Photon server if you outgrow it |
 | `EXPO_PUBLIC_SUPPORT_EMAIL` | Not set yet. The public contact address for the Privacy Policy and Terms; add it, then redeploy `web` |
 | `NODE_ENV` | `production` |
 
@@ -305,6 +308,8 @@ To run it locally:
 `tests/e2e/plan.cjs` (`npm run test:e2e:plan`, same build) covers the shared plan: two people add stops, see a clash, answer Going, comment (and the other is notified), see a stop on the map, and reopen the plan offline.
 
 Every browser suite fails if the site's Content-Security-Policy blocks anything.
+
+`tests/e2e/places-polls.cjs` (`npm run test:e2e:places-polls`, same build) covers address search (a trip destination, a bucket-list idea, a plan stop and a feed find, each found on the map), the calendar and clock pickers, searching the map and pinning a result, and polls with several choices that the organizer edits. The search server is replaced by canned answers in its format. Database rules: `tests/db/polls-edit.test.ts`.
 
 `tests/e2e/delete-account.cjs` (`npm run test:e2e:delete-account`, same build) deletes a real account: the organizer of a shared trip, with a photo post and a bill, deletes from her profile. Her login stops working, her post and photo are gone, the other member becomes the organizer and still owes his share, and the same email can sign up again as a new account. A guest deletes too. The database rules are in `tests/db/account-deletion.test.ts`.
 
