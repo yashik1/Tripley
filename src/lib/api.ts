@@ -4,6 +4,8 @@
  * person can see and change; these functions just shape the requests.
  */
 import { FunctionsHttpError } from '@supabase/supabase-js';
+
+import { extensionFor, type ReadBooking } from './documents';
 import { Platform } from 'react-native';
 
 import type { ShareRow, SettlementRow } from './balances';
@@ -12,6 +14,8 @@ import { supabase } from './supabase';
 import type {
   Account,
   Availability,
+  Booking,
+  TripDocument,
   Room,
   Stay,
   StaysData,
@@ -994,4 +998,94 @@ export async function pickBed(roomId: string, userId?: string): Promise<void> {
 
 export async function leaveBed(stayId: string, userId?: string): Promise<void> {
   check(await supabase.rpc('leave_bed', { p_stay: stayId, p_user: userId ?? null }));
+}
+
+// ---------------------------------------------------------------- bookings and documents
+
+export async function listBookings(tripId: string): Promise<Booking[]> {
+  return check(await supabase.from('trip_bookings').select('*').eq('trip_id', tripId)) as Booking[];
+}
+
+export type BookingInput = Pick<
+  Booking,
+  'kind' | 'title' | 'provider' | 'reference' | 'start_day' | 'start_time' | 'end_day' | 'end_time' | 'from_place' | 'to_place' | 'address' | 'lat' | 'lng' | 'notes' | 'traveller_ids' | 'private'
+>;
+
+/** Adds a booking, or saves changes to one (bookingId). Returns its id. */
+export async function saveBooking(tripId: string, bookingId: string | null, input: BookingInput): Promise<string> {
+  if (bookingId) {
+    check(await supabase.from('trip_bookings').update(input).eq('id', bookingId));
+    return bookingId;
+  }
+  return (check(await supabase.from('trip_bookings').insert({ trip_id: tripId, ...input }).select('id').single()) as { id: string }).id;
+}
+
+export async function deleteBooking(bookingId: string): Promise<void> {
+  check(await supabase.from('trip_bookings').delete().eq('id', bookingId));
+}
+
+/** Puts a booking into the plan, once. Returns the stop's id. */
+export async function addBookingToPlan(bookingId: string): Promise<string> {
+  return check(await supabase.rpc('add_booking_to_plan', { p_booking: bookingId })) as string;
+}
+
+export async function listDocuments(tripId: string): Promise<TripDocument[]> {
+  return check(await supabase.from('trip_documents').select('*').eq('trip_id', tripId).order('created_at', { ascending: false })) as TripDocument[];
+}
+
+/** Uploads a PDF or image into the trip's private documents and records it. */
+export async function uploadDocument(
+  tripId: string,
+  file: { name: string; mime: string; bytes: ArrayBuffer },
+  opts: { name: string; bookingId?: string | null; private?: boolean },
+): Promise<TripDocument> {
+  const path = `${tripId}/${randomId()}.${extensionFor(file.mime)}`;
+  check(await supabase.storage.from('trip-docs').upload(path, file.bytes, { contentType: file.mime, upsert: false }));
+  const res = await supabase
+    .from('trip_documents')
+    .insert({ trip_id: tripId, booking_id: opts.bookingId ?? null, name: opts.name, path, mime: file.mime, size_bytes: file.bytes.byteLength, private: !!opts.private })
+    .select('*')
+    .single();
+  if (res.error) {
+    await supabase.storage.from('trip-docs').remove([path]);
+    throw res.error;
+  }
+  return res.data as TripDocument;
+}
+
+export async function updateDocument(docId: string, input: { name?: string; booking_id?: string | null; private?: boolean }): Promise<void> {
+  check(await supabase.from('trip_documents').update(input).eq('id', docId));
+}
+
+/** Removes the file, then the record. */
+export async function deleteDocument(doc: Pick<TripDocument, 'id' | 'path'>): Promise<void> {
+  check(await supabase.storage.from('trip-docs').remove([doc.path]));
+  check(await supabase.from('trip_documents').delete().eq('id', doc.id));
+}
+
+/** A link to a private document that works for 10 minutes. */
+export async function documentUrl(path: string): Promise<string | null> {
+  const { data } = await supabase.storage.from('trip-docs').createSignedUrl(path, SIGNED_URL_SECONDS);
+  return data?.signedUrl ?? null;
+}
+
+/** Tripley Pro: read a booking confirmation (PDF or image already in the trip's documents). */
+export async function readBooking(
+  tripId: string,
+  path: string,
+  context: string,
+  requestId: string,
+): Promise<{ booking: ReadBooking; scans_left: number }> {
+  for (let attempt = 0; ; attempt++) {
+    const { data, error } = await supabase.functions.invoke('read-booking', {
+      body: { path, trip_id: tripId, context, request_id: requestId },
+    });
+    if (!error) return data as { booking: ReadBooking; scans_left: number };
+    if (error instanceof FunctionsHttpError) {
+      const body = (await error.context.json().catch(() => null)) as { error?: { code: string; message: string } } | null;
+      if (body?.error) throw new ScanError(body.error.code, body.error.message);
+    }
+    if (attempt >= 1) throw new ScanError('network', 'Could not reach booking reading. You can type it in.');
+    await new Promise((r) => setTimeout(r, 1500));
+  }
 }

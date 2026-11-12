@@ -10,6 +10,7 @@ import type { PersistQueryClientOptions } from '@tanstack/react-query-persist-cl
 
 import { clearSharingState } from '@/location/state';
 import { CACHE_MAX_AGE_MS, cacheBelongsToSomeoneElse, shouldPersistQuery } from './cache-policy';
+import { clearOfflineDocs } from './offline-docs';
 import { clearOutboxFor } from './outbox';
 import { clearPendingJoin } from './pending-join';
 
@@ -42,7 +43,7 @@ export async function adoptDeviceData(qc: QueryClient, userId: string): Promise<
   }
   if (cacheBelongsToSomeoneElse(owner, userId)) {
     qc.clear();
-    await persister.removeClient();
+    await Promise.all([persister.removeClient(), clearOfflineDocs().catch(() => undefined)]);
   }
   await AsyncStorage.setItem(OWNER_KEY, userId).catch(() => undefined);
 }
@@ -56,5 +57,6 @@ export async function forgetDeviceData(qc: QueryClient, userId: string | null): 
     userId ? clearOutboxFor(userId) : Promise.resolve(),
     clearPendingJoin().catch(() => undefined),
     clearSharingState().catch(() => undefined),
+    clearOfflineDocs().catch(() => undefined),
   ]);
 }

@@ -18,7 +18,7 @@ export const CACHE_MAX_AGE_MS = 7 * DAY;
 export const OUTBOX_MAX_AGE_MS = 30 * DAY;
 
 // Signed photo links ('cover') expire, and are a key to a private photo: never saved.
-export const NOT_PERSISTED = new Set(['locations', 'notifications', 'invitations', 'sentInvites', 'friends', 'sharing', 'cover']);
+export const NOT_PERSISTED = new Set(['locations', 'notifications', 'invitations', 'sentInvites', 'friends', 'sharing', 'cover', 'offlineDocs']);
 
 export function shouldPersistQuery(queryKey: readonly unknown[], status: string): boolean {
   return status === 'success' && !NOT_PERSISTED.has(String(queryKey[0]));

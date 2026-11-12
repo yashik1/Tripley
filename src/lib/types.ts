@@ -371,3 +371,40 @@ export type Stay = {
 export type Room = { id: string; stay_id: string; trip_id: string; name: string; beds: number; size_weight: number; position: number };
 export type RoomGuest = { stay_id: string; room_id: string; user_id: string; assigned_by: string | null };
 export type StaysData = { stays: Stay[]; rooms: Room[]; guests: RoomGuest[] };
+
+export type Booking = {
+  id: string;
+  trip_id: string;
+  kind: string;
+  title: string;
+  provider: string | null;
+  reference: string | null;
+  start_day: string | null;
+  start_time: string | null;
+  end_day: string | null;
+  end_time: string | null;
+  from_place: string | null;
+  to_place: string | null;
+  address: string | null;
+  lat: number | null;
+  lng: number | null;
+  notes: string | null;
+  traveller_ids: string[];
+  private: boolean;
+  itinerary_item_id: string | null;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+};
+export type TripDocument = {
+  id: string;
+  trip_id: string;
+  booking_id: string | null;
+  name: string;
+  path: string;
+  mime: string;
+  size_bytes: number;
+  private: boolean;
+  uploaded_by: string;
+  created_at: string;
+};

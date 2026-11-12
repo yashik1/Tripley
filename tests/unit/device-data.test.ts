@@ -23,6 +23,9 @@ vi.mock('@react-native-async-storage/async-storage', () => {
 });
 vi.mock('../../src/lib/api', () => ({ saveBill: (...a: unknown[]) => saveBill(...a) }));
 vi.mock('../../src/location/state', () => ({ clearSharingState: async () => void store.delete('tripley.sharing.v1') }));
+// Documents kept for offline use are cleared with everything else.
+const offlineCleared = { count: 0 };
+vi.mock('../../src/lib/offline-docs', () => ({ clearOfflineDocs: async () => void offlineCleared.count++ }));
 
 
 const A = 'aaaaaaaa-0000-4000-8000-000000000001';
@@ -104,11 +107,14 @@ describe('the saved copy on the device', () => {
     await sleep(2200);
     expect(store.has('tripley.cache.v2')).toBe(true);
 
+    const before = offlineCleared.count;
     await adoptDeviceData(qc, A); // same person again: kept
     expect(store.has('tripley.cache.v2')).toBe(true);
     expect(qc.getQueryData(['trips'])).toBeDefined();
+    expect(offlineCleared.count).toBe(before);
 
-    await adoptDeviceData(qc, B); // someone else: gone
+    await adoptDeviceData(qc, B); // someone else: gone, offline documents too
+    expect(offlineCleared.count).toBe(before + 1);
     expect(store.has('tripley.cache.v2')).toBe(false);
     expect(qc.getQueryData(['trips'])).toBeUndefined();
     expect(store.get('tripley.cache.owner')).toBe(B);
@@ -125,7 +131,9 @@ describe('the saved copy on the device', () => {
     store.set('tripley.pendingJoin', 'ABC123');
     expect(await queuedCount(A)).toBe(1);
 
+    const before = offlineCleared.count;
     await forgetDeviceData(qc, A);
+    expect(offlineCleared.count).toBe(before + 1); // documents kept offline are deleted
     expect(qc.getQueryData(['trips'])).toBeUndefined();
     expect(store.has('tripley.cache.v2')).toBe(false);
     expect(store.has('tripley.cache.owner')).toBe(false);

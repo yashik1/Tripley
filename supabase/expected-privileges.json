@@ -4,6 +4,7 @@
   ],
   "authenticated": [
     "account_deletion_preview",
+    "add_booking_to_plan",
     "add_poll_option_to_plan",
     "add_suggestion_to_plan",
     "can_arrange_stay",

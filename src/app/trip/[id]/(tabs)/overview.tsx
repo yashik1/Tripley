@@ -15,9 +15,10 @@ import { summarizeForUser, computePairBalances } from '@/lib/balances';
 import { formatMoney } from '@/lib/currency';
 import { formatDate, formatDateRange, todayISO } from '@/lib/format';
 import { rsvpSummary, timeRange } from '@/lib/itinerary';
-import { useAvailability, useStays, useChallenges, useFeed, useItinerary, usePlaces, usePolls, useRsvps, useSettlements, useShareRows, useSuggestions, useTasks, useTripOverview } from '@/lib/queries';
+import { useAvailability, useBookings, useStays, useChallenges, useFeed, useItinerary, usePlaces, usePolls, useRsvps, useSettlements, useShareRows, useSuggestions, useTasks, useTripOverview } from '@/lib/queries';
 import { packingStep, progress as taskProgress } from '@/lib/preparation';
 import { pollIsOpen } from '@/lib/group-decisions';
+import { sortBookings } from '@/lib/documents';
 import { ActivityRow } from '@/components/ActivityRow';
 import { useTripId } from '@/lib/trip-context';
 import { useTripData } from '@/lib/trip-hooks';
@@ -45,6 +46,8 @@ export default function TripOverview() {
   const polls = usePolls(id);
   const availability = useAvailability(id);
   const stays = useStays(id);
+  const bookings = useBookings(id);
+  const nextBooking = sortBookings((bookings.data ?? []).filter((b) => b.start_day && b.start_day >= todayISO()))[0];
   const myBedMissing = (stays.data?.stays ?? []).some(
     (s) => (stays.data?.rooms ?? []).some((r) => r.stay_id === s.id) && !(stays.data?.guests ?? []).some((g) => g.stay_id === s.id && g.user_id === me),
   );
@@ -313,6 +316,13 @@ export default function TripOverview() {
               onPress={() => router.push(`/trip/${id}/dates`)}
             />
           ) : null}
+          <SectionTile
+            icon="ticket"
+            title="Bookings"
+            detail={bookings.data?.length ? `${bookings.data.length} ${bookings.data.length === 1 ? 'booking' : 'bookings'}` : 'Flights, stays, tickets'}
+            sub={nextBooking ? `Next: ${nextBooking.title}` : undefined}
+            onPress={() => router.push(`/trip/${id}/bookings`)}
+          />
           <SectionTile
             icon="bed"
             title="Rooms"

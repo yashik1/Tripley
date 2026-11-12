@@ -477,6 +477,7 @@ describe('storage', () => {
     expect(rows).toEqual([
       { id: 'avatars', public: true, max: 2 * 1024 * 1024, types: images },
       { id: 'receipts', public: false, max: 8 * 1024 * 1024, types: images },
+      { id: 'trip-docs', public: false, max: 10 * 1024 * 1024, types: ['application/pdf', ...images] },
       { id: 'trip-photos', public: false, max: 8 * 1024 * 1024, types: images },
     ]);
   });

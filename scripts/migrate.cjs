@@ -82,7 +82,7 @@ async function checkAccess(client) {
   const auth = await callable('authenticated');
   const authExtra = auth.filter((f) => !expected.authenticated.includes(f));
   const authMissing = expected.authenticated.filter((f) => !auth.includes(f));
-  const buckets = (await client.query(`select id, public from storage.buckets where id in ('receipts', 'trip-photos')`)).rows;
+  const buckets = (await client.query(`select id, public from storage.buckets where id in ('receipts', 'trip-photos', 'trip-docs') order by id`)).rows;
   for (const b of buckets) if (b.public) problems.push(`bucket ${b.id} is public`);
 
   console.log('Access check:');
