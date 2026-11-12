@@ -1,10 +1,13 @@
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { Switch, View } from 'react-native';
+import { Share, Switch, View } from 'react-native';
+
+import { config } from '@/config';
 
 import { saveGuestAccount, setNewPassword } from '@/lib/account';
-import { setShowAchievements, updateNotificationPrefs } from '@/lib/api';
+import { claimReferral, myReferralCode, setShowAchievements, updateNotificationPrefs } from '@/lib/api';
 import { passport } from '@/lib/passport';
-import { useAchievements } from '@/lib/queries';
+import { keys, useAchievements } from '@/lib/queries';
 import { errorMessage } from '@/lib/errors';
 import type { NotificationPrefs } from '@/lib/types';
 import { useAuth } from '@/providers/AuthProvider';
@@ -223,6 +226,65 @@ export function PassportCard() {
           testID="passport-visible"
         />
       </Row>
+    </Card>
+  );
+}
+
+/**
+ * Invite friends: your code and link (both of you get a month of Pro once the
+ * friend is on a trip with someone), and a place to use a friend's code in
+ * your first 14 days.
+ */
+export function InviteFriendsCard({ guest }: { guest: boolean }) {
+  const qc = useQueryClient();
+  const code = useQuery({ queryKey: ['referralCode'], queryFn: myReferralCode, enabled: !guest, staleTime: Infinity });
+  const [friendCode, setFriendCode] = useState('');
+  const [note, setNote] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const link = code.data ? `https://${config.appDomain}/?ref=${code.data}` : null;
+  const claim = async () => {
+    setBusy(true);
+    setNote(null);
+    try {
+      const r = await claimReferral(friendCode.trim());
+      await qc.invalidateQueries({ queryKey: keys.account });
+      setNote(r === 'rewarded' ? 'Done: you both get a month of Pro.' : r === 'already' ? 'You’ve already used an invite code.' : 'Done. You both get a month of Pro once you’re on a trip with someone.');
+      setFriendCode('');
+    } catch (e) {
+      setNote(errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Card testID="invite-friends">
+      <Text variant="heading">Invite friends to Tripley</Text>
+      {guest ? (
+        <Text muted>Save your account to get an invite link.</Text>
+      ) : (
+        <>
+          <Text muted>When a friend signs up with your link and goes on a trip with someone, you both get a month of Tripley Pro (up to 6 a year).</Text>
+          {code.data ? (
+            <Text variant="title" testID="referral-code">{code.data}</Text>
+          ) : null}
+          {link ? (
+            <Button
+              title="Share your link"
+              icon="share"
+              kind="secondary"
+              small
+              onPress={() => Share.share({ message: `Plan our next trip on Tripley: ${link}` }).catch(() => undefined)}
+              testID="referral-share"
+              style={{ alignSelf: 'flex-start' }}
+            />
+          ) : null}
+        </>
+      )}
+      <Row gap={space.sm} align="flex-end">
+        <Field label="Got a friend’s code?" value={friendCode} onChangeText={setFriendCode} autoCapitalize="characters" maxLength={8} style={{ flex: 1 }} testID="referral-claim-code" />
+        <Button title="Use it" small onPress={claim} loading={busy} disabled={friendCode.trim().length !== 8} testID="referral-claim" />
+      </Row>
+      {note ? <Text variant="caption" muted testID="referral-note">{note}</Text> : null}
     </Card>
   );
 }

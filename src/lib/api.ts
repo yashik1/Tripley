@@ -83,7 +83,7 @@ export async function updateProfile(
 export async function getAccount(): Promise<Account | null> {
   const id = await uid();
   return check(
-    await supabase.from('accounts').select('plan, plan_expires_at, ai_scans_used, ai_scans_period').eq('user_id', id).maybeSingle(),
+    await supabase.from('accounts').select('plan, plan_expires_at, ai_scans_used, ai_scans_period, bonus_pro_until').eq('user_id', id).maybeSingle(),
   ) as Account | null;
 }
 
@@ -110,6 +110,7 @@ export async function deleteMyAccount(): Promise<void> {
 }
 
 export function isPro(account: Account | null | undefined): boolean {
+  if (account?.bonus_pro_until && new Date(account.bonus_pro_until).getTime() > Date.now()) return true;
   if (!account || account.plan !== 'pro') return false;
   return !account.plan_expires_at || new Date(account.plan_expires_at).getTime() > Date.now();
 }
@@ -1151,4 +1152,15 @@ export async function startTripFromTemplate(templateId: string, name: string, st
 
 export async function deleteTemplate(id: string): Promise<void> {
   check(await supabase.from('trip_templates').delete().eq('id', id));
+}
+
+// ---------------------------------------------------------------- invite friends
+
+export async function myReferralCode(): Promise<string> {
+  return check(await supabase.rpc('my_referral_code')) as string;
+}
+
+/** Use a friend's invite code (new accounts, once). 'linked', 'rewarded' or 'already'. */
+export async function claimReferral(code: string): Promise<'linked' | 'rewarded' | 'already'> {
+  return check(await supabase.rpc('claim_referral', { p_code: code })) as 'linked' | 'rewarded' | 'already';
 }

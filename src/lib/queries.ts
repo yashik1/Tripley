@@ -80,7 +80,7 @@ export const useSentInvitations = (id: string) =>
 export const useInvitations = () => useQuery({ queryKey: keys.invitations, queryFn: api.myInvitations });
 export const useNotifications = () =>
   useQuery({ queryKey: keys.notifications, queryFn: api.listNotifications, refetchInterval: 120_000 });
-export const useAccount = () => useQuery({ queryKey: keys.account, queryFn: api.getAccount });
+export const useAccount = () => useQuery({ queryKey: keys.account, queryFn: api.getAccount, staleTime: 0 });
 export const usePlaces = (id: string) => useQuery({ queryKey: keys.places(id), queryFn: () => api.listPlaces(id), enabled: !!id });
 export const useKitties = (id: string) => useQuery({ queryKey: keys.kitties(id), queryFn: () => api.listKitties(id), enabled: !!id });
 export const useKittyOwnCash = (id: string) =>

@@ -96,6 +96,7 @@
     "test:e2e:offline-plan": "node tests/e2e/offline-plan.cjs",
     "test:e2e:ranked": "node tests/e2e/ranked.cjs",
     "test:e2e:templates-insights": "node tests/e2e/templates-insights.cjs",
+    "test:e2e:referrals": "node tests/e2e/referrals.cjs",
     "screens": "node tests/e2e/screens.cjs"
   },
   "private": true,

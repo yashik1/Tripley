@@ -13,6 +13,7 @@ import { CACHE_MAX_AGE_MS, cacheBelongsToSomeoneElse, shouldPersistQuery } from 
 import { clearOfflineDocs } from './offline-docs';
 import { clearOutboxFor } from './outbox';
 import { clearPendingJoin } from './pending-join';
+import { clearPendingReferral } from './pending-referral';
 import { clearPlanOutboxFor } from './plan-outbox';
 
 const CACHE_KEY = 'tripley.cache.v2';
@@ -58,6 +59,7 @@ export async function forgetDeviceData(qc: QueryClient, userId: string | null): 
     userId ? clearOutboxFor(userId) : Promise.resolve(),
     userId ? clearPlanOutboxFor(userId) : Promise.resolve(),
     clearPendingJoin().catch(() => undefined),
+    clearPendingReferral().catch(() => undefined),
     clearSharingState().catch(() => undefined),
     clearOfflineDocs().catch(() => undefined),
   ]);

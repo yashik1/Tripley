@@ -2,7 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { useState } from 'react';
 
-import { ChangePasswordCard, NotificationPrefsCard, PassportCard, SaveAccountCard } from '@/components/AccountCards';
+import { ChangePasswordCard, InviteFriendsCard, NotificationPrefsCard, PassportCard, SaveAccountCard } from '@/components/AccountCards';
 import { CurrencyPicker } from '@/components/CurrencyPicker';
 import { LegalLinks } from '@/components/Legal';
 import { Avatar, Banner, Button, Card, Field, Row, Screen, SectionTitle, Stack, Text } from '@/components/ui';
@@ -135,12 +135,19 @@ export default function Profile() {
           <Text variant="heading">{pro ? 'Tripley Pro' : 'Free'}</Text>
           <Text muted>
             {pro
-              ? `AI receipt reading is on.${account.data?.plan_expires_at ? ` Renews or ends ${new Date(account.data.plan_expires_at).toLocaleDateString()}.` : ''}`
-              : 'Everything except AI receipt reading. Upgrade to have bills read for you.'}
+              ? `AI receipt and booking reading and plan drafts are on.${
+                  account.data?.plan === 'pro' && account.data.plan_expires_at
+                    ? ` Renews or ends ${new Date(account.data.plan_expires_at).toLocaleDateString()}.`
+                    : account.data?.bonus_pro_until
+                      ? ` A gift from inviting friends, until ${new Date(account.data.bonus_pro_until).toLocaleDateString()}.`
+                      : ''
+                }`
+              : 'Everything except the AI helpers (receipts, bookings, plan drafts). Upgrade, or invite friends for a free month.'}
           </Text>
           <Button title={pro ? 'Manage subscription' : 'See Pro'} kind={pro ? 'secondary' : 'primary'} small onPress={() => router.push('/pro')} />
         </Card>
       </Stack>
+      <InviteFriendsCard guest={guest} />
 
       {message ? <Banner tone={message.tone}>{message.text}</Banner> : null}
 

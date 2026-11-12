@@ -15,6 +15,8 @@ export type Account = {
   plan_expires_at: string | null;
   ai_scans_used: number;
   ai_scans_period: string | null;
+  /** A month of Pro from inviting friends (kept apart from the subscription). */
+  bonus_pro_until?: string | null;
 };
 
 /** What deleting the signed-in account will do (account_deletion_preview()). */

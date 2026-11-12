@@ -7,6 +7,7 @@ import type { AppNotification } from './types';
 export function openNotification(n: Pick<AppNotification, 'kind' | 'data' | 'trip_id'>) {
   const tripId = typeof n.data.trip_id === 'string' ? n.data.trip_id : n.trip_id;
   if (n.kind === 'invitation') return router.dismissTo('/');
+  if (n.kind === 'referral_reward') return router.push('/profile');
   if (!tripId) return;
   if (n.kind === 'kitty_holder' || typeof n.data.kitty_id === 'string') router.push(`/trip/${tripId}/kitty`);
   else if (n.kind === 'arrival' && typeof n.data.place_id === 'string') router.push(`/trip/${tripId}/place/${n.data.place_id}`);
@@ -31,6 +32,7 @@ export function notificationIcon(kind: string): IconName {
   if (kind.startsWith('post')) return 'feed';
   if (kind.startsWith('poll')) return 'poll';
   if (kind === 'room_assigned') return 'bed';
+  if (kind === 'referral_reward') return 'gift';
   if (kind.startsWith('dates')) return 'calendar';
   return 'bell';
 }
