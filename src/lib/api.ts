@@ -835,6 +835,11 @@ export async function listRsvps(tripId: string): Promise<ItineraryRsvp[]> {
   return check(await supabase.from('itinerary_rsvps').select('item_id, user_id, status').eq('trip_id', tripId)) as ItineraryRsvp[];
 }
 
+/** Adds a stop saved offline; a second send with the same client id does nothing. */
+export async function addItineraryItemOnce(tripId: string, input: ItineraryInput, clientId: string): Promise<void> {
+  check(await supabase.from('itinerary_items').upsert({ trip_id: tripId, ...input, client_id: clientId }, { onConflict: 'client_id', ignoreDuplicates: true }));
+}
+
 export async function addItineraryItem(tripId: string, input: ItineraryInput): Promise<ItineraryItem> {
   return check(await supabase.from('itinerary_items').insert({ trip_id: tripId, ...input }).select('*').single()) as ItineraryItem;
 }

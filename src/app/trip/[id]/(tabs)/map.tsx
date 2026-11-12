@@ -305,6 +305,11 @@ export default function TripMapScreen() {
         {!sharing.supportsBackground ? null : sharing.status === 'background' && sharingOn ? (
           <Text variant="caption" faint>Sharing even when Tripley is closed. Stops when the trip ends.</Text>
         ) : null}
+        {sharing.supportsBackground && sharingOn ? (
+          <Text variant="caption" color={t.primary} onPress={() => router.push('/battery-help')} testID="battery-help-link">
+            Location stops when Tripley is closed? Here’s how to keep it on.
+          </Text>
+        ) : null}
       </View>
     </View>
   );

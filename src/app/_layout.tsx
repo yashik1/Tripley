@@ -117,6 +117,7 @@ function AppNavigator() {
         <Stack.Screen name="trip/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="profile" options={{ title: 'Profile' }} />
         <Stack.Screen name="delete-account" options={{ title: 'Delete account' }} />
+        <Stack.Screen name="battery-help" options={{ title: 'Keep sharing on' }} />
         <Stack.Screen name="notifications" options={{ title: 'Notifications' }} />
         <Stack.Screen name="pro" options={{ title: 'Tripley Pro', presentation: 'modal' }} />
         <Stack.Screen name="explore" options={{ title: 'Explore ideas' }} />

@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { AppState } from 'react-native';
 
 import { flushOutbox } from './outbox';
+import { flushPlanOutbox } from './plan-outbox';
 import { keys } from './queries';
 
 /** Send bills saved offline whenever we're (back) online, then refresh those trips. */
@@ -13,6 +14,8 @@ export function useOutboxSync(userId: string | null) {
     let stopped = false;
     const run = async () => {
       if (stopped || !onlineManager.isOnline()) return;
+      const plan = await flushPlanOutbox(userId);
+      for (const tripId of plan.tripIds) qc.invalidateQueries({ queryKey: keys.itinerary(tripId) });
       const { saved } = await flushOutbox(userId);
       for (const tripId of new Set(saved.map((s) => s.tripId))) {
         qc.invalidateQueries({ queryKey: keys.bills(tripId) });

@@ -15,6 +15,7 @@ import { setRsvp } from '@/lib/api';
 import { errorMessage } from '@/lib/errors';
 import { formatDate, todayISO } from '@/lib/format';
 import { defaultDay, findConflicts, planDays, RSVP_OPTIONS, rsvpSummary, timeRange } from '@/lib/itinerary';
+import { discardQueuedStop, usePlanOutbox } from '@/lib/plan-outbox';
 import { keys, useItinerary, usePlaces, useRsvps } from '@/lib/queries';
 import { useTripId } from '@/lib/trip-context';
 import { useTripData } from '@/lib/trip-hooks';
@@ -37,6 +38,7 @@ export default function PlanTab() {
   const [error, setError] = useState<string | null>(null);
 
   const dayItems = items.filter((i) => i.day === selected);
+  const waiting = usePlanOutbox(me, id).filter((q) => q.input.day === selected);
   const conflicts = useMemo(() => findConflicts(items), [items]);
   const label = days.find((d) => d.day === selected)?.label ?? '';
 
@@ -126,7 +128,21 @@ export default function PlanTab() {
       ) : null}
       {error ? <Banner tone="danger">{error}</Banner> : null}
 
-      {itinerary.isLoading ? null : dayItems.length === 0 ? (
+      {waiting.map((q) => (
+        <Card key={q.clientId} testID={`stop-waiting-${q.input.title}`}>
+          <Row gap={space.sm}>
+            <Icon name="cloudOff" size={18} color={t.textMuted} />
+            <View style={{ flex: 1 }}>
+              <Text variant="label">{q.input.title}</Text>
+              <Text variant="caption" muted>
+                {q.error ? `Couldn’t add it: ${q.error}` : `${timeRange(q.input) ?? 'Any time'} · Waiting for a connection to add it`}
+              </Text>
+            </View>
+            {q.error ? <Button title="Remove" kind="ghost" small onPress={() => discardQueuedStop(q.clientId)} /> : null}
+          </Row>
+        </Card>
+      ))}
+      {itinerary.isLoading ? null : dayItems.length === 0 && waiting.length === 0 ? (
         <EmptyState
           icon="calendar"
           title={items.length === 0 ? 'Plan the trip together' : `Nothing planned for ${label === 'Today' ? 'today' : label}`}

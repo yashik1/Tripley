@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { RefreshControl, View } from 'react-native';
 
 import { Icon } from '@/components/Icon';
@@ -23,7 +23,11 @@ function toShareRows(bills: { id: string; title: string; paid_by: string; bill_s
   );
 }
 
+const PAGE = 40;
+
 export default function BillsTab() {
+  // Long trips have hundreds of bills: render them a page at a time (cheap on slower phones).
+  const [shown, setShown] = useState(PAGE);
   const id = useTripId();
   const t = useTheme();
   const { trip, me, nameOf, byId, members } = useTripData(id);
@@ -112,7 +116,7 @@ export default function BillsTab() {
       ) : (
         <Stack gap={space.sm}>
           <SectionTitle>Bills</SectionTitle>
-          {list.map((b) => {
+          {list.slice(0, shown).map((b) => {
             const myShare = b.bill_shares.find((s) => s.user_id === me)?.amount_base_minor ?? 0;
             const payer = byId.get(b.paid_by);
             return (
@@ -140,6 +144,9 @@ export default function BillsTab() {
               </Card>
             );
           })}
+          {list.length > shown ? (
+            <Button title={`Show ${Math.min(PAGE, list.length - shown)} more`} kind="secondary" small onPress={() => setShown((n) => n + PAGE)} testID="bills-more" style={{ alignSelf: 'flex-start' }} />
+          ) : null}
         </Stack>
       )}
     </Screen>

@@ -11,7 +11,9 @@ import { DateTimeField } from '@/components/DateTimeField';
 import { FoundNote, PlaceField } from '@/components/PlaceField';
 import { placeEmoji } from '@/components/TripMap.types';
 import { Banner, Button, Card, Chip, Field, Loading, Row, Screen, Stack, Text } from '@/components/ui';
-import { addItineraryItem, updateItineraryItem, type ItineraryInput } from '@/lib/api';
+import { addItineraryItemOnce, updateItineraryItem, type ItineraryInput } from '@/lib/api';
+import { newClientId } from '@/lib/ids';
+import { queueStop } from '@/lib/plan-outbox';
 import { errorMessage, isNetworkError } from '@/lib/errors';
 import { formatDate, todayISO } from '@/lib/format';
 import { parseTime, planDays, shortTime } from '@/lib/itinerary';
@@ -96,6 +98,9 @@ function Form({
     }
   };
   const [busy, setBusy] = useState(false);
+  // One id per new stop, so sending it again after being offline can't add it twice.
+  const [clientId] = useState(() => newClientId());
+  const userId = useTripData(tripId).me;
   const [error, setError] = useState<string | null>(null);
 
   const startTime = parseTime(start);
@@ -108,6 +113,8 @@ function Form({
         : startTime && endTime && endTime <= startTime
           ? 'The end time should be after the start.'
           : null;
+
+  const leave = () => (router.canGoBack() ? router.back() : router.replace({ pathname: '/trip/[id]/plan', params: { id: tripId } }));
 
   const save = async () => {
     if (!title.trim()) return setError('What’s the plan? Give it a name.');
@@ -127,12 +134,17 @@ function Form({
     };
     try {
       if (existing) await updateItineraryItem(existing.id, input);
-      else await addItineraryItem(tripId, input);
+      else await addItineraryItemOnce(tripId, input, clientId);
       await qc.invalidateQueries({ queryKey: keys.itinerary(tripId) });
-      if (router.canGoBack()) router.back();
-      else router.replace({ pathname: '/trip/[id]/plan', params: { id: tripId } });
+      leave();
     } catch (e) {
-      setError(isNetworkError(e) ? 'No connection. Changes to the plan need a connection; try again when you’re back online.' : errorMessage(e));
+      if (!existing && userId && isNetworkError(e)) {
+        // Offline: keep it on this device and add it when the connection is back.
+        await queueStop({ clientId, userId, tripId, input });
+        leave();
+        return;
+      }
+      setError(isNetworkError(e) ? 'You’re offline. Changes to a saved stop need a connection.' : errorMessage(e));
       setBusy(false);
     }
   };

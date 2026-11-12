@@ -1,8 +1,8 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { RefreshControl, View } from 'react-native';
 
-import { Card, EmptyState, ListRow, Screen } from '@/components/ui';
+import { Button, Card, EmptyState, ListRow, Screen } from '@/components/ui';
 import { markAllNotificationsRead } from '@/lib/api';
 import { timeAgo } from '@/lib/format';
 import { keys, useNotifications } from '@/lib/queries';
@@ -10,6 +10,8 @@ import { openNotification as open } from '@/lib/notification-routes';
 import { useTheme } from '@/theme';
 
 export default function Notifications() {
+  // Up to 100 are loaded; show 30 at first so the list opens fast on slower phones.
+  const [shown, setShown] = useState(30);
   const t = useTheme();
   const qc = useQueryClient();
   const list = useNotifications();
@@ -30,7 +32,7 @@ export default function Notifications() {
         <EmptyState icon="bell" title="No notifications" body="Invites, new bills and payments show up here." />
       ) : (
         <Card>
-          {items.map((n) => (
+          {items.slice(0, shown).map((n) => (
             <ListRow
               key={n.id}
               left={<View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: n.read_at ? 'transparent' : t.primary }} />}
@@ -42,6 +44,9 @@ export default function Notifications() {
           ))}
         </Card>
       )}
+      {items.length > shown ? (
+        <Button title="Show older" kind="secondary" small onPress={() => setShown((n) => n + 30)} testID="notifications-more" style={{ alignSelf: 'flex-start' }} />
+      ) : null}
     </Screen>
   );
 }
