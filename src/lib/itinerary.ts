@@ -103,6 +103,37 @@ export function findConflicts(items: Pick<ItineraryItem, 'id' | 'day' | 'title' 
   return out;
 }
 
+const hhmm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+
+/**
+ * A time to move a clashing stop to, on the same day: the first gap after it
+ * (or else the last one before it) that fits its length, on the quarter hour,
+ * between 07:00 and 23:00, clashing with nothing (findConflicts' rules).
+ * Null when there's no room that day.
+ */
+export function suggestFreeSlot(
+  item: Pick<ItineraryItem, 'id' | 'day' | 'title' | 'starts_at' | 'ends_at'>,
+  sameDay: Pick<ItineraryItem, 'id' | 'day' | 'title' | 'starts_at' | 'ends_at'>[],
+): { starts_at: string; ends_at: string | null } | null {
+  if (!item.starts_at) return null;
+  const start = minutes(item.starts_at);
+  const length = item.ends_at ? Math.max(15, minutes(item.ends_at) - start) : 0;
+  const others = sameDay.filter((o) => o.id !== item.id && o.day === item.day && o.starts_at);
+  const fits = (s: number) => {
+    const moved = { ...item, starts_at: hhmm(s), ends_at: item.ends_at ? hhmm(s + length) : null };
+    return !findConflicts([moved, ...others]).has(item.id);
+  };
+  const earliest = 7 * 60;
+  const latest = 23 * 60 - Math.max(length, 15);
+  for (let s = Math.ceil((start + 1) / 15) * 15; s <= latest; s += 15) {
+    if (fits(s)) return { starts_at: hhmm(s), ends_at: item.ends_at ? hhmm(s + length) : null };
+  }
+  for (let s = Math.floor((start - 1) / 15) * 15; s >= earliest; s -= 15) {
+    if (fits(s)) return { starts_at: hhmm(s), ends_at: item.ends_at ? hhmm(s + length) : null };
+  }
+  return null;
+}
+
 /** Who answered what for one stop. */
 export function rsvpSummary(rsvps: ItineraryRsvp[], itemId: string, me: string) {
   const mine = rsvps.find((r) => r.item_id === itemId && r.user_id === me)?.status ?? null;

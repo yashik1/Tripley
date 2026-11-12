@@ -10,11 +10,11 @@ const env = { EXPO_PUBLIC_SUPABASE_URL: 'https://api.tripley.test/' };
 const directive = (csp: string, name: string) => csp.split('; ').find((d) => d.startsWith(`${name} `)) ?? '';
 
 describe('web security headers', () => {
-  it('limits scripts and connections to this site, the API, the map, exchange rates and address search', () => {
+  it('limits scripts and connections to this site, the API, the map, exchange rates, address search and weather', () => {
     const csp = securityHeaders(env, true)['Content-Security-Policy'];
     expect(directive(csp, 'script-src')).toBe("script-src 'self'");
     expect(directive(csp, 'connect-src')).toBe(
-      "connect-src 'self' blob: data: https://api.tripley.test wss://api.tripley.test https://tiles.openfreemap.org https://api.frankfurter.dev https://photon.komoot.io",
+      "connect-src 'self' blob: data: https://api.tripley.test wss://api.tripley.test https://tiles.openfreemap.org https://api.frankfurter.dev https://photon.komoot.io https://api.open-meteo.com https://archive-api.open-meteo.com",
     );
     expect(directive(csp, 'img-src')).toBe("img-src 'self' data: blob: https: https://api.tripley.test");
     expect(csp).toContain("frame-ancestors 'none'");

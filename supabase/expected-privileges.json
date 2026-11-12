@@ -42,6 +42,7 @@
     "record_payment_received",
     "regenerate_invite_code",
     "remind_availability",
+    "remind_to_settle",
     "reorder_itinerary_day",
     "respond_to_invitation",
     "respond_to_settlement",

@@ -75,7 +75,7 @@
     "test:db": "vitest run tests/db",
     "test:all": "vitest run",
     "typecheck": "tsc --noEmit",
-    "functions:check": "for f in scan-receipt read-booking revenuecat-webhook send-push; do deno check --config supabase/functions/$f/deno.json supabase/functions/$f/index.ts || exit 1; done",
+    "functions:check": "for f in scan-receipt read-booking plan-draft revenuecat-webhook send-push; do deno check --config supabase/functions/$f/deno.json supabase/functions/$f/index.ts || exit 1; done",
     "export:web": "node scripts/copy-map-worker.cjs && expo export --platform web && node scripts/precache-manifest.cjs",
     "postinstall": "node scripts/copy-map-worker.cjs",
     "test:e2e": "node tests/e2e/trip-flow.cjs",
@@ -92,6 +92,7 @@
     "test:e2e:decide": "node tests/e2e/decide.cjs",
     "test:e2e:stays": "node tests/e2e/stays.cjs",
     "test:e2e:bookings": "node tests/e2e/bookings.cjs",
+    "test:e2e:smart-help": "node tests/e2e/smart-help.cjs",
     "screens": "node tests/e2e/screens.cjs"
   },
   "private": true,

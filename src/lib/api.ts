@@ -658,8 +658,8 @@ export async function toggleSuggestionVote(id: string): Promise<boolean> {
 }
 
 /** Adds the suggestion to the plan (once; pressing again returns the same stop). */
-export async function addSuggestionToPlan(id: string, day?: string | null): Promise<string> {
-  return check(await supabase.rpc('add_suggestion_to_plan', { p_suggestion: id, p_day: day ?? null })) as string;
+export async function addSuggestionToPlan(id: string, day?: string | null, startsAt?: string | null): Promise<string> {
+  return check(await supabase.rpc('add_suggestion_to_plan', { p_suggestion: id, p_day: day ?? null, p_starts_at: startsAt ?? null })) as string;
 }
 
 export async function listPolls(tripId: string): Promise<Poll[]> {
@@ -1088,4 +1088,23 @@ export async function readBooking(
     if (attempt >= 1) throw new ScanError('network', 'Could not reach booking reading. You can type it in.');
     await new Promise((r) => setTimeout(r, 1500));
   }
+}
+
+/** Someone who is owed money nudges everyone who owes (once a day per trip). Returns how many. */
+export async function remindToSettle(tripId: string): Promise<number> {
+  return check(await supabase.rpc('remind_to_settle', { p_trip: tripId })) as number;
+}
+
+export type DraftStop = { title: string; starts_at: string | null; ends_at: string | null; place_name: string | null; notes: string | null; suggestion_id: string | null };
+export type PlanDraft = { days: { day: string; stops: DraftStop[] }[]; notes: string | null };
+
+/** Tripley Pro: a first-draft plan for the trip's days, to review before adding. */
+export async function draftPlan(tripId: string, pace: 'relaxed' | 'balanced' | 'packed', notes: string, requestId: string): Promise<{ draft: PlanDraft; scans_left: number }> {
+  const { data, error } = await supabase.functions.invoke('plan-draft', { body: { trip_id: tripId, request_id: requestId, pace, notes } });
+  if (!error) return data as { draft: PlanDraft; scans_left: number };
+  if (error instanceof FunctionsHttpError) {
+    const body = (await error.context.json().catch(() => null)) as { error?: { code: string; message: string } } | null;
+    if (body?.error) throw new ScanError(body.error.code, body.error.message);
+  }
+  throw new ScanError('network', 'Could not reach plan drafting. Check your connection.');
 }

@@ -56,6 +56,7 @@ export default function TripLayout() {
       <Stack.Screen name="kitty" options={{ title: 'Cash kitty' }} />
       <Stack.Screen name="plan/new" options={{ title: 'Add to the plan', presentation: 'modal' }} />
       <Stack.Screen name="plan/[itemId]" options={{ title: 'Plan' }} />
+      <Stack.Screen name="plan/draft" options={{ title: 'Draft the plan', presentation: 'modal' }} />
       <Stack.Screen name="post/new" options={{ title: 'New post', presentation: 'modal' }} />
       <Stack.Screen name="idea/new" options={{ title: 'Suggest an idea', presentation: 'modal' }} />
       <Stack.Screen name="poll/new" options={{ title: 'New poll', presentation: 'modal' }} />

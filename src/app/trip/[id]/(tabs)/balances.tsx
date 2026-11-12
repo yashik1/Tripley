@@ -6,7 +6,7 @@ import { Pressable, RefreshControl, View } from 'react-native';
 import { Icon } from '@/components/Icon';
 import { MoneySwitch } from '@/components/MoneySwitch';
 import { Avatar, Banner, Button, Card, EmptyState, ListRow, Row, Screen, SectionTitle, Stack, Text } from '@/components/ui';
-import { respondToSettlement, toSettlementRows, undoSettlement } from '@/lib/api';
+import { remindToSettle, respondToSettlement, toSettlementRows, undoSettlement } from '@/lib/api';
 import { computePairBalances, summarizeForUser } from '@/lib/balances';
 import { formatMoney } from '@/lib/currency';
 import { errorMessage } from '@/lib/errors';
@@ -26,6 +26,7 @@ export default function BalancesTab() {
   const settlements = useSettlements(id);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [note, setNote] = useState<string | null>(null);
   const base = trip?.base_currency ?? 'USD';
 
   const pairs = useMemo(
@@ -40,6 +41,7 @@ export default function BalancesTab() {
   const act = async (key: string, fn: () => Promise<void>) => {
     setBusy(key);
     setError(null);
+    setNote(null);
     try {
       await fn();
       await qc.invalidateQueries({ queryKey: keys.settlements(id) });
@@ -78,8 +80,25 @@ export default function BalancesTab() {
           <Text variant="title" color={mine.netMinor > 0 ? t.success : mine.netMinor < 0 ? t.danger : t.text} testID="net-balance">
             {formatMoney(Math.abs(mine.netMinor), base)}
           </Text>
+          {mine.netMinor > 0 && mine.owed.length ? (
+            <Button
+              title="Remind who owes"
+              icon="bell"
+              kind="secondary"
+              small
+              loading={busy === 'remind'}
+              onPress={() =>
+                act('remind', async () => {
+                  const n = await remindToSettle(id);
+                  setNote(n ? `Reminded ${n === 1 ? 'one person' : `${n} people`}.` : 'Nobody owes money right now.');
+                })
+              }
+              testID="remind-settle"
+            />
+          ) : null}
         </Card>
       )}
+      {note ? <Banner tone="success">{note}</Banner> : null}
 
       <KittyLink tripId={id} base={base} />
 

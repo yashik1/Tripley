@@ -39,6 +39,9 @@ function securityHeaders(env, https) {
     'https://api.frankfurter.dev',
     // Address and place search (src/lib/geocode.ts).
     originOf(env.EXPO_PUBLIC_GEOCODER_URL) || 'https://photon.komoot.io',
+    // Weather for packing suggestions (src/lib/weather.ts).
+    originOf(env.EXPO_PUBLIC_WEATHER_URL) || 'https://api.open-meteo.com',
+    originOf(env.EXPO_PUBLIC_WEATHER_ARCHIVE_URL) || 'https://archive-api.open-meteo.com',
     ...(webPurchases ? ['https://api.revenuecat.com', 'https://api.stripe.com'] : []),
     ...String(env.CSP_CONNECT_EXTRA || '').split(/\s+/).filter((x) => /^(https|wss):\/\/[^\s;,']+$/.test(x)),
   ].filter(Boolean);

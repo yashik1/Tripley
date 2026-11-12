@@ -10,11 +10,11 @@ import { Linking, View } from 'react-native';
 
 import { Icon } from '@/components/Icon';
 import { Avatar, Banner, Button, Card, Field, IconButton, Loading, Row, Screen, SectionTitle, Segmented, Stack, Text } from '@/components/ui';
-import { addItineraryComment, deleteItineraryComment, deleteItineraryItem, moveItineraryItem, setRsvp } from '@/lib/api';
+import { addItineraryComment, deleteItineraryComment, deleteItineraryItem, moveItineraryItem, setRsvp, updateItineraryItem } from '@/lib/api';
 import { confirm } from '@/lib/confirm';
 import { errorMessage } from '@/lib/errors';
 import { firstName, formatDate, timeAgo } from '@/lib/format';
-import { findConflicts, RSVP_OPTIONS, rsvpSummary, timeRange } from '@/lib/itinerary';
+import { findConflicts, RSVP_OPTIONS, rsvpSummary, suggestFreeSlot, timeRange } from '@/lib/itinerary';
 import { directionsUrl, searchUrl } from '@/lib/map-links';
 import { keys, useItinerary, useItineraryComments, useRsvps } from '@/lib/queries';
 import { useTripId } from '@/lib/trip-context';
@@ -49,7 +49,9 @@ export default function PlanItem() {
 
   const canEdit = active && (item.created_by === me || isOrganizer);
   const r = rsvpSummary(rsvps.data ?? [], item.id, me);
-  const clash = findConflicts((itinerary.data ?? []).filter((i) => i.day === item.day)).get(item.id);
+  const sameDay = (itinerary.data ?? []).filter((i) => i.day === item.day);
+  const clash = findConflicts(sameDay).get(item.id);
+  const freeSlot = clash ? suggestFreeSlot(item, sameDay) : null;
   const time = timeRange(item);
   const names = (ids: string[]) => ids.map((u) => (u === me ? 'You' : firstName(nameOf(u)))).join(', ');
 
@@ -96,6 +98,15 @@ export default function PlanItem() {
         <Banner tone="warning" icon="calendar" title="Overlaps with another stop">
           {`Same time as ${clash.join(', ')}. Worth checking everyone can make both.`}
         </Banner>
+      ) : null}
+      {clash && canEdit && freeSlot ? (
+        <Button
+          title={`Move it to ${freeSlot.ends_at ? `${freeSlot.starts_at}–${freeSlot.ends_at}` : freeSlot.starts_at}`}
+          icon="clock"
+          kind="secondary"
+          onPress={() => run(() => updateItineraryItem(item.id, freeSlot), () => qc.invalidateQueries({ queryKey: keys.itinerary(id) }))}
+          testID="stop-move-free"
+        />
       ) : null}
 
       {item.place_name || item.address || item.lat != null ? (

@@ -72,6 +72,17 @@ export default function PlanTab() {
         ) : undefined
       }>
       <PlanSwitch tripId={id} value="plan" />
+      {active && trip?.starts_on && trip.ends_on ? (
+        <Button
+          title="Draft the plan with AI"
+          icon="sparkles"
+          kind="ghost"
+          small
+          onPress={() => router.push(`/trip/${id}/plan/draft`)}
+          style={{ alignSelf: 'flex-start' }}
+          testID="plan-draft"
+        />
+      ) : null}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}

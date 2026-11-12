@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { defaultDay, findConflicts, parseTime, planDays, rsvpSummary, stopsForMap, timeRange } from '../../src/lib/itinerary';
+import { defaultDay, findConflicts, parseTime, planDays, rsvpSummary, stopsForMap, suggestFreeSlot, timeRange } from '../../src/lib/itinerary';
 import type { ItineraryItem } from '../../src/lib/types';
 
 const item = (id: string, day: string, starts_at: string | null, ends_at: string | null = null, extra: Partial<ItineraryItem> = {}): ItineraryItem => ({
@@ -111,5 +111,36 @@ describe('RSVPs and the map', () => {
     expect(stopsForMap(items, '2026-12-02').map((i) => i.id)).toEqual(['soon']);
     expect(stopsForMap(items, '2026-12-09').map((i) => i.id)).toEqual(['later']);
     expect(stopsForMap([item('nowhere', 'd', null)], 'd')).toEqual([]);
+  });
+});
+
+describe('a free time for a clashing stop', () => {
+  const day = '2026-12-02';
+  const stop = (id: string, starts_at: string | null, ends_at: string | null = null) => ({ id, day, title: id, starts_at, ends_at });
+
+  it('moves it to the first gap after, keeping its length', () => {
+    const museum = stop('museum', '10:00', '12:00');
+    const lunch = stop('lunch', '11:30', '12:30');
+    expect(suggestFreeSlot(lunch, [museum, lunch])).toEqual({ starts_at: '12:00', ends_at: '13:00' });
+  });
+
+  it('skips other stops in the way, and uses a gap before when there’s none after', () => {
+    const a = stop('a', '12:00', '13:00');
+    const b = stop('b', '13:00', '22:30');
+    const late = stop('late', '12:30', '13:30');
+    expect(suggestFreeSlot(late, [a, b, late])).toEqual({ starts_at: '11:00', ends_at: '12:00' });
+  });
+
+  it('a stop with only a start time moves to the next free quarter hour', () => {
+    const tour = stop('tour', '15:00', '16:00');
+    const coffee = stop('coffee', '15:20');
+    expect(suggestFreeSlot(coffee, [tour, coffee])).toEqual({ starts_at: '16:00', ends_at: null });
+  });
+
+  it('no room that day: no suggestion', () => {
+    const allDay = stop('all', '07:00', '23:00');
+    const x = stop('x', '09:00', '10:00');
+    expect(suggestFreeSlot(x, [allDay, x])).toBeNull();
+    expect(suggestFreeSlot(stop('untimed', null), [allDay])).toBeNull();
   });
 });

@@ -3,7 +3,7 @@
  * shared tasks. Ticking things off animates gently (not with reduced motion),
  * and finishing a list gets a small celebration.
  */
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
@@ -15,11 +15,13 @@ import { Avatar, Banner, Button, Card, Chip, Field, Row, Screen, Segmented, Stac
 import { addTasks, deleteTask, setTaskDone } from '@/lib/api';
 import { errorMessage } from '@/lib/errors';
 import { firstName, todayISO } from '@/lib/format';
+import { packingSuggestions } from '@/lib/packing';
 import { missingStarters, progress } from '@/lib/preparation';
-import { keys, useTasks } from '@/lib/queries';
+import { keys, useBookings, useTasks } from '@/lib/queries';
 import { useTripId } from '@/lib/trip-context';
 import { useTripData } from '@/lib/trip-hooks';
 import { tripStatus } from '@/lib/trip-status';
+import { describeWeather, fetchTripWeather } from '@/lib/weather';
 import type { TripTask } from '@/lib/types';
 import { radius, space, useTheme } from '@/theme';
 
@@ -56,6 +58,15 @@ export default function Prepare() {
   const params = useLocalSearchParams<{ list?: string }>();
   const { trip, me, members, nameOf, isOrganizer, active } = useTripData(id);
   const tasks = useTasks(id);
+  const bookings = useBookings(id);
+  // Only the destination's map point and the dates go to the weather service.
+  const weather = useQuery({
+    queryKey: ['weather', trip?.destination_lat, trip?.destination_lng, trip?.starts_on, trip?.ends_on, todayISO()],
+    queryFn: () => fetchTripWeather(trip!.destination_lat!, trip!.destination_lng!, trip!.starts_on!, trip!.ends_on!, todayISO()),
+    enabled: trip?.destination_lat != null && trip?.destination_lng != null && !!trip?.starts_on && !!trip?.ends_on,
+    staleTime: 6 * 60 * 60_000,
+    retry: 0,
+  });
   const [list, setList] = useState<'packing' | 'group'>(params.list === 'group' ? 'group' : 'packing');
   const [title, setTitle] = useState('');
   const [assignee, setAssignee] = useState<string | null>(null);
@@ -81,6 +92,11 @@ export default function Prepare() {
     run(() => addTasks(id, list, [text], list === 'group' ? assignee : null));
   };
   const starters = list === 'packing' ? missingStarters(items) : [];
+  const nights = trip?.starts_on && trip.ends_on ? Math.round((Date.parse(trip.ends_on) - Date.parse(trip.starts_on)) / 86_400_000) : null;
+  const suggested =
+    list === 'packing'
+      ? packingSuggestions({ nights, weather: weather.data ?? null, bookingKinds: (bookings.data ?? []).map((b) => b.kind), existing: items.map((i) => i.title) })
+      : [];
 
   const row = (task: TripTask) => (
     <Row key={task.id} gap={space.md} style={{ paddingVertical: 6 }}>
@@ -162,6 +178,38 @@ export default function Prepare() {
                   <Chip key={m.user_id} label={m.user_id === me ? 'Me' : firstName(m.profile.display_name || 'Friend')} selected={assignee === m.user_id} onPress={() => setAssignee(m.user_id)} />
                 ))}
               </Row>
+            ) : null}
+            {suggested.length > 0 && active ? (
+              <View style={{ gap: space.xs }} testID="pack-suggested">
+                <Text variant="label">Suggested for this trip</Text>
+                <Text variant="caption" muted testID="pack-weather">
+                  {weather.data
+                    ? describeWeather(weather.data)
+                    : trip?.destination_lat == null
+                      ? 'Pick the destination from the search in trip settings to add the weather.'
+                      : !trip?.starts_on
+                        ? 'Set the trip dates to add the weather.'
+                        : weather.isLoading
+                          ? 'Checking the weather…'
+                          : 'The weather isn’t available right now.'}
+                </Text>
+                <Row gap={space.xs} style={{ flexWrap: 'wrap' }}>
+                  {suggested.map((x) => (
+                    <Chip key={x.title} label={`+ ${x.title}`} onPress={() => run(() => addTasks(id, 'packing', [x.title]))} testID={`pack-suggest-${x.title}`} />
+                  ))}
+                </Row>
+                <Text variant="caption" faint>{suggested.map((x) => `${x.title}: ${x.why.charAt(0).toLowerCase()}${x.why.slice(1)}`).join(' · ')}</Text>
+                {suggested.length > 1 ? (
+                  <Button
+                    title={`Add all ${suggested.length}`}
+                    kind="ghost"
+                    small
+                    onPress={() => run(() => addTasks(id, 'packing', suggested.map((x) => x.title)))}
+                    testID="pack-suggest-all"
+                    style={{ alignSelf: 'flex-start' }}
+                  />
+                ) : null}
+              </View>
             ) : null}
             {starters.length > 0 ? (
               <Button

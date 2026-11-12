@@ -106,7 +106,7 @@ jobs:
           EXPO_PUBLIC_SUPABASE_URL=$SUPABASE_URL PORT=8081 node scripts/serve-web.cjs dist > serve.log 2>&1 &
           npx --yes wait-on@8.0.3 -t 60000 http://localhost:8081
           failed=""
-          for t in legal accounts delete-account places-polls route decide stays bookings engagement roadmap plan; do
+          for t in legal accounts delete-account places-polls route decide stays bookings smart-help engagement roadmap plan; do
             echo "::group::$t"
             SHOTS=e2e-shots/$t node tests/e2e/$t.cjs || failed="$failed $t"
             echo "::endgroup::"
