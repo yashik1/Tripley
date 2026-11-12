@@ -130,6 +130,7 @@ function AppNavigator() {
       {/* Public, signed in or out (app stores link to these). */}
       <Stack.Screen name="privacy" options={{ title: 'Privacy Policy' }} />
       <Stack.Screen name="terms" options={{ title: 'Terms of Use' }} />
+      <Stack.Screen name="why-tripley" options={{ title: 'Why Tripley' }} />
     </Stack>
   );
 

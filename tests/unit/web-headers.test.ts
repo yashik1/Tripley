@@ -57,3 +57,32 @@ describe('web security headers', () => {
     expect(directive(csp, 'connect-src')).toContain('https://api.revenuecat.com');
   });
 });
+
+describe('search engines', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { robotsTxt, sitemapXml, publicOrigin } = require('../../scripts/serve-web.cjs');
+
+  it('robots.txt keeps private trip pages out and points to the sitemap', () => {
+    const r = robotsTxt('https://tripley.app');
+    expect(r).toContain('Disallow: /trip/');
+    expect(r).toContain('Disallow: /join/');
+    expect(r).toContain('Sitemap: https://tripley.app/sitemap.xml');
+  });
+
+  it('the sitemap lists only public pages', () => {
+    const x = sitemapXml('https://tripley.app');
+    expect(x).toContain('<loc>https://tripley.app/why-tripley</loc>');
+    expect(x).toContain('<loc>https://tripley.app/privacy</loc>');
+    expect(x).not.toContain('/trip/');
+  });
+
+  it('uses the configured domain, else the request’s host (cleaned)', () => {
+    const prev = process.env.EXPO_PUBLIC_APP_DOMAIN;
+    process.env.EXPO_PUBLIC_APP_DOMAIN = 'tripley.app';
+    expect(publicOrigin({ headers: { host: 'evil.example' } })).toBe('https://tripley.app');
+    delete process.env.EXPO_PUBLIC_APP_DOMAIN;
+    expect(publicOrigin({ headers: { host: 'localhost:8081' } })).toBe('http://localhost:8081');
+    expect(publicOrigin({ headers: { host: 'web.up.railway.app"><script>' } })).toBe('https://web.up.railway.appscript');
+    if (prev !== undefined) process.env.EXPO_PUBLIC_APP_DOMAIN = prev;
+  });
+});

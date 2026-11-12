@@ -11,7 +11,7 @@
  * people to what they can do themselves in the app.
  */
 
-export const LEGAL_UPDATED = '10 November 2026';
+export const LEGAL_UPDATED = '12 November 2026';
 
 /** One paragraph (optionally with a bold lead-in) or a bulleted list. */
 export type LegalBlock = { text: string; lead?: string } | { list: string[] };
@@ -89,7 +89,7 @@ export const PRIVACY: LegalDoc = {
         },
         {
           lead: 'Trips and plans.',
-          text: 'Trip names, dates, destinations and cover photos; who is on each trip and who invited them; plans, RSVPs, comments, places you pin, ideas, polls and votes, group tasks, challenges, and your own packing list.',
+          text: 'Trip names, dates, destinations and cover photos; who is on each trip and who invited them; plans, RSVPs, comments, places you pin, ideas, polls and votes (including how you ranked the options), the days you said you can go, stays, rooms and who sleeps where, group tasks, challenges, and your own packing list.',
         },
         {
           lead: 'Your location, only if you share it.',
@@ -100,12 +100,20 @@ export const PRIVACY: LegalDoc = {
           text: 'Bills (amounts, items, who had what and who paid), receipt photos, the exchange rate used, payments marked as made, cash kitties, and any payment details you choose to add to your profile, such as a UPI ID, Venmo username or IBAN. Tripley doesn’t process payments and never sees your card details or bank login.',
         },
         {
+          lead: 'Bookings and documents.',
+          text: 'Bookings you add (such as flights, trains, stays and tickets, with times, places, booking codes and who they’re for) and the files you attach (PDFs and images). You can mark a booking or document “Only me”. Documents you choose to keep offline are saved on your device.',
+        },
+        {
+          lead: 'Templates and invites.',
+          text: 'Trip templates you save (a trip’s plan, ideas, group tasks and your packing list, kept just for you), your invite code, and who joined Tripley with it.',
+        },
+        {
           lead: 'Posts and photos.',
           text: 'What you post to a trip’s feed, including photos, places, reactions and comments.',
         },
         {
           lead: 'Tripley Pro.',
-          text: 'If you subscribe, the app store and our subscription provider tell us your plan and when it renews or ends. We never see your card details. If you use AI receipt reading, we keep a record of each scan so we can count your monthly allowance.',
+          text: 'If you subscribe, the app store and our subscription provider tell us your plan and when it renews or ends. We never see your card details. If you get Pro by inviting friends, we record until when. When you use the AI helpers (reading a receipt or a booking, drafting a plan), we keep a record of each request so we can count your monthly allowance.',
         },
         {
           lead: 'Notifications.',
@@ -164,7 +172,7 @@ export const PRIVACY: LegalDoc = {
       blocks: [
         {
           lead: 'People on your trips.',
-          text: 'Your name and profile photo, what you add to a trip, and your location while sharing is on are visible to the other members of that trip. Your packing list is visible only to you. Your badges are private unless you choose to show them. Payment details on your profile are shown to people on your trips when they settle up with you.',
+          text: 'Your name and profile photo, what you add to a trip, and your location while sharing is on are visible to the other members of that trip. Your packing list, your templates and bookings or documents you mark “Only me” are visible only to you. Your badges are private unless you choose to show them. Payment details on your profile are shown to people on your trips when they settle up with you. The trip’s organizer sees a summary of what members can already see (who’s sharing, who owes, who still has to answer).',
         },
         {
           lead: 'Service providers.',
@@ -174,13 +182,14 @@ export const PRIVACY: LegalDoc = {
           list: [
             'Railway: hosting. Our servers, database and stored photos are in the United States.',
             'Expo, with Apple and Google: delivering push notifications. They receive your push token and the notification text.',
-            'Anthropic: AI receipt reading. It receives the receipt photos you choose to scan.',
+            'Anthropic: the AI helpers in Tripley Pro. It receives only what you ask it to work on: a receipt photo you scan; a booking file or screenshot you ask it to read, with the trip’s destination and dates; or, for a plan draft, the trip’s name, destination and dates, its bucket list and votes, poll results, plans and the titles and times of shared bookings, and any note you add.',
             'RevenueCat, with Apple’s App Store and Google Play: subscriptions.',
             'Twilio and our email provider: sending sign-in codes and account emails, if you sign in that way.',
             'Google or Apple: if you choose to sign in with them.',
             'OpenFreeMap: the map images. It receives your IP address and the area of the map on your screen, not the location you share.',
             'Photon by komoot: address and place search. It receives what you type into a search box, a rough area to search near (such as the trip’s destination) and your IP address, not the location you share.',
             'Frankfurter: exchange rates. No personal data is sent.',
+            'Open-Meteo: the weather for packing suggestions. It receives the map point of the trip’s destination and the trip’s dates, and your IP address, not the location you share.',
           ],
         },
         {
@@ -221,12 +230,12 @@ export const PRIVACY: LegalDoc = {
         {
           list: [
             'Shared location: until the trip ends or you leave it (see above).',
-            'AI receipt results: one day. Scan records: 90 days.',
+            'AI results (receipts, bookings, plan drafts): one day. Request records: 90 days.',
             'Your account and trips: for as long as you have an account. Trip records such as bills, payments and plans are shared with your group, so what you added to a trip stays for the others after you leave it.',
-            'When you delete your account, your sign-in details, name, payment details, posts, comments, photos, packing lists and location are deleted straight away. Trips nobody else is on are deleted too. On shared trips, bills, payments and plans stay in the group’s records under the name “Former member”, so everyone’s balances still add up.',
+            'When you delete your account, your sign-in details, name, payment details, posts, comments, photos, documents, private bookings, packing lists, templates, invite code and location are deleted straight away. Trips nobody else is on are deleted too. On shared trips, bills, payments and plans stay in the group’s records under the name “Former member”, so everyone’s balances still add up.',
             'Any copies in backups are overwritten as the backups are replaced.',
             'Server logs: kept only for a limited time by our hosting provider.',
-            'Data on your device: the copy kept for offline use is tied to your account and removed when you sign out.',
+            'Data on your device: the copy kept for offline use, documents you keep offline, and plans or bills waiting to sync are tied to your account and removed when you sign out.',
           ],
         },
       ],
@@ -427,7 +436,8 @@ export const TERMS: LegalDoc = {
             'Pro is a subscription billed by Apple’s App Store, Google Play or, where offered, our web checkout, at the price shown before you buy.',
             'It renews automatically until you cancel. Cancel at least 24 hours before it renews, in your app store account settings or from Tripley’s Pro screen.',
             'Refunds follow the store’s refund policy, and you keep any rights your local consumer law gives you.',
-            'AI receipt reading has a monthly allowance shown in the app.',
+            'The AI helpers (receipt and booking reading, plan drafts) share a monthly allowance shown in the app. AI can make mistakes: check what it fills in before you save it.',
+            'A month of Pro from inviting friends is a gift: it ends by itself, doesn’t renew and isn’t billed.',
             'We’ll tell you before a price change, and you can cancel before it applies.',
           ],
         },

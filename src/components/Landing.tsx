@@ -1,4 +1,4 @@
-import { router, useLocalSearchParams } from 'expo-router';
+import { Link, router, useLocalSearchParams } from 'expo-router';
 import { useRef, type ComponentRef, type ReactNode } from 'react';
 import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -297,6 +297,9 @@ export function Landing() {
             </Text>
             <Row gap={space.lg} style={{ flexWrap: 'wrap' }}>
               <Text variant="caption" faint>© {new Date().getFullYear()} Tripley</Text>
+              <Link href="/why-tripley" style={{ color: t.textMuted, fontSize: 13, textDecorationLine: 'underline' }} testID="link-why">
+                Why Tripley
+              </Link>
               <LegalLinks />
             </Row>
           </Stack>

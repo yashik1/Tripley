@@ -75,7 +75,7 @@ function securityHeaders(env, https) {
   };
 }
 
-module.exports = { securityHeaders };
+module.exports = { securityHeaders, robotsTxt, sitemapXml, publicOrigin };
 
 const root = path.resolve(process.argv[2] || 'dist');
 const port = Number(process.env.PORT || 8081);
@@ -98,6 +98,26 @@ const TYPES = {
   '.txt': 'text/plain; charset=utf-8',
 };
 
+/** Pages anyone can read (the rest needs an account, or is someone's trip). */
+const PUBLIC_PAGES = ['/', '/why-tripley', '/privacy', '/terms', '/sign-up', '/sign-in'];
+
+/** This site's address: the configured domain, else the host the request came to. */
+function publicOrigin(req) {
+  const domain = (process.env.EXPO_PUBLIC_APP_DOMAIN || '').replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+  const host = /^[A-Za-z0-9.-]+(:\d+)?$/.test(domain) && domain ? domain : String(req.headers.host || 'localhost').replace(/[^A-Za-z0-9.:-]/g, '');
+  const proto = req.headers['x-forwarded-proto'] === 'https' || !/^(localhost|127\.)/.test(host) ? 'https' : 'http';
+  return `${proto}://${host}`;
+}
+
+function robotsTxt(origin) {
+  return ['User-agent: *', 'Allow: /', 'Disallow: /trip/', 'Disallow: /join/', 'Disallow: /profile', 'Disallow: /notifications', `Sitemap: ${origin}/sitemap.xml`, ''].join('\n');
+}
+
+function sitemapXml(origin) {
+  const urls = PUBLIC_PAGES.map((p) => `  <url><loc>${origin}${p === '/' ? '/' : p}</loc></url>`).join('\n');
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`;
+}
+
 function serve() {
 if (!fs.existsSync(index)) {
   console.error(`No ${index}. Run "npx expo export --platform web" first.`);
@@ -112,6 +132,15 @@ const server = http.createServer((req, res) => {
       urlPath = decodeURIComponent((req.url || '/').split('?')[0]);
     } catch {
       res.writeHead(400, security).end('Bad request');
+      return;
+    }
+    // Search engines: the public pages, and keep private trip pages out.
+    if (urlPath === '/robots.txt' || urlPath === '/sitemap.xml') {
+      const origin = publicOrigin(req);
+      const body = urlPath === '/robots.txt' ? robotsTxt(origin) : sitemapXml(origin);
+      res
+        .writeHead(200, { ...security, 'Content-Type': urlPath === '/robots.txt' ? 'text/plain; charset=utf-8' : 'application/xml; charset=utf-8', 'Cache-Control': 'public, max-age=3600' })
+        .end(req.method === 'HEAD' ? undefined : body);
       return;
     }
     let file = path.join(root, path.normalize(urlPath));

@@ -80,8 +80,8 @@ describe('the privacy policy matches what the code does', () => {
     expect(migrations).toContain('foreign key (trip_id, user_id) references public.trip_members (trip_id, user_id) on delete cascade');
   });
 
-  it('keeps receipt results for a day and scan records for 90 days', () => {
-    expect(privacy).toContain('AI receipt results: one day. Scan records: 90 days.');
+  it('keeps AI results for a day and request records for 90 days', () => {
+    expect(privacy).toContain('AI results (receipts, bookings, plan drafts): one day. Request records: 90 days.');
     expect(migrations).toContain("update public.ai_scan_requests set result = null");
     expect(migrations).toContain("finished_at < now() - interval '1 day'");
     expect(migrations).toContain("delete from public.ai_scan_requests where user_id = p_user and created_at < now() - interval '90 days'");
@@ -102,8 +102,17 @@ describe('the privacy policy matches what the code does', () => {
     expect(migrations).toContain('delete from public.trip_posts where author_id = v_uid;');
   });
 
-  it('keeps packing lists private', () => {
-    expect(privacy).toContain('Your packing list is visible only to you');
+  it('keeps packing lists, templates and “Only me” bookings private', () => {
+    expect(privacy).toContain('Your packing list, your templates and bookings or documents you mark “Only me” are visible only to you');
+    expect(migrations).toContain('using (public.is_trip_member(trip_id) and (not private or created_by = auth.uid()));');
+    expect(migrations).toContain('create policy "templates: only yours" on public.trip_templates for select to authenticated using (owner_id = auth.uid());');
     expect(migrations).toContain("using (public.is_trip_member(trip_id) and (kind = 'group' or created_by = auth.uid()));");
+  });
+
+  it('deletes documents, templates and invite codes with the account', () => {
+    expect(privacy).toContain('documents, private bookings, packing lists, templates, invite code and location are deleted straight away');
+    expect(migrations).toContain('delete from public.trip_documents where uploaded_by = new.id;');
+    expect(migrations).toContain('delete from public.trip_templates where owner_id = new.id;');
+    expect(migrations).toContain('delete from public.referral_codes where user_id = new.id;');
   });
 });

@@ -75,3 +75,14 @@ describe('invite friends', () => {
     expect((await db.query('select count(*)::int as n from public.referrals where referrer_id = $1 and rewarded_at is not null', [ana])).rows[0].n).toBe(6);
   });
 });
+
+describe('deleting your account', () => {
+  it('removes your templates, invite code and invite links', async () => {
+    const trip = await createTrip(db, ana, [], 'To save');
+    await as(db, ana, (q) => q(`select public.save_trip_as_template($1, 'Mine')`, [trip]));
+    await db.query('update public.profiles set deleted_at = now() where id = $1', [ana]);
+    for (const [table, col] of [['trip_templates', 'owner_id'], ['referral_codes', 'user_id'], ['referrals', 'referrer_id']]) {
+      expect((await db.query(`select count(*)::int as n from public.${table} where ${col} = $1`, [ana])).rows[0].n).toBe(0);
+    }
+  });
+});

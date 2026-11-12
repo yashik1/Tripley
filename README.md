@@ -25,7 +25,17 @@ Group trips without the "where are you?" texts and the spreadsheet at the end.
 - **Cash kitty.** Pool cash with one person for taxis and street food. Put cash in, spend from it, hand it over; Tripley shows what's left and who holds it, and it flows into everyone's balances so leftovers come back on settling up.
 - **Works offline.** The web app installs to the home screen and opens without a connection (a service worker keeps the app and recent map tiles; trips, bills and balances are kept on the device). Bills added offline wait on the device and are sent once, exactly once, when you're back online.
 - **Accounts.** Sign up with email and password, log in on any device, reset a forgotten password by email. Guests can try it with just a name and save their account later without losing their trips.
-- **Free + Pro.** Everything is free except **AI receipt reading** (Tripley Pro): snap the receipt and the items, prices, tax and tip are filled in.
+- **Ranked polls.** Besides one choice or several, a poll can ask everyone to put the options in order; first choices score most (a Borda count) and the winner goes into the plan as usual.
+- **Bookings and documents.** Flights, trains, stays and tickets in one place, with times, places, booking codes and who they're for; attach PDFs or images. Personal ones can be "Only me". "Keep offline" saves a file on the phone (or in the browser) to open with no signal. One tap puts a booking into the plan.
+- **Rooms and beds.** Add the flat or hotel and its rooms; everyone picks a bed (or the organizer places people). Split the stay by room (bigger rooms carry more, people sharing a room split it) or by person; it becomes an ordinary bill.
+- **Smarter help.** A clashing stop offers the next free time in one tap; the packing list suggests things for the destination's weather (forecast, or last year on the same dates), the trip's length and how you're travelling; people who still owe after a trip get a gentle reminder (weekly, at most three), and anyone owed money can nudge the group once a day.
+- **Plans offline too.** Stops added with no connection wait on the device and are added once when you're back online, like bills.
+- **Organizer insights.** Who's on the map (and how fresh), who owes, and who still has polls, plans or dates to answer: only what everyone on the trip can already see.
+- **Templates.** Save a trip's plan, ideas, group tasks and your packing list as a private template, and start next year's trip from it at new dates.
+- **More ways to pay.** Pix (Brazil) and PromptPay (Thailand) QR codes, alongside UPI, Venmo, SEPA and the rest.
+- **Keep sharing on.** On Android, step-by-step help for the phone's maker (Samsung, Xiaomi, OnePlus…) so battery savers don't stop location sharing.
+- **Invite friends.** Share your invite link; when a friend signs up and goes on a trip with someone, you both get a month of Pro (up to 6 a year).
+- **Free + Pro.** Everything is free except the **AI helpers** (Tripley Pro), which share one monthly allowance: **receipt reading** (items, prices, tax and tip filled in), **booking reading** (a confirmation PDF, screenshot or photo becomes a booking to check) and **plan drafts** (a day-by-day draft from your bucket list, votes and bookings, for the group to pick from).
 
 One codebase (Expo / React Native) runs on iPhone, Android and the web. Backend is Supabase (Postgres, Auth, Realtime, Storage, Edge Functions).
 
@@ -360,3 +370,15 @@ For Google Play's "account deletion URL", link to `https://<your domain>/privacy
 Still needed before submitting to the stores:
 
 - A public contact address: set `EXPO_PUBLIC_SUPPORT_EMAIL` and redeploy.
+
+## Production checklist (November 2026)
+
+These need your accounts or a decision; the code is ready for them.
+
+1. **AI helpers (Pro).** The `functions` service on Railway runs a generic edge-runtime image, so `scan-receipt`, `read-booking` and `plan-draft` aren't deployed yet, and it has no `ANTHROPIC_API_KEY`. Until they are, the app says the helper can't be reached and everything else works. To turn them on: build an edge-runtime image (or mount a volume) with `supabase/functions/`, set `ANTHROPIC_API_KEY` (plus optionally `ANTHROPIC_MODEL`, `AI_SCAN_MONTHLY_LIMIT`, `PLAN_DRAFT_EFFORT`) on that service, and redeploy it whenever `supabase/functions/_shared/` changes. CI type-checks every function (`npm run functions:check`).
+2. **Password length.** `GOTRUE_PASSWORD_MIN_LENGTH` is set on the `auth` service; check in Railway that it's at least 8 (the app asks for 8).
+3. **Email.** With SMTP set (see above), turn on email confirmation (`GOTRUE_MAILER_AUTOCONFIRM=false`) and `EXPO_PUBLIC_EMAIL_SENDING=on`.
+4. **Weather licence.** Packing suggestions use Open-Meteo's free API, which is for non-commercial use. Before charging for Pro, switch to their paid API: set `EXPO_PUBLIC_WEATHER_URL` / `EXPO_PUBLIC_WEATHER_ARCHIVE_URL` (the web server allows those hosts automatically).
+5. **Wait for CI.** In Railway, web service → Settings → enable "Wait for CI" so a red build never deploys.
+6. **Phones.** New native modules since the last store build (expo-secure-store, expo-file-system): make a new build with EAS (`npx eas-cli@latest build`).
+7. **Store listings.** Copy and the data-safety answers are drafted in `docs/STORE_LISTING.md`.

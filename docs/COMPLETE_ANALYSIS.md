@@ -7,11 +7,22 @@
 
 This document consolidates everything: security findings, competitive landscape, product improvement plan, technical recommendations, and growth strategy. Share this single file with Claude (or any implementer) to drive changes.
 
-> **Status, 12 November 2026 (implemented on `claude/tender-johnson-cscqn1`).**
-> - Done: **1.1** polls from bucket-list ideas and "add the winner to the plan" in two taps, on top of the existing single/multiple-choice polls with live results and editing; **1.2** date coordination (`/trip/[id]/dates`); **1.3** a quick start for people who just joined (map or bill in one tap, plus what's shared and how to pause); **1.4** the phone session in `expo-secure-store` (needs a new native build).
-> - Security checklist: secrets scanning is in CI (gitleaks); every production deploy now re-checks function privileges and that private buckets stay private (`scripts/migrate.cjs`). The npm advisories listed below are fixed (`npm audit`: 0).
-> - Still open: email confirmation and password-reset email need SMTP (see README); ranked/swipe voting; Phase 2 and 3.
-
+> **Status, 12 November 2026 (implemented on `claude/tender-johnson-cscqn1`; see README for details).**
+> - **Phase 1: done.** Polls from ideas and winners into the plan in two taps; single, multiple and **ranked** (Borda) polls; date coordination; a quick start for people who join; the phone session in `expo-secure-store`.
+> - **Phase 2: done.** 2.1 bookings and documents (private-able, linked to plan stops, offline on the device, AI reading of PDFs, screenshots and photos for Pro). 2.2 AI plan drafts (Pro), one-tap clash fixes, weather-based packing suggestions, settle-up reminders. 2.3 rooms and beds with the cost split by room. 2.4 plan stops saved offline (sent once), keep-sharing-on help per Android maker, long lists rendered a page at a time.
+> - **Phase 3: mostly done.** Private trip templates; organizer insights; Pix and PromptPay; referral rewards (a month of Pro for both, up to 6 a year).
+> - **Growth: partly done.** Referral loop; store listing copy and data-safety answers (`docs/STORE_LISTING.md`); SEO basics (social tags, crawlable text, `robots.txt` and `sitemap.xml`) and an honest "Why Tripley" page.
+> - **Security:** secrets scanning in CI; access and private-bucket checks on every deploy (now including `trip-docs`); new tables have RLS and function-only writes, with database tests for races and privacy.
+> - **Not done, and why:**
+>   - Booking import by forwarding emails needs an inbound-mail service. Screenshots and PDFs cover it for now.
+>   - Full translations (i18n) need a translation workflow and native-speaker review; dates and money already follow the device's locale.
+>   - A one-time "Trip Pass" needs store products and a pricing decision.
+>   - Comparison pages that name competitors need claims checked against their current apps.
+>   - Creator and campus channels are marketing work, not code.
+>   - Email confirmation needs SMTP.
+>   - AI helpers in production need the edge functions deployed on Railway and an Anthropic key.
+>
+>   The README's "Production checklist" lists each step.
 ---
 
 # Part 1 — Product Overview
@@ -85,8 +96,8 @@ A thorough security review was already performed (see `docs/SECURITY_REVIEW.md`,
 ## Security implementation checklist (still open)
 
 - [x] Move auth session to `expo-secure-store`
-- [ ] Confirm `GOTRUE_PASSWORD_MIN_LENGTH=8` and (when ready) turn on email confirmation in production Auth
-- [ ] Redeploy edge functions after shared-code changes and verify secrets
+- [ ] Confirm `GOTRUE_PASSWORD_MIN_LENGTH=8` (the variable is set; its value needs checking in Railway) and (when ready) turn on email confirmation in production Auth
+- [ ] Deploy the edge functions (scan-receipt, read-booking, plan-draft) to the Railway `functions` service and set `ANTHROPIC_API_KEY` (not deployed yet; CI type-checks them)
 - [x] Run privilege + Storage checks on the live project post-migration (on every deploy)
 - [x] Optional: add secrets scanning step to CI
 
@@ -322,22 +333,30 @@ Own the "during the trip" experience (live map + find friend + fair settle-up) w
 - [x] Optional secrets scanning in CI
 
 ### Product Phase 1
-- [x] Structured voting / decision layer + add-to-plan (ranked voting not built)
+- [x] Structured voting / decision layer + add-to-plan, including ranked polls
 - [x] Date coordination
 - [x] Onboarding & guest conversion polish
 - [x] Secure session storage
 
 ### Product Phase 2
-- [ ] Booking / document hub
-- [ ] Deeper AI (itinerary draft, packing, etc.)
-- [ ] Accommodation (bedroom assignment)
-- [ ] Stronger offline & performance
+- [x] Booking / document hub (email forwarding not built: needs an inbound-mail service)
+- [x] Deeper AI (plan drafts and booking reading for Pro; clash fixes, weather packing and settle-up reminders for everyone)
+- [x] Accommodation (rooms, beds, split by room)
+- [x] Stronger offline & performance
+
+### Product Phase 3
+- [x] Templates (private)
+- [x] Organizer analytics (insights)
+- [x] More regional payments (Pix, PromptPay)
+- [x] Referral rewards
+- [ ] i18n expansion (needs translators)
+- [ ] Trip Pass (needs store products and pricing)
 
 ### Growth
-- [ ] App Store / Play Store listing optimization
-- [ ] Comparison / SEO content
-- [ ] Creator & campus channels
-- [ ] Referral loop
+- [x] App Store / Play Store listing optimization (copy and data-safety answers in docs/STORE_LISTING.md)
+- [x] Comparison / SEO content (SEO basics and a "Why Tripley" page; competitor comparisons left out on purpose)
+- [ ] Creator & campus channels (marketing, not code)
+- [x] Referral loop
 
 ---
 
