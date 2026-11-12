@@ -1,16 +1,17 @@
 import 'react-native-url-polyfill/auto';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
 import { AppState, Platform } from 'react-native';
 
 import { config, isConfigured } from '@/config';
+import { sessionStorage } from '@/lib/session-storage';
 
 export const supabase = createClient(
   isConfigured ? config.supabaseUrl : 'https://not-configured.supabase.co',
   isConfigured ? config.supabaseAnonKey : 'not-configured',
   {
     auth: {
-      storage: AsyncStorage,
+      // Phones: secure storage (src/lib/session-storage.ts). Web: local storage.
+      storage: sessionStorage,
       autoRefreshToken: true,
       persistSession: true,
       detectSessionInUrl: Platform.OS === 'web',

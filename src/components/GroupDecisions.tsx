@@ -8,14 +8,15 @@ import { useEffect, useState } from 'react';
 import { Linking, Pressable, View } from 'react-native';
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from 'react-native-reanimated';
 
-import { addSuggestionToPlan, closePoll, deletePoll, deleteSuggestion, toggleSuggestionVote, votePoll } from '@/lib/api';
+import { addPollOptionToPlan, addSuggestionToPlan, closePoll, deletePoll, deleteSuggestion, toggleSuggestionVote, votePoll } from '@/lib/api';
 import { confirm } from '@/lib/confirm';
 import { formatMoney } from '@/lib/currency';
 import { errorMessage } from '@/lib/errors';
-import { firstName, formatDate } from '@/lib/format';
+import { firstName, formatDate, todayISO } from '@/lib/format';
 import { categoryOf, closingLabel, pollResults } from '@/lib/group-decisions';
 import { directionsUrl } from '@/lib/map-links';
-import { keys } from '@/lib/queries';
+import { planDays } from '@/lib/itinerary';
+import { keys, useItinerary, useTrip } from '@/lib/queries';
 import type { Poll, Suggestion } from '@/lib/types';
 import { radius, space, useTheme } from '@/theme';
 import { PhotoGrid } from './FeedPost';
@@ -158,6 +159,12 @@ export function PollCard({ poll, me, nameOf, canModerate, active }: { poll: Poll
   const r = pollResults(poll, me);
   const closing = closingLabel(poll);
   const canManage = poll.created_by === me || canModerate;
+  const trip = useTrip(poll.trip_id);
+  const itinerary = useItinerary(poll.trip_id);
+  const [choosingDay, setChoosingDay] = useState<string | null>(null);
+  const winners = !r.open ? r.options.filter((o) => o.leading) : [];
+  const optionInfo = new Map(poll.poll_options.map((o) => [o.id, o]));
+  const days = trip.data ? planDays(trip.data, itinerary.data ?? [], todayISO()) : [];
   const canClose = r.open && canManage;
   // A fixed more-than-one poll still lets you add picks, just not take them back.
   const canVote = r.open && active && (poll.allow_change || poll.multiple || !r.myVote);
@@ -233,6 +240,62 @@ export function PollCard({ poll, me, nameOf, canModerate, active }: { poll: Poll
           </Pressable>
         ))}
       </View>
+      {winners.length && active ? (
+        <View style={{ gap: space.xs }} testID="poll-winner-actions">
+          {winners.map((w) => {
+            const inPlan = optionInfo.get(w.id)?.itinerary_item_id;
+            if (inPlan) {
+              return (
+                <Pressable
+                  key={w.id}
+                  accessibilityRole="link"
+                  onPress={() => router.push({ pathname: '/trip/[id]/plan/[itemId]', params: { id: poll.trip_id, itemId: inPlan } })}
+                  testID={`poll-in-plan-${w.label}`}>
+                  <Text variant="caption" color={t.primary} style={{ fontWeight: '600' }}>{`✓ ${w.label} is in the plan`}</Text>
+                </Pressable>
+              );
+            }
+            return choosingDay === w.id ? (
+              <View key={w.id} style={{ gap: space.xs }}>
+                <Text variant="caption" muted>{`Which day for ${w.label}?`}</Text>
+                <Row gap={space.xs} style={{ flexWrap: 'wrap' }}>
+                  {days.slice(0, 14).map((d) => (
+                    <Pressable
+                      key={d.day}
+                      accessibilityRole="button"
+                      disabled={busy}
+                      onPress={() =>
+                        run(async () => {
+                          await addPollOptionToPlan(w.id, d.day);
+                          setChoosingDay(null);
+                          await Promise.all([
+                            qc.invalidateQueries({ queryKey: keys.itinerary(poll.trip_id) }),
+                            qc.invalidateQueries({ queryKey: keys.suggestions(poll.trip_id) }),
+                          ]);
+                        })
+                      }
+                      testID={`poll-plan-day-${d.day}`}
+                      style={{ paddingHorizontal: space.md, paddingVertical: 7, borderRadius: radius.pill, borderWidth: 1, borderColor: t.primary }}>
+                      <Text variant="caption" color={t.primary} style={{ fontWeight: '600' }}>{`${d.label} · ${formatDate(d.day)}`}</Text>
+                    </Pressable>
+                  ))}
+                </Row>
+              </View>
+            ) : (
+              <Button
+                key={w.id}
+                title={`Add ${w.label} to the plan`}
+                icon="calendar"
+                small
+                kind="secondary"
+                onPress={() => setChoosingDay(w.id)}
+                testID={`poll-add-to-plan-${w.label}`}
+                style={{ alignSelf: 'flex-start' }}
+              />
+            );
+          })}
+        </View>
+      ) : null}
       <Row style={{ justifyContent: 'space-between' }}>
         <Text variant="caption" faint>
           {poll.multiple ? `${r.total} ${r.total === 1 ? 'person' : 'people'} voted` : `${r.total} ${r.total === 1 ? 'vote' : 'votes'}`}

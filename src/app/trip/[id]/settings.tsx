@@ -155,6 +155,17 @@ function TripSettingsForm({ id, trip, isOrganizer, active }: { id: string; trip:
           <DateTimeField mode="date" label="Starts" value={start} onChangeText={setStart} style={{ flex: 1 }} testID="settings-start" />
           <DateTimeField mode="date" label="Ends" value={end} onChangeText={setEnd} min={start || undefined} style={{ flex: 1 }} testID="settings-end" />
         </Row>
+        {isOrganizer && active ? (
+          <Button
+            title={trip.date_window_start ? 'See which dates work for everyone' : 'Not sure? Ask the group which days work'}
+            icon="calendar"
+            kind="ghost"
+            small
+            onPress={() => router.push(`/trip/${id}/dates`)}
+            testID="settings-find-dates"
+            style={{ alignSelf: 'flex-start' }}
+          />
+        ) : null}
         <Text variant="caption" faint>Currency: {trip.base_currency} (can&apos;t change once bills are added)</Text>
         <Button title="Save" onPress={save} loading={busy === 'save'} />
       </Card>

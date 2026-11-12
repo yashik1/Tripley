@@ -42,6 +42,8 @@ jobs:
         run: npx eslint .
       - name: Dependency advisories (fails on high or critical)
         run: npm audit --audit-level=high
+      - name: Secret scan (gitleaks, rules in .gitleaks.toml)
+        run: docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:v8.21.2 detect --source /repo --no-git --config /repo/.gitleaks.toml --redact --verbose
       - name: PostgreSQL 16 for the database tests
         run: |
           if [ ! -x /usr/lib/postgresql/16/bin/initdb ]; then
@@ -102,7 +104,7 @@ jobs:
           EXPO_PUBLIC_SUPABASE_URL=$SUPABASE_URL PORT=8081 node scripts/serve-web.cjs dist > serve.log 2>&1 &
           npx --yes wait-on@8.0.3 -t 60000 http://localhost:8081
           failed=""
-          for t in legal accounts delete-account places-polls route engagement roadmap plan; do
+          for t in legal accounts delete-account places-polls route decide engagement roadmap plan; do
             echo "::group::$t"
             SHOTS=e2e-shots/$t node tests/e2e/$t.cjs || failed="$failed $t"
             echo "::endgroup::"

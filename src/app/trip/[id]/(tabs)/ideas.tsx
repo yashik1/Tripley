@@ -43,6 +43,17 @@ export default function Ideas() {
       ) : (
         <Stack gap={space.sm}>
           <Text variant="caption" muted>Most votes first. Tap 👍 to vote; anyone can add an idea to the plan.</Text>
+          {active && (ideas.data ?? []).filter((s) => !s.itinerary_item_id).length >= 2 ? (
+            <Button
+              title="Can’t decide? Make a poll from these"
+              icon="poll"
+              kind="secondary"
+              small
+              onPress={() => router.push({ pathname: '/trip/[id]/poll/new', params: { id, fromIdeas: '1' } })}
+              testID="poll-from-ideas"
+              style={{ alignSelf: 'flex-start' }}
+            />
+          ) : null}
           {list.map((s) => (
             <SuggestionCard key={s.id} s={s} me={me} nameOf={nameOf} canModerate={isOrganizer} active={active} />
           ))}

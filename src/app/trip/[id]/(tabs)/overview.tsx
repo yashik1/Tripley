@@ -4,18 +4,18 @@
  * part of the trip with a way into each.
  */
 import { router } from 'expo-router';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Pressable, RefreshControl, View } from 'react-native';
 
 import { Icon, type IconName } from '@/components/Icon';
 import { AvatarStack, ProgressBar, QuickAction, StatusPill, TripCover } from '@/components/Travel';
-import { Banner, Card, Row, Screen, SectionTitle, Stack, Text } from '@/components/ui';
+import { Banner, Button, Card, Row, Screen, SectionTitle, Stack, Text } from '@/components/ui';
 import { toSettlementRows } from '@/lib/api';
 import { summarizeForUser, computePairBalances } from '@/lib/balances';
 import { formatMoney } from '@/lib/currency';
 import { formatDate, formatDateRange, todayISO } from '@/lib/format';
 import { rsvpSummary, timeRange } from '@/lib/itinerary';
-import { useChallenges, useFeed, useItinerary, usePlaces, usePolls, useRsvps, useSettlements, useShareRows, useSuggestions, useTasks, useTripOverview } from '@/lib/queries';
+import { useAvailability, useChallenges, useFeed, useItinerary, usePlaces, usePolls, useRsvps, useSettlements, useShareRows, useSuggestions, useTasks, useTripOverview } from '@/lib/queries';
 import { packingStep, progress as taskProgress } from '@/lib/preparation';
 import { pollIsOpen } from '@/lib/group-decisions';
 import { ActivityRow } from '@/components/ActivityRow';
@@ -43,6 +43,10 @@ export default function TripOverview() {
   const packing = taskProgress((tasks.data ?? []).filter((x) => x.kind === 'packing'));
   const groupTasks = taskProgress((tasks.data ?? []).filter((x) => x.kind === 'group'));
   const polls = usePolls(id);
+  const availability = useAvailability(id);
+  const [welcomeHidden, setWelcomeHidden] = useState(false);
+  // When this screen opened, for "did you just join?".
+  const [openedAt] = useState(() => Date.now());
   const latest = (feed.data?.pages[0] ?? []).slice(0, 3);
 
   const base = trip?.base_currency ?? 'USD';
@@ -108,6 +112,45 @@ export default function TripOverview() {
           <Text muted>{[trip.destination, dates ?? 'No dates yet', `Money in ${base}`].filter(Boolean).join(' · ')}</Text>
         </View>
       </View>
+
+      {/* Just joined: the two most useful first steps, and what's shared. */}
+      {(() => {
+        const mine = members.find((m) => m.user_id === me);
+        const fresh = !!mine && !isOrganizer && active && openedAt - Date.parse(mine.joined_at) < 30 * 60_000;
+        if (!fresh || welcomeHidden) return null;
+        return (
+          <Card raised testID="welcome-joined">
+            <Text variant="heading">{`You’re in! Welcome to ${trip.name}`}</Text>
+            <Text variant="caption" muted>
+              Your location is shared only with the people on this trip, and only while it’s on. Pause it any time from the map.
+            </Text>
+            <Row gap={space.sm} style={{ flexWrap: 'wrap' }}>
+              <Button title="See who’s where" icon="map" small onPress={() => router.push(`/trip/${id}/map`)} testID="welcome-map" />
+              <Button title="Add a bill" icon="bills" small kind="secondary" onPress={() => router.push(`/trip/${id}/bill/new`)} testID="welcome-bill" />
+              <Button title="Got it" small kind="ghost" onPress={() => setWelcomeHidden(true)} />
+            </Row>
+          </Card>
+        );
+      })()}
+
+      {/* Dates still to agree */}
+      {trip.date_window_start && !trip.starts_on && active ? (
+        <Card onPress={() => router.push(`/trip/${id}/dates`)} accessibilityLabel="Pick the days you can go" testID="dates-card">
+          <Row gap={space.md}>
+            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: t.primarySoft, alignItems: 'center', justifyContent: 'center' }}>
+              <Icon name="calendar" size={20} color={t.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text variant="label">
+                {(availability.data ?? []).some((a) => a.user_id === me) ? 'See which dates work' : 'When can you go? Tick your days'}
+              </Text>
+              <Text variant="caption" muted>
+                {`${new Set((availability.data ?? []).map((a) => a.user_id)).size} of ${members.length} have answered`}
+              </Text>
+            </View>
+          </Row>
+        </Card>
+      ) : null}
 
       {/* Group */}
       <Card onPress={() => router.push(`/trip/${id}/people`)} accessibilityLabel="See everyone on the trip">
@@ -258,6 +301,14 @@ export default function TripOverview() {
         <SectionTitle>The trip</SectionTitle>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
           <SectionTile icon="calendar" title="Plan" detail={`${itinerary.data?.length ?? stats?.stops ?? 0} plans`} onPress={() => router.push(`/trip/${id}/plan`)} />
+          {trip.date_window_start || (!trip.starts_on && isOrganizer && active) ? (
+            <SectionTile
+              icon="calendar"
+              title="Dates"
+              detail={trip.starts_on ? dates ?? 'Set' : trip.date_window_start ? 'Picking dates' : 'Find dates that work'}
+              onPress={() => router.push(`/trip/${id}/dates`)}
+            />
+          ) : null}
           <SectionTile icon="idea" title="Bucket list" detail={`${ideas.data?.length ?? 0} ideas`} onPress={() => router.push(`/trip/${id}/ideas`)} />
           <SectionTile
             icon="poll"

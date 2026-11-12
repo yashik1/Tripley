@@ -29,6 +29,7 @@
     "expo-location": "~58.0.20",
     "expo-notifications": "~58.1.8",
     "expo-router": "~58.0.30",
+    "expo-secure-store": "~58.0.2",
     "expo-splash-screen": "~58.0.13",
     "expo-status-bar": "~58.0.4",
     "expo-symbols": "~58.0.4",
@@ -87,6 +88,7 @@
     "test:e2e:delete-account": "node tests/e2e/delete-account.cjs",
     "test:e2e:places-polls": "node tests/e2e/places-polls.cjs",
     "test:e2e:route": "node tests/e2e/route.cjs",
+    "test:e2e:decide": "node tests/e2e/decide.cjs",
     "screens": "node tests/e2e/screens.cjs"
   },
   "private": true,

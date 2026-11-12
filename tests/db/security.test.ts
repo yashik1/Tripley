@@ -8,6 +8,8 @@
 import type { Client } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import expected from '../../supabase/expected-privileges.json';
+
 import { as, begin, connect, createTrip, createUser, sleep, startDb } from './helpers';
 
 let db: Client;
@@ -67,57 +69,11 @@ describe('who can call which function', () => {
     ).rows.map((r) => r.name as string);
 
   it('without signing in, only the invite preview', async () => {
-    expect(await callable('anon')).toEqual(['trip_preview']);
+    expect(await callable('anon')).toEqual(expected.anon);
   });
 
   it('signed in: exactly the app’s functions and the helpers row rules use', async () => {
-    expect(await callable('authenticated')).toEqual([
-      'account_deletion_preview',
-      'add_suggestion_to_plan',
-      'can_read_bill',
-      'can_see_profile',
-      'can_share_location',
-      'can_upload_now',
-      'cancel_invitation',
-      'close_kitty',
-      'close_poll',
-      'create_challenge',
-      'create_kitty',
-      'create_poll',
-      'create_post',
-      'delete_my_account',
-      'enter_challenge',
-      'invite_by_email',
-      'invite_by_phone',
-      'invite_user',
-      'is_trip_member',
-      'is_trip_organizer',
-      'join_trip_by_code',
-      'kitty_add_cash',
-      'kitty_handover',
-      'kitty_payout',
-      'mark_notifications_read',
-      'move_itinerary_item',
-      'my_invitations',
-      'my_trip_friends',
-      'my_trip_overview',
-      'new_invite_code',
-      'record_payment_received',
-      'regenerate_invite_code',
-      'reorder_itinerary_day',
-      'respond_to_invitation',
-      'respond_to_settlement',
-      'save_bill',
-      'set_itinerary_rsvp',
-      'toggle_reaction',
-      'toggle_suggestion_vote',
-      'trip_is_active',
-      'trip_preview',
-      'try_uuid',
-      'update_poll',
-      'user_achievements',
-      'vote_poll',
-    ]);
+    expect(await callable('authenticated')).toEqual(expected.authenticated);
   });
 
   it('internal helpers refuse app users', async () => {

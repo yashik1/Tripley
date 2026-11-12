@@ -56,6 +56,44 @@ async function report(client) {
   );
 }
 
+/**
+ * After migrating: who may call which functions, and that private photo
+ * buckets are still private. Compared with supabase/expected-privileges.json
+ * (the same list the database tests check). Signed-out access or a private
+ * bucket made public stops the deploy; other differences are reported.
+ */
+async function checkAccess(client) {
+  const expected = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'supabase', 'expected-privileges.json'), 'utf8'));
+  // Functions our migrations created in public; extension functions aren't ours to judge.
+  const callable = async (role) =>
+    (
+      await client.query(
+        `select p.proname as name from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+         where n.nspname = 'public' and has_function_privilege($1, p.oid, 'execute')
+           and not exists (select 1 from pg_depend d where d.objid = p.oid and d.deptype = 'e')
+         order by 1`,
+        [role],
+      )
+    ).rows.map((r) => r.name);
+  const problems = [];
+  const anon = await callable('anon');
+  const anonExtra = anon.filter((f) => !expected.anon.includes(f));
+  if (anonExtra.length) problems.push(`signed-out visitors can call: ${anonExtra.join(', ')}`);
+  const auth = await callable('authenticated');
+  const authExtra = auth.filter((f) => !expected.authenticated.includes(f));
+  const authMissing = expected.authenticated.filter((f) => !auth.includes(f));
+  const buckets = (await client.query(`select id, public from storage.buckets where id in ('receipts', 'trip-photos')`)).rows;
+  for (const b of buckets) if (b.public) problems.push(`bucket ${b.id} is public`);
+
+  console.log('Access check:');
+  console.log('  signed out can call  :', anon.join(', ') || 'nothing');
+  console.log('  signed in can call   :', `${auth.length} functions`);
+  if (authExtra.length) console.log('  WARNING not expected :', authExtra.join(', '));
+  if (authMissing.length) console.log('  WARNING missing      :', authMissing.join(', '));
+  console.log('  private buckets      :', buckets.map((b) => `${b.id} ${b.public ? 'PUBLIC' : 'private'}`).join(', ') || 'none found');
+  if (problems.length) throw new Error(`Access check failed: ${problems.join('; ')}`);
+}
+
 async function main() {
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error('DATABASE_URL is not set.');
@@ -120,6 +158,7 @@ async function main() {
     }
     console.log(count ? `Applied ${count} migration(s).` : 'Database is up to date.');
     await report(client);
+    await checkAccess(client);
   } finally {
     await client.end();
   }

@@ -10,11 +10,11 @@ import { Switch, View } from 'react-native';
 
 import { DateTimeField } from '@/components/DateTimeField';
 import { Banner, Button, Card, Chip, Field, Loading, Row, Screen, Stack, Text } from '@/components/ui';
-import { createPoll, updatePoll } from '@/lib/api';
+import { createPoll, createPollFromIdeas, updatePoll } from '@/lib/api';
 import { combineLocal, splitLocal } from '@/lib/datetime-input';
 import { errorMessage, isNetworkError } from '@/lib/errors';
 import { pollIsOpen } from '@/lib/group-decisions';
-import { keys, usePolls } from '@/lib/queries';
+import { keys, usePolls, useSuggestions } from '@/lib/queries';
 import { useTripId } from '@/lib/trip-context';
 import { useTripData } from '@/lib/trip-hooks';
 import type { Poll } from '@/lib/types';
@@ -30,10 +30,10 @@ const CLOSING: { key: string; label: string; ms: number | null }[] = [
 
 export default function PollForm() {
   const id = useTripId();
-  const { pollId } = useLocalSearchParams<{ pollId?: string }>();
+  const { pollId, fromIdeas } = useLocalSearchParams<{ pollId?: string; fromIdeas?: string }>();
   const { me, isOrganizer } = useTripData(id);
   const polls = usePolls(id);
-  if (!pollId) return <Form tripId={id} />;
+  if (!pollId) return <Form tripId={id} fromIdeas={fromIdeas === '1'} />;
   if (polls.isLoading) return <Loading />;
   const poll = polls.data?.find((p) => p.id === pollId);
   if (!poll || !pollIsOpen(poll) || (poll.created_by !== me && !isOrganizer)) {
@@ -52,11 +52,14 @@ export default function PollForm() {
 
 type Option = { id: string | null; label: string; votes: number };
 
-function Form({ tripId, poll }: { tripId: string; poll?: Poll }) {
+function Form({ tripId, poll, fromIdeas = false }: { tripId: string; poll?: Poll; fromIdeas?: boolean }) {
   const t = useTheme();
   const qc = useQueryClient();
   const editing = !!poll;
-  const [question, setQuestion] = useState(poll?.question ?? '');
+  const ideas = useSuggestions(tripId);
+  const openIdeas = (ideas.data ?? []).filter((s) => !s.itinerary_item_id);
+  const [picked, setPicked] = useState<string[]>([]);
+  const [question, setQuestion] = useState(poll?.question ?? (fromIdeas ? 'Which should we do?' : ''));
   const [options, setOptions] = useState<Option[]>(
     poll
       ? [...poll.poll_options]
@@ -94,8 +97,12 @@ function Form({ tripId, poll }: { tripId: string; poll?: Poll }) {
     const list = options.map((o) => ({ ...o, label: o.label.trim() })).filter((o) => o.label);
     if (!question.trim()) return setError('What do you want to ask?');
     const distinct = new Set(list.map((o) => o.label.toLowerCase()));
-    if (distinct.size < 2) return setError('Give at least two different options.');
-    if (distinct.size !== list.length) return setError('Two options are the same.');
+    if (fromIdeas) {
+      if (picked.length < 2 || picked.length > 8) return setError('Pick 2 to 8 ideas.');
+    } else {
+      if (distinct.size < 2) return setError('Give at least two different options.');
+      if (distinct.size !== list.length) return setError('Two options are the same.');
+    }
     const when = closesAt();
     if (when === undefined) return setError('Pick the day and time voting closes.');
     if (when && Date.parse(when) <= Date.now()) return setError('The closing time has to be in the future.');
@@ -103,6 +110,8 @@ function Form({ tripId, poll }: { tripId: string; poll?: Poll }) {
     try {
       if (poll) {
         await updatePoll(poll.id, { question: question.trim(), options: list.map((o) => ({ id: o.id, label: o.label })), closesAt: when, allowChange, multiple });
+      } else if (fromIdeas) {
+        await createPollFromIdeas(tripId, question.trim(), picked, when, allowChange, multiple);
       } else {
         await createPoll(tripId, question.trim(), list.map((o) => o.label), when, allowChange, multiple);
       }
@@ -119,7 +128,25 @@ function Form({ tripId, poll }: { tripId: string; poll?: Poll }) {
     <Screen footer={<Button title={editing ? 'Save changes' : 'Ask the group'} icon={editing ? 'check' : 'poll'} onPress={save} loading={busy} testID="save-poll" />}>
       <RouterStack.Screen options={{ title: editing ? 'Edit poll' : 'New poll' }} />
       <Field label="Question" testID="poll-question" value={question} onChangeText={setQuestion} placeholder="Where should we eat tonight?" maxLength={200} />
-      <Stack gap={space.sm}>
+      {fromIdeas ? (
+        <Stack gap={space.sm}>
+          <Text variant="label" muted>{`Ideas to vote on (${picked.length} picked, 2 to 8)`}</Text>
+          {openIdeas.map((s) => {
+            const on = picked.includes(s.id);
+            return (
+              <Chip
+                key={s.id}
+                label={`${on ? '☑' : '☐'} ${s.name}`}
+                selected={on}
+                onPress={() => setPicked((list) => (on ? list.filter((x) => x !== s.id) : list.length < 8 ? [...list, s.id] : list))}
+                testID={`poll-idea-${s.name}`}
+              />
+            );
+          })}
+          <Text variant="caption" faint>The winner can go straight into the plan, with its address and map point.</Text>
+        </Stack>
+      ) : null}
+      <Stack gap={space.sm} style={fromIdeas ? { display: 'none' } : undefined}>
         <Text variant="label" muted>Options</Text>
         {options.map((o, i) => (
           <Row key={o.id ?? `new-${i}`} gap={space.sm}>

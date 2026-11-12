@@ -7,6 +7,11 @@
 
 This document consolidates everything: security findings, competitive landscape, product improvement plan, technical recommendations, and growth strategy. Share this single file with Claude (or any implementer) to drive changes.
 
+> **Status, 12 November 2026 (implemented on `claude/tender-johnson-cscqn1`).**
+> - Done: **1.1** polls from bucket-list ideas and "add the winner to the plan" in two taps, on top of the existing single/multiple-choice polls with live results and editing; **1.2** date coordination (`/trip/[id]/dates`); **1.3** a quick start for people who just joined (map or bill in one tap, plus what's shared and how to pause); **1.4** the phone session in `expo-secure-store` (needs a new native build).
+> - Security checklist: secrets scanning is in CI (gitleaks); every production deploy now re-checks function privileges and that private buckets stay private (`scripts/migrate.cjs`). The npm advisories listed below are fixed (`npm audit`: 0).
+> - Still open: email confirmation and password-reset email need SMTP (see README); ranked/swipe voting; Phase 2 and 3.
+
 ---
 
 # Part 1 — Product Overview
@@ -75,15 +80,15 @@ A thorough security review was already performed (see `docs/SECURITY_REVIEW.md`,
 | Low | In-memory IP limiter for AI scans (per instance) | DB per-user limit is the real control; acceptable for now |
 | Low | Webhook secret strength / docs drift | Keep ≥16 char secret; confirm Authorization scheme against current RevenueCat docs |
 | Info | No dedicated secrets scanner in CI | Consider gitleaks or similar |
-| Info | Moderate npm advisories remain in Expo CLI tooling | Track Expo upgrades |
+| Info | ~~Moderate npm advisories remain in Expo CLI tooling~~ Fixed 12 Nov 2026 with overrides (`npm audit`: 0) | Track Expo upgrades |
 
 ## Security implementation checklist (still open)
 
-- [ ] Move auth session to `expo-secure-store`
+- [x] Move auth session to `expo-secure-store`
 - [ ] Confirm `GOTRUE_PASSWORD_MIN_LENGTH=8` and (when ready) turn on email confirmation in production Auth
 - [ ] Redeploy edge functions after shared-code changes and verify secrets
-- [ ] Run privilege + Storage checks on the live project post-migration
-- [ ] Optional: add secrets scanning step to CI
+- [x] Run privilege + Storage checks on the live project post-migration (on every deploy)
+- [x] Optional: add secrets scanning step to CI
 
 Reference patterns: `docs/SECURITY_REVIEW.md` and migration `supabase/migrations/20261110000000_security_hardening.sql`.
 
@@ -311,16 +316,16 @@ Own the "during the trip" experience (live map + find friend + fair settle-up) w
 # Part 9 — Quick Reference Checklist
 
 ### Security still open
-- [ ] expo-secure-store for session
+- [x] expo-secure-store for session
 - [ ] Email confirmation once SMTP is ready
-- [ ] Production privilege + Storage re-check after migrations
-- [ ] Optional secrets scanning in CI
+- [x] Production privilege + Storage re-check after migrations
+- [x] Optional secrets scanning in CI
 
 ### Product Phase 1
-- [ ] Structured voting / decision layer + add-to-plan
-- [ ] Date coordination
-- [ ] Onboarding & guest conversion polish
-- [ ] Secure session storage
+- [x] Structured voting / decision layer + add-to-plan (ranked voting not built)
+- [x] Date coordination
+- [x] Onboarding & guest conversion polish
+- [x] Secure session storage
 
 ### Product Phase 2
 - [ ] Booking / document hub

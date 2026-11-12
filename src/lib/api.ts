@@ -11,6 +11,7 @@ import type { ScannedReceipt } from './receipt';
 import { supabase } from './supabase';
 import type {
   Account,
+  Availability,
   DeletionPreview,
   AppNotification,
   Challenge,
@@ -659,7 +660,7 @@ export async function listPolls(tripId: string): Promise<Poll[]> {
     await supabase
       .from('trip_polls')
       // Named: poll_votes also links polls to options, so the plain name is ambiguous.
-      .select('*, poll_options!poll_options_poll_id_fkey(id, label, position), poll_votes(user_id, option_id)')
+      .select('*, poll_options!poll_options_poll_id_fkey(id, label, position, suggestion_id, itinerary_item_id), poll_votes(user_id, option_id)')
       .eq('trip_id', tripId)
       .order('created_at', { ascending: false }),
   ) as Poll[];
@@ -683,6 +684,52 @@ export async function createPoll(
       p_multiple: multiple,
     }),
   ) as string;
+}
+
+/** A poll whose options are bucket-list ideas (2–8). */
+export async function createPollFromIdeas(
+  tripId: string,
+  question: string,
+  suggestionIds: string[],
+  closesAt: string | null,
+  allowChange: boolean,
+  multiple: boolean,
+): Promise<string> {
+  return check(
+    await supabase.rpc('create_poll_from_ideas', {
+      p_trip: tripId,
+      p_question: question,
+      p_suggestions: suggestionIds,
+      p_closes_at: closesAt,
+      p_allow_change: allowChange,
+      p_multiple: multiple,
+    }),
+  ) as string;
+}
+
+/** Put a poll option (usually the winner) into the plan, once. Returns the stop's id. */
+export async function addPollOptionToPlan(optionId: string, day: string | null): Promise<string> {
+  return check(await supabase.rpc('add_poll_option_to_plan', { p_option: optionId, p_day: day })) as string;
+}
+
+// ---------------------------------------------------------------- finding dates
+
+export async function listAvailability(tripId: string): Promise<Availability[]> {
+  return check(await supabase.from('trip_availability').select('user_id, day, status').eq('trip_id', tripId)) as Availability[];
+}
+
+/** The organizer opens the days to choose from (or closes them with nulls). */
+export async function setDateWindow(tripId: string, start: string | null, end: string | null, length: number | null): Promise<void> {
+  check(await supabase.rpc('set_date_window', { p_trip: tripId, p_start: start, p_end: end, p_length: length }));
+}
+
+export async function setMyAvailability(tripId: string, yes: string[], maybe: string[]): Promise<void> {
+  check(await supabase.rpc('set_my_availability', { p_trip: tripId, p_yes: yes, p_maybe: maybe }));
+}
+
+/** Nudges everyone who hasn't answered; returns how many. */
+export async function remindAvailability(tripId: string): Promise<number> {
+  return check(await supabase.rpc('remind_availability', { p_trip: tripId })) as number;
 }
 
 /** Edit an open poll (whoever started it, or the organizer). Options left out are removed with their votes. */

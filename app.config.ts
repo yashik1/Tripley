@@ -105,6 +105,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       },
     ],
     'expo-apple-authentication',
+    // Keeps the secure sign-in storage out of Android cloud backups (it can't be
+    // decrypted on another phone). No Face ID: the app doesn't ask for it.
+    ['expo-secure-store', { configureAndroidBackup: true, faceIDPermission: false }],
     '@maplibre/maplibre-react-native',
     'expo-dev-client',
   ],

@@ -1,0 +1,9 @@
+# Secret scanning (CI: gitleaks). The default rules, plus one allowed value:
+# the standard publishable key of a local Supabase CLI stack, the same on every
+# developer's machine and only valid against 127.0.0.1.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Local Supabase CLI default key (public, local only)"
+regexes = ['''sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH''']

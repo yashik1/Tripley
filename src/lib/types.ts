@@ -46,6 +46,10 @@ export type Trip = {
   /** Map point of the destination, when it was picked from address search. */
   destination_lat: number | null;
   destination_lng: number | null;
+  /** Date coordination: the days the group is choosing from, and how many days the trip lasts. */
+  date_window_start: string | null;
+  date_window_end: string | null;
+  date_length: number | null;
   /** Cover photo in the private trip-photos bucket (shown through a signed link). */
   cover_path: string | null;
 };
@@ -249,9 +253,12 @@ export type Poll = {
   created_at: string;
   /** Set when whoever started it, or the organizer, edited it. */
   updated_at: string | null;
-  poll_options: { id: string; label: string; position: number }[];
+  poll_options: { id: string; label: string; position: number; suggestion_id?: string | null; itinerary_item_id?: string | null }[];
   poll_votes: { user_id: string; option_id: string }[];
 };
+
+/** One person's answer for one day: they can go, or maybe. */
+export type Availability = { user_id: string; day: string; status: 'yes' | 'maybe' };
 
 export type TripTask = {
   id: string;
