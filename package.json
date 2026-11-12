@@ -94,6 +94,7 @@
     "test:e2e:bookings": "node tests/e2e/bookings.cjs",
     "test:e2e:smart-help": "node tests/e2e/smart-help.cjs",
     "test:e2e:offline-plan": "node tests/e2e/offline-plan.cjs",
+    "test:e2e:ranked": "node tests/e2e/ranked.cjs",
     "screens": "node tests/e2e/screens.cjs"
   },
   "private": true,

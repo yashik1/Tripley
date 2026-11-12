@@ -248,13 +248,15 @@ export type Poll = {
   allow_change: boolean;
   /** People can pick more than one option. */
   multiple: boolean;
+  /** Everyone puts the options in order; the result is a Borda count. */
+  ranked?: boolean;
   closes_at: string | null;
   closed_at: string | null;
   created_at: string;
   /** Set when whoever started it, or the organizer, edited it. */
   updated_at: string | null;
   poll_options: { id: string; label: string; position: number; suggestion_id?: string | null; itinerary_item_id?: string | null }[];
-  poll_votes: { user_id: string; option_id: string }[];
+  poll_votes: { user_id: string; option_id: string; rank?: number | null }[];
 };
 
 /** One person's answer for one day: they can go, or maybe. */

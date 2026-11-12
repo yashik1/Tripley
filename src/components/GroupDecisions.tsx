@@ -8,7 +8,7 @@ import { useEffect, useState } from 'react';
 import { Linking, Pressable, View } from 'react-native';
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from 'react-native-reanimated';
 
-import { addPollOptionToPlan, addSuggestionToPlan, closePoll, deletePoll, deleteSuggestion, toggleSuggestionVote, votePoll } from '@/lib/api';
+import { addPollOptionToPlan, addSuggestionToPlan, closePoll, deletePoll, deleteSuggestion, rankPoll, toggleSuggestionVote, votePoll } from '@/lib/api';
 import { confirm } from '@/lib/confirm';
 import { formatMoney } from '@/lib/currency';
 import { errorMessage } from '@/lib/errors';
@@ -166,8 +166,14 @@ export function PollCard({ poll, me, nameOf, canModerate, active }: { poll: Poll
   const optionInfo = new Map(poll.poll_options.map((o) => [o.id, o]));
   const days = trip.data ? planDays(trip.data, itinerary.data ?? [], todayISO()) : [];
   const canClose = r.open && canManage;
+  const ranked = !!poll.ranked;
+  // Ranked polls: tap options in order (your first choice first), then save.
+  const [order, setOrder] = useState<string[] | null>(null);
+  const draftOrder = order ?? r.myVotes;
+  const orderChanged = draftOrder.join() !== r.myVotes.join();
   // A fixed more-than-one poll still lets you add picks, just not take them back.
   const canVote = r.open && active && (poll.allow_change || poll.multiple || !r.myVote);
+  const toggleRank = (id: string) => setOrder(draftOrder.includes(id) ? draftOrder.filter((x) => x !== id) : [...draftOrder, id]);
   const tap = (o: { id: string; mine: boolean }) => {
     if (poll.multiple) return votePoll(poll.id, o.id);
     return votePoll(poll.id, o.mine ? null : o.id);
@@ -217,12 +223,14 @@ export function PollCard({ poll, me, nameOf, canModerate, active }: { poll: Poll
         </Row>
         <Text variant="heading">{poll.question}</Text>
         {poll.multiple && r.open ? <Text variant="caption" muted>Pick as many as you like</Text> : null}
+        {ranked && r.open && canVote ? <Text variant="caption" muted>Tap them in order: your first choice first</Text> : null}
+        {ranked && !r.open ? <Text variant="caption" muted>Ranked: first choices score most</Text> : null}
       </View>
       <View style={{ gap: space.xs }}>
         {r.options.map((o) => (
           <Pressable
             key={o.id}
-            onPress={canVote && !busy ? () => run(() => tap(o)) : undefined}
+            onPress={canVote && !busy ? () => (ranked ? toggleRank(o.id) : run(() => tap(o))) : undefined}
             disabled={!canVote || busy}
             accessibilityRole={poll.multiple ? 'checkbox' : 'button'}
             accessibilityState={poll.multiple ? { checked: o.mine, disabled: !canVote } : { selected: o.mine, disabled: !canVote }}
@@ -232,14 +240,44 @@ export function PollCard({ poll, me, nameOf, canModerate, active }: { poll: Poll
             <ResultBar percent={r.total ? o.percent : 0} color={o.mine ? t.primarySoft : o.leading && !r.open ? t.yellowSoft : t.surfaceAlt} />
             <Row style={{ paddingHorizontal: space.md, justifyContent: 'space-between' }}>
               <Text variant="label" style={{ flex: 1 }}>
-                {!r.open && o.leading ? '🏆 ' : poll.multiple ? (o.mine ? '☑ ' : '☐ ') : o.mine ? '✓ ' : ''}
+                {!r.open && o.leading
+                  ? '🏆 '
+                  : ranked
+                    ? draftOrder.includes(o.id)
+                      ? `${draftOrder.indexOf(o.id) + 1}. `
+                      : '○ '
+                    : poll.multiple
+                      ? o.mine
+                        ? '☑ '
+                        : '☐ '
+                      : o.mine
+                        ? '✓ '
+                        : ''}
                 {o.label}
               </Text>
-              <Text variant="caption" muted style={{ fontWeight: '700' }}>{r.total ? `${o.percent}% · ${o.count}` : ''}</Text>
+              <Text variant="caption" muted style={{ fontWeight: '700' }}>
+                {!r.total ? '' : ranked ? `${o.points} pts` : `${o.percent}% · ${o.count}`}
+              </Text>
             </Row>
           </Pressable>
         ))}
       </View>
+      {ranked && canVote && (orderChanged || draftOrder.length === 0) ? (
+        <Row gap={space.sm}>
+          <Button
+            title={r.myVotes.length ? 'Save my new order' : 'Save my order'}
+            small
+            disabled={draftOrder.length === 0 || busy}
+            loading={busy}
+            onPress={() => run(async () => {
+              await rankPoll(poll.id, draftOrder);
+              setOrder(null);
+            })}
+            testID="poll-rank-save"
+          />
+          {orderChanged ? <Button title="Undo" kind="ghost" small onPress={() => setOrder(null)} /> : null}
+        </Row>
+      ) : null}
       {winners.length && active ? (
         <View style={{ gap: space.xs }} testID="poll-winner-actions">
           {winners.map((w) => {

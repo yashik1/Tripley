@@ -667,7 +667,7 @@ export async function listPolls(tripId: string): Promise<Poll[]> {
     await supabase
       .from('trip_polls')
       // Named: poll_votes also links polls to options, so the plain name is ambiguous.
-      .select('*, poll_options!poll_options_poll_id_fkey(id, label, position, suggestion_id, itinerary_item_id), poll_votes(user_id, option_id)')
+      .select('*, poll_options!poll_options_poll_id_fkey(id, label, position, suggestion_id, itinerary_item_id), poll_votes(user_id, option_id, rank)')
       .eq('trip_id', tripId)
       .order('created_at', { ascending: false }),
   ) as Poll[];
@@ -691,6 +691,24 @@ export async function createPoll(
       p_multiple: multiple,
     }),
   ) as string;
+}
+
+/** A ranked poll: everyone puts the options in order. */
+export async function createRankedPoll(tripId: string, question: string, options: string[], closesAt: string | null, allowChange: boolean): Promise<string> {
+  return check(
+    await supabase.rpc('create_ranked_poll', { p_trip: tripId, p_question: question, p_options: options, p_closes_at: closesAt, p_allow_change: allowChange }),
+  ) as string;
+}
+
+export async function createRankedPollFromIdeas(tripId: string, question: string, suggestionIds: string[], closesAt: string | null, allowChange: boolean): Promise<string> {
+  return check(
+    await supabase.rpc('create_ranked_poll_from_ideas', { p_trip: tripId, p_question: question, p_suggestions: suggestionIds, p_closes_at: closesAt, p_allow_change: allowChange }),
+  ) as string;
+}
+
+/** Your order for a ranked poll, first choice first (empty takes it back). */
+export async function rankPoll(pollId: string, optionIds: string[]): Promise<void> {
+  check(await supabase.rpc('rank_poll', { p_poll: pollId, p_options: optionIds }));
 }
 
 /** A poll whose options are bucket-list ideas (2–8). */

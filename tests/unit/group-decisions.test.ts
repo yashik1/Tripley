@@ -82,3 +82,49 @@ describe('suggestions', () => {
     expect(categoryOf('unknown').key).toBe('other');
   });
 });
+
+describe('ranked polls', () => {
+  const opts = ['Sintra', 'Belém', 'Cascais'].map((label, position) => ({ id: label, label, position, suggestion_id: null, itinerary_item_id: null }));
+  const poll = (votes: [string, string, number][]) =>
+    ({
+      id: 'p',
+      trip_id: 't',
+      question: 'Where first?',
+      created_by: 'ana',
+      closes_at: null,
+      closed_at: null,
+      allow_change: true,
+      multiple: false,
+      ranked: true,
+      created_at: '2026-11-01',
+      updated_at: null,
+      poll_options: opts,
+      poll_votes: votes.map(([user_id, option_id, rank]) => ({ user_id, option_id, rank })),
+    }) as unknown as Parameters<typeof pollResults>[0];
+
+  it('scores a Borda count: first choice 3 points of 3, second 2, third 1', () => {
+    const r = pollResults(
+      poll([
+        ['ana', 'Belém', 1], ['ana', 'Sintra', 2], ['ana', 'Cascais', 3],
+        ['ben', 'Sintra', 1], ['ben', 'Cascais', 2],
+        ['cleo', 'Sintra', 1],
+      ]),
+      'ana',
+    );
+    expect(r.total).toBe(3);
+    expect(r.options.map((o) => [o.label, o.points, o.count, o.leading])).toEqual([
+      ['Sintra', 2 + 3 + 3, 2, true],
+      ['Belém', 3, 1, false],
+      ['Cascais', 1 + 2, 0, false],
+    ]);
+    expect(r.myVotes).toEqual(['Belém', 'Sintra', 'Cascais']);
+    expect(r.options.find((o) => o.label === 'Belém')?.myRank).toBe(1);
+    expect(r.options[0].percent).toBe(100);
+  });
+
+  it('no rankings yet: nobody leads', () => {
+    const r = pollResults(poll([]), 'ana');
+    expect(r.options.every((o) => !o.leading && o.points === 0)).toBe(true);
+    expect(r.myVote).toBeNull();
+  });
+});

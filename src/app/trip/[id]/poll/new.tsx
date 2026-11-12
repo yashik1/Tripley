@@ -10,7 +10,7 @@ import { Switch, View } from 'react-native';
 
 import { DateTimeField } from '@/components/DateTimeField';
 import { Banner, Button, Card, Chip, Field, Loading, Row, Screen, Stack, Text } from '@/components/ui';
-import { createPoll, createPollFromIdeas, updatePoll } from '@/lib/api';
+import { createPoll, createPollFromIdeas, createRankedPoll, createRankedPollFromIdeas, updatePoll } from '@/lib/api';
 import { combineLocal, splitLocal } from '@/lib/datetime-input';
 import { errorMessage, isNetworkError } from '@/lib/errors';
 import { pollIsOpen } from '@/lib/group-decisions';
@@ -76,6 +76,7 @@ function Form({ tripId, poll, fromIdeas = false }: { tripId: string; poll?: Poll
   const [closeTime, setCloseTime] = useState(initialClose.time || '20:00');
   const [allowChange, setAllowChange] = useState(poll?.allow_change ?? true);
   const [multiple, setMultiple] = useState(poll?.multiple ?? false);
+  const [ranked, setRanked] = useState(poll?.ranked ?? false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -111,7 +112,10 @@ function Form({ tripId, poll, fromIdeas = false }: { tripId: string; poll?: Poll
       if (poll) {
         await updatePoll(poll.id, { question: question.trim(), options: list.map((o) => ({ id: o.id, label: o.label })), closesAt: when, allowChange, multiple });
       } else if (fromIdeas) {
-        await createPollFromIdeas(tripId, question.trim(), picked, when, allowChange, multiple);
+        if (ranked) await createRankedPollFromIdeas(tripId, question.trim(), picked, when, allowChange);
+        else await createPollFromIdeas(tripId, question.trim(), picked, when, allowChange, multiple);
+      } else if (ranked) {
+        await createRankedPoll(tripId, question.trim(), list.map((o) => o.label), when, allowChange);
       } else {
         await createPoll(tripId, question.trim(), list.map((o) => o.label), when, allowChange, multiple);
       }
@@ -187,6 +191,28 @@ function Form({ tripId, poll, fromIdeas = false }: { tripId: string; poll?: Poll
       </Stack>
 
       <Card>
+        {!editing ? (
+          <Row gap={space.md}>
+            <View style={{ flex: 1 }}>
+              <Text variant="label">Rank them</Text>
+              <Text variant="caption" muted>{ranked ? 'Everyone puts the options in order; first choices score most.' : 'Off: people pick, the most picks wins.'}</Text>
+            </View>
+            <Switch
+              value={ranked}
+              onValueChange={(v) => {
+                setRanked(v);
+                if (v) setMultiple(false);
+              }}
+              trackColor={{ true: t.primary, false: t.border }}
+              thumbColor="#fff"
+              accessibilityLabel="Rank them"
+              testID="poll-ranked"
+            />
+          </Row>
+        ) : ranked ? (
+          <Text variant="caption" muted>A ranked poll: everyone puts the options in order.</Text>
+        ) : null}
+        {ranked ? null : (
         <Row gap={space.md}>
           <View style={{ flex: 1 }}>
             <Text variant="label">People can pick more than one</Text>
@@ -201,6 +227,7 @@ function Form({ tripId, poll, fromIdeas = false }: { tripId: string; poll?: Poll
             testID="poll-multiple"
           />
         </Row>
+        )}
         {editing && poll?.multiple && !multiple ? (
           <Text variant="caption" muted>Anyone who picked several options keeps their first pick.</Text>
         ) : null}
