@@ -89,6 +89,7 @@
     "test:e2e:places-polls": "node tests/e2e/places-polls.cjs",
     "test:e2e:route": "node tests/e2e/route.cjs",
     "test:e2e:decide": "node tests/e2e/decide.cjs",
+    "test:e2e:stays": "node tests/e2e/stays.cjs",
     "screens": "node tests/e2e/screens.cjs"
   },
   "private": true,

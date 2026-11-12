@@ -16,6 +16,8 @@ export function openNotification(n: Pick<AppNotification, 'kind' | 'data' | 'tri
   else if (n.kind.startsWith('post') && typeof n.data.post_id === 'string') router.push(`/trip/${tripId}/post/${n.data.post_id}`);
   else if (n.kind.startsWith('poll') && typeof n.data.poll_id === 'string') router.push(`/trip/${tripId}/poll/${n.data.poll_id}`);
   else if (n.kind === 'member_joined') router.push(`/trip/${tripId}/people`);
+  else if (n.kind === 'room_assigned') router.push(`/trip/${tripId}/stays`);
+  else if (n.kind.startsWith('dates')) router.push(`/trip/${tripId}/dates`);
   else router.push(`/trip/${tripId}/overview`);
 }
 
@@ -28,5 +30,7 @@ export function notificationIcon(kind: string): IconName {
   if (kind.startsWith('itinerary')) return 'calendar';
   if (kind.startsWith('post')) return 'feed';
   if (kind.startsWith('poll')) return 'poll';
+  if (kind === 'room_assigned') return 'bed';
+  if (kind.startsWith('dates')) return 'calendar';
   return 'bell';
 }

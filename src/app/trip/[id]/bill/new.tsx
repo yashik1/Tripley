@@ -15,7 +15,8 @@ import { CurrencyPicker } from '@/components/CurrencyPicker';
 import { DateTimeField } from '@/components/DateTimeField';
 import { Icon } from '@/components/Icon';
 import { Avatar, Banner, Button, Card, Chip, Field, IconButton, Loading, Row, Screen, SectionTitle, Segmented, Stack, Text } from '@/components/ui';
-import { isPro, receiptUrl, saveBill, ScanError, scanReceipt, uploadReceipt, type SaveBillPayload } from '@/lib/api';
+import { isPro, receiptUrl, saveBill, ScanError, scanReceipt, updateStay, uploadReceipt, type SaveBillPayload } from '@/lib/api';
+import { decodePrefill, type BillPrefill } from '@/lib/stays';
 import { convertMinor, fetchExchangeRate, formatMoney, minorToInput, parseAmount } from '@/lib/currency';
 import { errorMessage, isNetworkError } from '@/lib/errors';
 import { firstName, isISODate, todayISO } from '@/lib/format';
@@ -39,7 +40,7 @@ const emptyItem = (): DraftItem => ({ key: newKey(), name: '', priceText: '', as
 
 export default function BillEditor() {
   const id = useTripId();
-  const { billId, kitty } = useLocalSearchParams<{ billId?: string; kitty?: string }>();
+  const { billId, kitty, prefill } = useLocalSearchParams<{ billId?: string; kitty?: string; prefill?: string }>();
   const { trip, me, members, loading } = useTripData(id);
   const account = useAccount();
   const existing = useBill(billId ?? '');
@@ -57,6 +58,7 @@ export default function BillEditor() {
       pro={isPro(account.data)}
       initial={billId ? existing.data ?? null : null}
       initialKittyId={kitty}
+      prefill={billId ? null : decodePrefill(prefill, members.map((m) => m.user_id))}
     />
   );
 }
@@ -70,6 +72,7 @@ function BillForm({
   pro,
   initial: b,
   initialKittyId,
+  prefill,
 }: {
   tripId: string;
   billId?: string;
@@ -79,6 +82,8 @@ function BillForm({
   pro: boolean;
   initial: BillDetail | null;
   initialKittyId?: string;
+  /** Items worked out elsewhere (e.g. a stay split by room), to review and save. */
+  prefill?: BillPrefill | null;
 }) {
   const t = useTheme();
   const qc = useQueryClient();
@@ -86,7 +91,7 @@ function BillForm({
   const itemized = !b || b.split_mode === 'itemized';
   const initialMoney = (minor: number | undefined) => (b && minor ? minorToInput(minor, b.currency) : '');
 
-  const [title, setTitle] = useState(b?.title ?? '');
+  const [title, setTitle] = useState(b?.title ?? prefill?.title ?? '');
   const kitties = useKittySummaries(id);
   const startKitty = b ? b.kitty_id : kitties.find((k) => k.kitty.id === initialKittyId && !k.kitty.closed_at) ?? null;
   const [kittyId, setKittyId] = useState<string | null>(
@@ -112,7 +117,14 @@ function BillForm({
           priceText: minorToInput(it.line_total_minor, b.currency),
           assignees: Object.fromEntries(it.bill_item_shares.map((s) => [s.user_id, s.weight])),
         }))
-      : [emptyItem()],
+      : prefill
+        ? prefill.items.map((it) => ({
+            key: newKey(),
+            name: it.name,
+            priceText: minorToInput(it.minor, base),
+            assignees: Object.fromEntries(it.people.map((u) => [u, 1])),
+          }))
+        : [emptyItem()],
   );
   const [taxText, setTaxText] = useState(itemized ? initialMoney(b?.tax_minor) : '');
   const [serviceText, setServiceText] = useState(itemized ? initialMoney(b?.service_minor) : '');
@@ -337,7 +349,12 @@ function BillForm({
   // ---------------------------------------------------------------- save
 
   // Back to where you came from, or the bills list when opened directly (a link, a reload).
-  const leave = () => (router.canGoBack() ? router.back() : router.replace({ pathname: '/trip/[id]/bills', params: { id } }));
+  const leave = () =>
+    prefill?.stayId
+      ? router.dismissTo(`/trip/${id}/stays`)
+      : router.canGoBack()
+        ? router.back()
+        : router.replace({ pathname: '/trip/[id]/bills', params: { id } });
 
   const save = async () => {
     setError(null);
@@ -401,6 +418,11 @@ function BillForm({
       };
       if (photoLeftOut) throw new TypeError('Network request failed');
       const savedId = await saveBill(payload);
+      if (prefill?.stayId) {
+        // Best effort: the stay shows its bill. Only whoever arranges it may link it.
+        await updateStay(prefill.stayId, { bill_id: savedId }).catch(() => {});
+        qc.invalidateQueries({ queryKey: keys.stays(id) });
+      }
       await Promise.all([
         qc.invalidateQueries({ queryKey: keys.bills(id) }),
         qc.invalidateQueries({ queryKey: keys.shares(id) }),

@@ -12,6 +12,9 @@ import { supabase } from './supabase';
 import type {
   Account,
   Availability,
+  Room,
+  Stay,
+  StaysData,
   DeletionPreview,
   AppNotification,
   Challenge,
@@ -931,4 +934,64 @@ export async function kittyPayout(kittyId: string, toUser: string, amountBaseMin
 
 export async function closeKitty(kittyId: string): Promise<void> {
   check(await supabase.rpc('close_kitty', { p_kitty: kittyId }));
+}
+
+// ---------------------------------------------------------------- where everyone sleeps
+
+export async function listStays(tripId: string): Promise<StaysData> {
+  const [stays, rooms, guests] = await Promise.all([
+    supabase.from('trip_stays').select('*').eq('trip_id', tripId).order('check_in', { nullsFirst: false }).order('created_at'),
+    supabase.from('trip_rooms').select('*').eq('trip_id', tripId).order('position'),
+    supabase.from('trip_room_guests').select('stay_id, room_id, user_id, assigned_by').eq('trip_id', tripId),
+  ]);
+  return {
+    stays: check(stays) as Stay[],
+    rooms: (check(rooms) as Room[]).map((r) => ({ ...r, size_weight: Number(r.size_weight) })),
+    guests: check(guests) as StaysData['guests'],
+  };
+}
+
+export type StayInput = {
+  name: string;
+  address: string | null;
+  lat: number | null;
+  lng: number | null;
+  check_in: string | null;
+  check_out: string | null;
+  self_pick: boolean;
+};
+
+export async function createStay(tripId: string, input: StayInput): Promise<string> {
+  return (check(await supabase.from('trip_stays').insert({ trip_id: tripId, ...input }).select('id').single()) as { id: string }).id;
+}
+
+export async function updateStay(stayId: string, input: Partial<StayInput> & { bill_id?: string | null }): Promise<void> {
+  check(await supabase.from('trip_stays').update(input).eq('id', stayId));
+}
+
+export async function deleteStay(stayId: string): Promise<void> {
+  check(await supabase.from('trip_stays').delete().eq('id', stayId));
+}
+
+export type RoomInput = { name: string; beds: number; size_weight: number; position: number };
+
+export async function addRoom(stayId: string, input: RoomInput): Promise<void> {
+  check(await supabase.from('trip_rooms').insert({ stay_id: stayId, ...input }));
+}
+
+export async function updateRoom(roomId: string, input: Partial<RoomInput>): Promise<void> {
+  check(await supabase.from('trip_rooms').update(input).eq('id', roomId));
+}
+
+export async function deleteRoom(roomId: string): Promise<void> {
+  check(await supabase.from('trip_rooms').delete().eq('id', roomId));
+}
+
+/** Put someone (yourself when userId is left out) in a room; moves them out of their old one. */
+export async function pickBed(roomId: string, userId?: string): Promise<void> {
+  check(await supabase.rpc('pick_bed', { p_room: roomId, p_user: userId ?? null }));
+}
+
+export async function leaveBed(stayId: string, userId?: string): Promise<void> {
+  check(await supabase.rpc('leave_bed', { p_stay: stayId, p_user: userId ?? null }));
 }

@@ -353,3 +353,21 @@ export type AppNotification = {
 };
 
 export type InviteResult = 'invited' | 'already_member' | 'already_invited' | 'not_found';
+
+export type Stay = {
+  id: string;
+  trip_id: string;
+  name: string;
+  address: string | null;
+  lat: number | null;
+  lng: number | null;
+  check_in: string | null;
+  check_out: string | null;
+  self_pick: boolean;
+  bill_id: string | null;
+  created_by: string;
+  created_at: string;
+};
+export type Room = { id: string; stay_id: string; trip_id: string; name: string; beds: number; size_weight: number; position: number };
+export type RoomGuest = { stay_id: string; room_id: string; user_id: string; assigned_by: string | null };
+export type StaysData = { stays: Stay[]; rooms: Room[]; guests: RoomGuest[] };

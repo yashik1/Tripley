@@ -7,7 +7,7 @@
 import type { Client } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { as, createTrip, createUser, startDb } from './helpers';
+import { as, begin, connect, createTrip, createUser, sleep, startDb } from './helpers';
 
 let db: Client;
 let ana: string, ben: string, cleo: string, stranger: string;
@@ -138,10 +138,23 @@ describe('decisions into plans', () => {
 
   it('the winning idea goes into the plan once, even if two people press at once', async () => {
     const winner = (await db.query('select id from public.poll_options where poll_id = $1 and suggestion_id = $2', [poll, ideas[1]])).rows[0].id;
-    const [a, b] = await Promise.all([
-      as(db, ana, (q) => q('select public.add_poll_option_to_plan($1, $2) as id', [winner, day(14)])),
-      as(db, ben, (q) => q('select public.add_poll_option_to_plan($1, $2) as id', [winner, day(14)])),
-    ]);
+    // Two connections, really at once: Ben's press waits for Ana's, then gets her stop.
+    const c1 = await connect();
+    const c2 = await connect();
+    let a: { rows: { id: string }[] }, b: { rows: { id: string }[] };
+    try {
+      await begin(c1, ana);
+      await begin(c2, ben);
+      a = await c1.query('select public.add_poll_option_to_plan($1, $2) as id', [winner, day(14)]);
+      const second = c2.query('select public.add_poll_option_to_plan($1, $2) as id', [winner, day(14)]);
+      await sleep(200);
+      await c1.query('commit');
+      b = await second;
+      await c2.query('commit');
+    } finally {
+      await c1.end();
+      await c2.end();
+    }
     expect(a.rows[0].id).toBe(b.rows[0].id);
     expect((await db.query(`select count(*)::int as n from public.itinerary_items where trip_id = $1 and title = 'Fado night'`, [trip])).rows[0].n).toBe(1);
     // It's the idea's stop too, so "add to plan" from the bucket list finds it.

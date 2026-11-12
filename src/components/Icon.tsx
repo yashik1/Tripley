@@ -58,6 +58,12 @@ const ICONS = {
   megaphone: ['megaphone', 'campaign'],
   clock: ['clock', 'schedule'],
   search: ['magnifyingglass', 'search'],
+  bed: ['bed.double', 'bed'],
+  document: ['doc.text', 'description'],
+  cloud: ['cloud.sun', 'partly_cloudy_day'],
+  insights: ['chart.line.uptrend.xyaxis', 'insights'],
+  gift: ['gift', 'redeem'],
+  copyAll: ['square.on.square', 'library_add'],
 } as const satisfies Record<string, readonly [string, AndroidSymbol]>;
 
 export type IconName = keyof typeof ICONS;

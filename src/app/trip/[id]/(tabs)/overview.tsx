@@ -15,7 +15,7 @@ import { summarizeForUser, computePairBalances } from '@/lib/balances';
 import { formatMoney } from '@/lib/currency';
 import { formatDate, formatDateRange, todayISO } from '@/lib/format';
 import { rsvpSummary, timeRange } from '@/lib/itinerary';
-import { useAvailability, useChallenges, useFeed, useItinerary, usePlaces, usePolls, useRsvps, useSettlements, useShareRows, useSuggestions, useTasks, useTripOverview } from '@/lib/queries';
+import { useAvailability, useStays, useChallenges, useFeed, useItinerary, usePlaces, usePolls, useRsvps, useSettlements, useShareRows, useSuggestions, useTasks, useTripOverview } from '@/lib/queries';
 import { packingStep, progress as taskProgress } from '@/lib/preparation';
 import { pollIsOpen } from '@/lib/group-decisions';
 import { ActivityRow } from '@/components/ActivityRow';
@@ -44,6 +44,10 @@ export default function TripOverview() {
   const groupTasks = taskProgress((tasks.data ?? []).filter((x) => x.kind === 'group'));
   const polls = usePolls(id);
   const availability = useAvailability(id);
+  const stays = useStays(id);
+  const myBedMissing = (stays.data?.stays ?? []).some(
+    (s) => (stays.data?.rooms ?? []).some((r) => r.stay_id === s.id) && !(stays.data?.guests ?? []).some((g) => g.stay_id === s.id && g.user_id === me),
+  );
   const [welcomeHidden, setWelcomeHidden] = useState(false);
   // When this screen opened, for "did you just join?".
   const [openedAt] = useState(() => Date.now());
@@ -309,6 +313,13 @@ export default function TripOverview() {
               onPress={() => router.push(`/trip/${id}/dates`)}
             />
           ) : null}
+          <SectionTile
+            icon="bed"
+            title="Rooms"
+            detail={stays.data?.stays.length ? `${stays.data.stays.length} ${stays.data.stays.length === 1 ? 'stay' : 'stays'}` : 'Who sleeps where'}
+            sub={myBedMissing ? 'Pick your bed' : undefined}
+            onPress={() => router.push(`/trip/${id}/stays`)}
+          />
           <SectionTile icon="idea" title="Bucket list" detail={`${ideas.data?.length ?? 0} ideas`} onPress={() => router.push(`/trip/${id}/ideas`)} />
           <SectionTile
             icon="poll"
