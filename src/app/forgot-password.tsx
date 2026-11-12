@@ -3,9 +3,12 @@ import { useState } from 'react';
 
 import { AuthLayout, AuthSwitch } from '@/components/AuthLayout';
 import { Banner, Button, Field, Stack } from '@/components/ui';
+import { LegalLinks } from '@/components/Legal';
 import { requestPasswordReset } from '@/lib/account';
+import { emailSending } from '@/lib/auth-methods';
 import { normalizeEmail } from '@/lib/credentials';
 import { errorMessage } from '@/lib/errors';
+import { supportEmail } from '@/lib/legal';
 import { useLeaveWhenSignedIn } from '@/lib/use-leave-when-signed-in';
 import { space } from '@/theme';
 
@@ -28,6 +31,24 @@ export default function ForgotPassword() {
       setBusy(false);
     }
   };
+
+  if (!emailSending) {
+    const contact = supportEmail();
+    return (
+      <AuthLayout title="Reset your password" subtitle="Tripley can’t send password reset emails yet.">
+        <Banner tone="info" title="What you can do" icon="person">
+          {[
+            'If you’re still logged in on another phone or browser, open Profile there and choose a new password.',
+            contact
+              ? `Otherwise, email ${contact} from the address you signed up with and we’ll help you get back in.`
+              : 'Otherwise, see “Contact us” in the Privacy Policy for how to reach us.',
+          ].join(' ')}
+        </Banner>
+        <Button title="Back to log in" onPress={() => router.replace('/sign-in')} testID="back-to-login" />
+        <LegalLinks center />
+      </AuthLayout>
+    );
+  }
 
   if (sentTo) {
     return (

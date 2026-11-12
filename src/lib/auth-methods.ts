@@ -20,3 +20,14 @@ export function parseAuthMethods(raw: string | undefined | null): Set<AuthMethod
 
 export const authMethods = parseAuthMethods(process.env.EXPO_PUBLIC_AUTH_METHODS);
 export const hasAuth = (m: AuthMethod) => authMethods.has(m);
+
+/**
+ * Whether the auth server can send email (password reset links, email codes).
+ * Set EXPO_PUBLIC_EMAIL_SENDING=on once SMTP is set up on the auth server.
+ * Without SMTP the server accepts a reset request but quietly sends nothing,
+ * so the app must not promise an email.
+ */
+export function parseEmailSending(raw: string | undefined | null): boolean {
+  return ['on', 'true', '1', 'yes'].includes((raw ?? '').trim().toLowerCase());
+}
+export const emailSending = parseEmailSending(process.env.EXPO_PUBLIC_EMAIL_SENDING);

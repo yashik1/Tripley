@@ -206,6 +206,7 @@ Tripley runs in the Railway project **tripley**: the open-source Supabase stack 
 | `EXPO_PUBLIC_SUPABASE_ANON_KEY` | Public anon key, printed in the `supabase` gateway's deploy logs |
 | `EXPO_PUBLIC_AUTH_METHODS` | `password,guest` |
 | `EXPO_PUBLIC_APP_DOMAIN` | `${{RAILWAY_PUBLIC_DOMAIN}}` |
+| `EXPO_PUBLIC_EMAIL_SENDING` | Not set (off) until SMTP works on `auth` (below); then `on` |
 | `EXPO_PUBLIC_GEOCODER_URL` | Not set: address search uses the free public Photon server. Set it to your own Photon server if you outgrow it |
 | `EXPO_PUBLIC_SUPPORT_EMAIL` | Not set yet. The public contact address for the Privacy Policy and Terms; add it, then redeploy `web` |
 | `NODE_ENV` | `production` |
@@ -225,7 +226,7 @@ Tripley runs in the Railway project **tripley**: the open-source Supabase stack 
 | `GOTRUE_SITE_URL` | The `web` URL |
 | `GOTRUE_URI_ALLOW_LIST` | `https://<web>/**,tripley://**,http://localhost:8081/**` |
 
-**Password-reset emails need SMTP.** Until `GOTRUE_SMTP_HOST` is set, the auth server accepts reset requests but sends nothing. Add these to the `auth` service (put the password in yourself; it's a secret):
+**Password-reset emails need SMTP.** Until `GOTRUE_SMTP_HOST` is set, the auth server accepts reset requests but sends nothing (its log says "Noop mail client being used"). So the app only offers a reset email when the `web` service has `EXPO_PUBLIC_EMAIL_SENDING=on`; without it, "Forgot password?" explains what people can do instead (change it from Profile on a device where they're still logged in, or contact you), and email-code sign-in stays hidden. To turn email on, add these to the `auth` service (put the password in yourself; it's a secret), then set `EXPO_PUBLIC_EMAIL_SENDING=on` on `web` and redeploy it, then try "Forgot password?" yourself:
 
 | Variable | Gmail (app password) | Brevo |
 |---|---|---|
@@ -261,6 +262,15 @@ Accounts were checked the same way after they launched (21 of 21 passed): signin
 ---
 
 ## Testing
+
+**CI.** `.github/workflows/ci.yml` runs on every push to the deployed branch and every pull request: typecheck, lint, `npm audit` (fails on high or critical), unit and database tests, the web build, the iPhone and Android JavaScript bundles, native project generation (it also checks unused permissions stay removed), Expo's health check, and then every browser suite against a local Supabase (`tests/e2e/supabase/config.toml`) with the migrations applied the way production applies them. In Railway, turn on **Wait for CI** for the `web` service so a failing run stops the deploy.
+
+**Native apps.** CI proves the app's code bundles for iPhone and Android and that the native projects generate, but not that they compile, install or run. That needs EAS and your accounts:
+
+1. `npx eas-cli@latest login`, then `npx eas-cli@latest init` (sets the project id; put it in `EAS_PROJECT_ID`).
+2. `npx eas-cli@latest build --profile development --platform all` and install the builds on a real iPhone and Android phone.
+3. Check on each: sign-in, the live map with the app closed (background location), notifications, photo upload, the date and time pickers, deleting an account.
+4. Store builds: `--profile production`, then `npx eas-cli@latest submit`. Apple needs a paid developer account; Google Play a developer account.
 
 ```bash
 npm test                 # split engine, balances, currency, pay links (Vitest)

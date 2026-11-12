@@ -1,0 +1,124 @@
+# Checks every push to the deployed branch and every pull request.
+#  - checks:  types, lint, dependency advisories, unit + database tests,
+#             the web build, the iPhone/Android bundles and native project
+#             generation, and Expo's project health check.
+#  - browser: a local Supabase (tests/e2e/supabase), the migrations applied the
+#             way production applies them, and every browser test suite.
+# Railway deploys on push; turn on "Wait for CI" in the web service's settings
+# so a red run stops a deploy.
+name: CI
+
+on:
+  push:
+    branches: [claude/tender-johnson-cscqn1, main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  SUPABASE_CLI: supabase@3.0.0
+
+jobs:
+  checks:
+    name: Types, lint, tests and builds
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Typecheck
+        run: npx tsc --noEmit
+      - name: Lint
+        run: npx eslint .
+      - name: Dependency advisories (fails on high or critical)
+        run: npm audit --audit-level=high
+      - name: PostgreSQL 16 for the database tests
+        run: |
+          if [ ! -x /usr/lib/postgresql/16/bin/initdb ]; then
+            sudo apt-get update && sudo apt-get install -y postgresql-16
+          fi
+      - name: Unit and database tests
+        run: npx vitest run
+      - name: Web build
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder
+        run: npm run -s export:web
+      - name: iPhone and Android bundles
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder
+        run: npx expo export --platform ios --platform android --output-dir dist-native
+      - name: Native projects generate (config plugins and permissions)
+        run: |
+          npx expo prebuild --no-install --clean
+          for p in RECORD_AUDIO WRITE_CONTACTS SYSTEM_ALERT_WINDOW WRITE_EXTERNAL_STORAGE; do
+            grep -q "android.permission.$p\" tools:node=\"remove\"" android/app/src/main/AndroidManifest.xml \
+              || { echo "::error::$p is no longer blocked"; exit 1; }
+          done
+          ! grep -q NSMicrophoneUsageDescription ios/*/Info.plist || { echo "::error::the app asks for the microphone"; exit 1; }
+      - name: Expo project health (informational)
+        run: npx expo-doctor || echo "::warning::expo-doctor reported issues; see the log above"
+
+  browser:
+    name: Browser tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      SUPABASE_URL: http://127.0.0.1:54321
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Start a local Supabase
+        run: npx --yes "$SUPABASE_CLI" start --workdir tests/e2e -x studio,imgproxy,edge-runtime,logflare,vector,supavisor,postgres-meta
+      - name: Apply the migrations, as a production deploy does
+        run: node scripts/migrate.cjs
+      - name: API key for the test builds
+        run: |
+          key=$(npx --yes "$SUPABASE_CLI" status --workdir tests/e2e -o env | sed -n 's/^ANON_KEY="\{0,1\}\([^"]*\)"\{0,1\}$/\1/p')
+          test -n "$key" || { echo "::error::no anon key from supabase status"; exit 1; }
+          echo "::add-mask::$key"
+          echo "ANON_KEY=$key" >> "$GITHUB_ENV"
+      - name: Browser
+        run: npx playwright install --with-deps chromium
+      - name: Suites (email and guest sign-in build)
+        run: |
+          EXPO_PUBLIC_SUPABASE_URL=$SUPABASE_URL EXPO_PUBLIC_SUPABASE_ANON_KEY=$ANON_KEY EXPO_PUBLIC_AUTH_METHODS=password,guest EXPO_PUBLIC_EMAIL_SENDING=on npm run -s export:web
+          EXPO_PUBLIC_SUPABASE_URL=$SUPABASE_URL PORT=8081 node scripts/serve-web.cjs dist > serve.log 2>&1 &
+          npx --yes wait-on@8.0.3 -t 60000 http://localhost:8081
+          failed=""
+          for t in legal accounts delete-account places-polls route engagement roadmap plan; do
+            echo "::group::$t"
+            SHOTS=e2e-shots/$t node tests/e2e/$t.cjs || failed="$failed $t"
+            echo "::endgroup::"
+          done
+          kill %1 || true
+          test -z "$failed" || { echo "::error::failed:$failed"; exit 1; }
+      - name: Suite (phone sign-in build)
+        run: |
+          EXPO_PUBLIC_SUPABASE_URL=$SUPABASE_URL EXPO_PUBLIC_SUPABASE_ANON_KEY=$ANON_KEY npm run -s export:web
+          EXPO_PUBLIC_SUPABASE_URL=$SUPABASE_URL PORT=8081 node scripts/serve-web.cjs dist > serve.log 2>&1 &
+          npx --yes wait-on@8.0.3 -t 60000 http://localhost:8081
+          SHOTS=e2e-shots/trip-flow node tests/e2e/trip-flow.cjs
+      - name: Screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-shots
+          path: e2e-shots
+          retention-days: 7

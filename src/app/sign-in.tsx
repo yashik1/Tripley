@@ -8,7 +8,7 @@ import { AgreeNote } from '@/components/Legal';
 import { defaultCountry, PhoneInput, toE164 } from '@/components/PhoneInput';
 import { Banner, Button, Divider, Field, Row, Segmented, Stack, Text } from '@/components/ui';
 import { logInWithPassword } from '@/lib/account';
-import { hasAuth } from '@/lib/auth-methods';
+import { emailSending, hasAuth } from '@/lib/auth-methods';
 import { errorMessage } from '@/lib/errors';
 import { useLeaveWhenSignedIn } from '@/lib/use-leave-when-signed-in';
 import { signInAsGuest } from '@/lib/guest';
@@ -20,7 +20,8 @@ export default function SignIn() {
   useLeaveWhenSignedIn();
   const t = useTheme();
   const params = useLocalSearchParams<{ guest?: string }>();
-  const codeMethods = (['phone', 'email'] as const).filter((m) => hasAuth(m));
+  // Email codes need the auth server to send email.
+  const codeMethods = (['phone', 'email'] as const).filter((m) => hasAuth(m) && (m !== 'email' || emailSending));
   const showPassword = hasAuth('password');
   const [method, setMethod] = useState<'phone' | 'email'>(codeMethods[0] ?? 'phone');
   const [loginEmail, setLoginEmail] = useState('');

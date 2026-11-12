@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseAuthMethods } from '../../src/lib/auth-methods';
+import { parseAuthMethods, parseEmailSending } from '../../src/lib/auth-methods';
 
 describe('parseAuthMethods', () => {
   it('defaults to every method when unset or empty', () => {
@@ -13,5 +13,15 @@ describe('parseAuthMethods', () => {
   });
   it('falls back to everything if nothing valid is listed', () => {
     expect(parseAuthMethods('fax').size).toBe(6);
+  });
+});
+
+describe('parseEmailSending', () => {
+  it('is off unless explicitly turned on (without SMTP the server sends nothing)', () => {
+    expect(parseEmailSending(undefined)).toBe(false);
+    expect(parseEmailSending('')).toBe(false);
+    expect(parseEmailSending('off')).toBe(false);
+    expect(parseEmailSending(' ON ')).toBe(true);
+    expect(parseEmailSending('true')).toBe(true);
   });
 });

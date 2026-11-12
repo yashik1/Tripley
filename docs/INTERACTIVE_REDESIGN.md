@@ -1,6 +1,6 @@
 # Tripley interactive redesign: implementation report
 
-Branch `feature/tripley-interactive-experience`. It builds on the security work (the merged PR #1). Nothing was merged into `main` or into the deployed branch.
+Branch `feature/tripley-interactive-experience`, built on the security work (PR #1). **Status: merged into the deployed branch `claude/tender-johnson-cscqn1` as PR #3 on 9 November 2026, and live**: Railway applied the five migrations below at 21:43 UTC that day. Later work (privacy and terms, account deletion, real places, polls, route suggestions, CI) went straight to the deployed branch; see the README.
 
 **Phases are complete only where marked.** Phases 1 to 5 are implemented and tested. Phase 6 (Explore Nearby) is deferred; see "Deferred". Everything here was tested against a local Supabase stack, not production.
 
@@ -15,7 +15,7 @@ Branch `feature/tripley-interactive-experience`. It builds on the security work 
 | 5 | `8c89222` | Travel passport and trip memories |
 | – | the commit after it | This report, screenshots and README |
 
-No pull request was opened. Open one from the branch when you're ready to review: https://github.com/yashik1/Tripley/compare/claude/tender-johnson-cscqn1...feature/tripley-interactive-experience
+Reviewed and merged as PR #3 (https://github.com/yashik1/Tripley/pull/3).
 
 **Hotfix already live: `5db2edf` on `claude/tender-johnson-cscqn1`.** The security branch's Content-Security-Policy blocked reading a just-picked photo (a `blob:` URL) on the web. Receipt and place photo uploads would have failed on the live site. The fix allows `blob:` and `data:` in `connect-src`. Railway deployed it at 20:54 UTC (status SUCCESS).
 
@@ -190,7 +190,7 @@ All run on this branch: Node 22, a throwaway Postgres 16, a local Supabase stack
 | `node tests/e2e/plan.cjs` | Pass |
 | `node tests/e2e/trip-flow.cjs` (phone sign-in build) | Pass |
 | `npm run export:web` | Pass (both builds) |
-| `npm audit` | 13 moderate, 0 high, 0 critical (Expo build tooling; no new dependencies) |
+| `npm audit` | At the time: 13 moderate, 0 high, 0 critical (Expo build tooling). Since 12 Nov 2026: 0, see SECURITY_REVIEW.md finding 11 |
 | Secret scan (pattern search of this branch's diff and `dist/`) | No secrets. One match was supabase-js code that checks key prefixes. |
 
 The engagement suite covers:

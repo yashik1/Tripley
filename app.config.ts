@@ -32,6 +32,14 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       monochromeImage: './assets/images/android-icon-monochrome.png',
     },
     predictiveBackGestureEnabled: false,
+    // Added by libraries but never used: Tripley doesn't record audio, change
+    // contacts, draw over other apps or write to shared storage. Store
+    // reviews ask about every permission an app declares.
+    blockedPermissions: [
+      'android.permission.WRITE_CONTACTS',
+      'android.permission.SYSTEM_ALERT_WINDOW',
+      'android.permission.WRITE_EXTERNAL_STORAGE',
+    ],
     intentFilters: [
       {
         action: 'VIEW',
@@ -84,8 +92,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     [
       'expo-image-picker',
       {
-        photosPermission: 'Tripley uses your photos to attach receipts to bills.',
-        cameraPermission: 'Tripley uses the camera to photograph receipts.',
+        photosPermission: 'Tripley lets you choose photos to add to your trip: receipts, trip photos, ideas and cover photos.',
+        cameraPermission: 'Tripley uses the camera when you photograph a receipt or a trip moment to share with your group.',
+        // Photos only, never video, so no microphone.
+        microphonePermission: false,
       },
     ],
     [

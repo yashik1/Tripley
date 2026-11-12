@@ -22,7 +22,7 @@ tests ran against a throwaway Postgres 16 and a local Supabase stack in Docker.
 | 8 | Low | The website sent no Content-Security-Policy, framing protection or HSTS. | `serve-web.cjs` headers. | CSP limited to this site, the Supabase API, map tiles and the exchange-rate API (with Stripe/RevenueCat only when web purchases are configured); `frame-ancestors 'none'`, `X-Frame-Options: DENY`, `Permissions-Policy`, and HSTS behind HTTPS. | Pass: 5 unit tests. All four browser suites run with the CSP enforced and fail on any violation; none were reported. |
 | 9 | Info | Sign-up reveals that an email is registered ("There's already an account…"). The password reset flow does not. | GoTrue returns `user_already_exists` while email confirmation is off. | Not changed (it is the only useful message while auto-confirm is on). Fix: set up SMTP and turn email confirmation on (see E). | n/a |
 | 10 | Info | Password minimum: the app requires 8 characters; local auth config allowed 6. | `supabase/config.toml` | Local config set to 8. Production GoTrue needs `GOTRUE_PASSWORD_MIN_LENGTH=8` (see E). | n/a |
-| 11 | Info | Dependency advisories: 13 moderate (6 in production dependencies), 0 high or critical, all `glob`/`minimatch` inside Expo's CLI tooling. | `npm audit` | Not changed: the fix needs an Expo major upgrade. | n/a |
+| 11 | Info | Dependency advisories: 13 moderate (6 in production dependencies), 0 high or critical, all `glob`/`minimatch` inside Expo's CLI tooling. | `npm audit` | Fixed 12 Nov 2026 without an Expo upgrade: `overrides` in package.json move only the affected versions to the patched `glob` 14.0.2+ and `minimatch` 11.0.1+. Lint, typecheck, tests, the web build, the iPhone/Android bundles and native project generation all still pass. CI fails on any new high or critical advisory. | `npm audit`: 0 |
 | 12 | Info | No CI workflows in the repository, so tests only run when someone runs them. | No `.github/` directory. | Recommended, not added. | n/a |
 
 Checked and fine: no secrets in tracked files, git history or the built web
@@ -93,7 +93,7 @@ Environment:
 | `npm run test:e2e` (trip-flow, phone sign-in build) | Pass. The first run failed because the previous run's test phone users still existed; it passed after deleting them, as the README describes. |
 | Upload checks through the real local Storage API | Pass (413 / 415 / 403 as expected) |
 | Race test with the kitty lock removed (mutation check) | Fails as expected, so the test detects double spending |
-| `npm audit --omit=dev` / `npm audit` | 6 / 13 moderate, 0 high, 0 critical |
+| `npm audit --omit=dev` / `npm audit` | 6 / 13 moderate, 0 high, 0 critical (0 since 12 Nov 2026, finding 11) |
 | Secret scan (regex over tracked files, git history and `dist/`) | No findings. This was a pattern search, not a dedicated scanner such as gitleaks. |
 
 Not run, or blocked:
