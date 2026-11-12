@@ -35,7 +35,9 @@ export default function FindDates() {
   }
   return (
     <Choose
-      key={`${trip.date_window_start}|${trip.date_window_end}|${(availability.data ?? []).filter((a) => a.user_id === me).length}`}
+      // A new window starts the ticking afresh. Saving your own days doesn't
+      // remount, so the "Saved" note stays put.
+      key={`${trip.date_window_start}|${trip.date_window_end}`}
       tripId={id}
       trip={trip}
       members={members.map((m) => ({ id: m.user_id, name: m.profile.display_name || 'Friend', url: m.profile.avatar_url }))}

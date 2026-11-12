@@ -102,7 +102,9 @@ async function tick(page, days) {
     await ben.getByTestId(`day-${inDays(13)}`).click(); // twice: maybe
     await ben.getByTestId('dates-save').click();
     await ben.getByText('Saved. The group sees your days.').waitFor({ timeout: 10000 });
-    ok('Ben saved his days (one maybe)');
+    // Once the saved answers come back, the button settles and the note stays.
+    await ben.getByText('Your days are saved').waitFor({ timeout: 10000 });
+    expect(await ben.getByText('Saved. The group sees your days.').isVisible(), 'Ben saved his days (one maybe), and the note stays after the refresh');
     await ana.reload();
     await ana.getByTestId('dates-calendar').waitFor({ timeout: 15000 });
     expect((await ana.getByTestId('dates-waiting').innerText()).includes('you'), 'Ana sees she hasn’t answered yet');
