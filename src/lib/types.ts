@@ -410,3 +410,13 @@ export type TripDocument = {
   uploaded_by: string;
   created_at: string;
 };
+
+export type TripTemplate = {
+  id: string;
+  name: string;
+  destination: string | null;
+  base_currency: string;
+  days: number;
+  data: { stops: unknown[]; ideas: unknown[]; tasks: string[]; packing: string[] };
+  created_at: string;
+};

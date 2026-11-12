@@ -28,6 +28,8 @@ const HANDLE_FIELDS: { key: keyof PaymentHandles; label: string; placeholder: st
   { key: 'monzo', label: 'Monzo.me username', placeholder: 'mayar', group: 'Europe & UK' },
   { key: 'revolut', label: 'Revolut @tag', placeholder: 'mayar', group: 'Europe & UK' },
   { key: 'wise', label: 'Wise pay link name', placeholder: 'mayar', group: 'Europe & UK' },
+  { key: 'pix', label: 'Pix key (email, +55 phone, CPF or random key)', placeholder: 'maria@example.com', group: 'Brazil' },
+  { key: 'promptpay', label: 'PromptPay phone or national ID', placeholder: '081 234 5678', group: 'Thailand' },
   { key: 'paypal', label: 'PayPal.me username', placeholder: 'mayar', group: 'Anywhere' },
   { key: 'other', label: 'Other (bank details, etc.)', placeholder: 'Account number, sort code…', group: 'Anywhere' },
 ];

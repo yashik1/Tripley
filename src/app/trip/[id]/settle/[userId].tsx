@@ -125,12 +125,16 @@ export default function SettleUp() {
                     }
                   />
                   {o.qr ? (
-                    <View style={{ alignItems: 'center', gap: space.xs, paddingBottom: space.sm }} testID="sepa-qr">
+                    <View style={{ alignItems: 'center', gap: space.xs, paddingBottom: space.sm }} testID={o.kind === 'sepa' ? 'sepa-qr' : `${o.kind}-qr`}>
                       <View style={{ padding: 12, backgroundColor: '#fff', borderRadius: 12 }}>
                         <QRCode value={o.qr} size={170} ecl="M" />
                       </View>
                       <Text variant="caption" muted center>
-                        Scan in your banking app: name, IBAN, amount and reference fill in by themselves.
+                        {o.kind === 'pix'
+                          ? `Scan in your bank app, or copy the Pix code and paste it there${o.prefillsAmount ? '; the amount fills in by itself' : ''}.`
+                          : o.kind === 'promptpay'
+                            ? `Scan in your Thai banking app${o.prefillsAmount ? '; the amount fills in by itself' : ''}.`
+                            : 'Scan in your banking app: name, IBAN, amount and reference fill in by themselves.'}
                       </Text>
                     </View>
                   ) : null}

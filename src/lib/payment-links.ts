@@ -1,4 +1,5 @@
 import { fromMinor, minorUnitExponent } from './currency';
+import { normalizePixKey, pixPayload, promptPayPayload } from './emv-qr';
 
 /** Payment handles a person saves on their profile. All optional. */
 export type PaymentHandles = {
@@ -12,6 +13,8 @@ export type PaymentHandles = {
   wise?: string; // wise.com/pay/me/<handle>
   iban?: string; // for SEPA transfers (EUR)
   iban_name?: string; // account holder name for the IBAN
+  pix?: string; // Brazil: Pix key (email, +55 phone, CPF/CNPJ or random key)
+  promptpay?: string; // Thailand: phone number or 13-digit national ID
   other?: string; // free text, e.g. bank details
 };
 
@@ -26,7 +29,7 @@ export type PaymentOption = {
   copyText: string;
   /** True when the link (or QR code) pre-fills the amount. */
   prefillsAmount: boolean;
-  /** Text for a QR code the payer scans with their banking app (SEPA). */
+  /** Text for a QR code the payer scans with their banking app (SEPA, Pix, PromptPay). */
   qr?: string;
 };
 
@@ -156,6 +159,20 @@ export function paymentOptions(
     });
   }
 
+  const pix = normalizePixKey(handles.pix);
+  if (pix) {
+    const brl = currency === 'BRL';
+    const code = pixPayload({ key: pix, name: payeeName, amount: brl ? amount : null });
+    // The "copia e cola" code is what people paste into their bank app.
+    out.push({ kind: 'pix', label: 'Pix', copyText: code, prefillsAmount: brl, qr: code });
+  }
+
+  const thb = currency === 'THB';
+  const promptpay = promptPayPayload(handles.promptpay ?? '', thb ? amount : null);
+  if (promptpay) {
+    out.push({ kind: 'promptpay', label: 'PromptPay', copyText: (handles.promptpay ?? '').trim(), prefillsAmount: thb, qr: promptpay });
+  }
+
   const other = (handles.other ?? '').trim();
   if (other) {
     out.push({ kind: 'other', label: 'Other details', copyText: other, prefillsAmount: false });
@@ -170,6 +187,8 @@ const REGION_ORDER: Record<string, PaymentKind[]> = {
   USD: ['venmo', 'zelle', 'cashapp', 'paypal'],
   EUR: ['sepa', 'revolut', 'wise', 'paypal'],
   GBP: ['monzo', 'revolut', 'wise', 'paypal'],
+  BRL: ['pix', 'paypal'],
+  THB: ['promptpay', 'wise'],
 };
 
 export function sortForRegion(options: PaymentOption[], currency: string): PaymentOption[] {

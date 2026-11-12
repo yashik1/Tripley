@@ -6,7 +6,7 @@ import { Switch, View } from 'react-native';
 import { DateTimeField } from '@/components/DateTimeField';
 import { FoundNote, PlaceField } from '@/components/PlaceField';
 import { Banner, Button, Card, Field, Loading, Row, Screen, SectionTitle, Stack, Text } from '@/components/ui';
-import { deleteTrip, leaveTrip, regenerateInviteCode, setTripCover, updateMySharing, updateTrip } from '@/lib/api';
+import { deleteTrip, leaveTrip, regenerateInviteCode, saveTripAsTemplate, setTripCover, updateMySharing, updateTrip } from '@/lib/api';
 import { pickPhoto } from '@/lib/photos';
 import { TripCover } from '@/components/Travel';
 import { confirm } from '@/lib/confirm';
@@ -38,6 +38,7 @@ function TripSettingsForm({ id, trip, isOrganizer, active }: { id: string; trip:
   const [start, setStart] = useState(trip.starts_on ?? '');
   const [end, setEnd] = useState(trip.ends_on ?? '');
   const [busy, setBusy] = useState<string | null>(null);
+  const [templateNote, setTemplateNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
@@ -165,6 +166,32 @@ function TripSettingsForm({ id, trip, isOrganizer, active }: { id: string; trip:
             testID="settings-find-dates"
             style={{ alignSelf: 'flex-start' }}
           />
+        ) : null}
+        <Button
+          title="Save as a template"
+          icon="copyAll"
+          kind="ghost"
+          small
+          loading={busy === 'template'}
+          onPress={async () => {
+            setBusy('template');
+            setTemplateNote(null);
+            try {
+              await saveTripAsTemplate(id, trip.name);
+              await qc.invalidateQueries({ queryKey: keys.templates });
+              setTemplateNote('Saved as a template, just for you: the plan, ideas, group tasks and your packing list. Start a new trip from it any time.');
+            } catch (e) {
+              setTemplateNote(errorMessage(e));
+            } finally {
+              setBusy(null);
+            }
+          }}
+          testID="settings-template"
+          style={{ alignSelf: 'flex-start' }}
+        />
+        {templateNote ? <Text variant="caption" muted testID="settings-template-note">{templateNote}</Text> : null}
+        {isOrganizer ? (
+          <Button title="Trip insights" icon="insights" kind="ghost" small onPress={() => router.push(`/trip/${id}/insights`)} testID="settings-insights" style={{ alignSelf: 'flex-start' }} />
         ) : null}
         <Text variant="caption" faint>Currency: {trip.base_currency} (can&apos;t change once bills are added)</Text>
         <Button title="Save" onPress={save} loading={busy === 'save'} />

@@ -16,6 +16,7 @@ import type {
   Availability,
   Booking,
   TripDocument,
+  TripTemplate,
   Room,
   Stay,
   StaysData,
@@ -1130,4 +1131,24 @@ export async function draftPlan(tripId: string, pace: 'relaxed' | 'balanced' | '
     if (body?.error) throw new ScanError(body.error.code, body.error.message);
   }
   throw new ScanError('network', 'Could not reach plan drafting. Check your connection.');
+}
+
+// ---------------------------------------------------------------- templates
+
+export async function listTemplates(): Promise<TripTemplate[]> {
+  return check(await supabase.from('trip_templates').select('*').order('created_at', { ascending: false })) as TripTemplate[];
+}
+
+/** Saves the trip's plan, ideas, group tasks and your packing list as a private template. */
+export async function saveTripAsTemplate(tripId: string, name: string): Promise<string> {
+  return check(await supabase.rpc('save_trip_as_template', { p_trip: tripId, p_name: name })) as string;
+}
+
+/** A new trip you organize, from one of your templates, starting on startsOn. */
+export async function startTripFromTemplate(templateId: string, name: string, startsOn: string): Promise<string> {
+  return check(await supabase.rpc('start_trip_from_template', { p_template: templateId, p_name: name, p_starts_on: startsOn })) as string;
+}
+
+export async function deleteTemplate(id: string): Promise<void> {
+  check(await supabase.from('trip_templates').delete().eq('id', id));
 }

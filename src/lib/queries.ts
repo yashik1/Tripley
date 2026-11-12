@@ -51,6 +51,7 @@ export const keys = {
   polls: (id: string) => ['polls', id] as const,
   availability: (id: string) => ['availability', id] as const,
   stays: (id: string) => ['stays', id] as const,
+  templates: ['templates'] as const,
   bookings: (id: string) => ['bookings', id] as const,
   documents: (id: string) => ['documents', id] as const,
   tasks: (id: string) => ['tasks', id] as const,
@@ -113,6 +114,7 @@ export const useSuggestions = (id: string) =>
 export const usePolls = (id: string) => useQuery({ queryKey: keys.polls(id), queryFn: () => api.listPolls(id), enabled: !!id });
 export const useAvailability = (id: string) =>
   useQuery({ queryKey: keys.availability(id), queryFn: () => api.listAvailability(id), enabled: !!id });
+export const useTemplates = () => useQuery({ queryKey: keys.templates, queryFn: api.listTemplates, staleTime: 0 });
 export const useStays = (id: string) => useQuery({ queryKey: keys.stays(id), queryFn: () => api.listStays(id), enabled: !!id });
 export const useBookings = (id: string) => useQuery({ queryKey: keys.bookings(id), queryFn: () => api.listBookings(id), enabled: !!id });
 export const useDocuments = (id: string) => useQuery({ queryKey: keys.documents(id), queryFn: () => api.listDocuments(id), enabled: !!id });
