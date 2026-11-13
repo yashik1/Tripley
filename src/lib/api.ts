@@ -24,6 +24,13 @@ import type {
   AppNotification,
   Challenge,
   FeedPost,
+  FoodKind,
+  FunEntry,
+  FunFeature,
+  FunKind,
+  FunVote,
+  PassportStamp,
+  TripMemory,
   Bill,
   BillDetail,
   Invitation,
@@ -1163,4 +1170,111 @@ export async function myReferralCode(): Promise<string> {
 /** Use a friend's invite code (new accounts, once). 'linked', 'rewarded' or 'already'. */
 export async function claimReferral(code: string): Promise<'linked' | 'rewarded' | 'already'> {
   return check(await supabase.rpc('claim_referral', { p_code: code })) as 'linked' | 'rewarded' | 'already';
+}
+
+// ---------------------------------------------------------------- Trip Fun
+
+/** Which Trip Fun features are on, and which need Pro. */
+export async function listFunCatalogue(): Promise<FunFeature[]> {
+  return check(await supabase.from('trip_feature_catalog').select('feature_key, title, enabled, minimum_plan')) as FunFeature[];
+}
+
+/** Food finds, songs and (when allowed) missions or older checklist items, newest first. */
+export async function listFunEntries(tripId: string): Promise<FunEntry[]> {
+  return check(await supabase.from('trip_fun_entries').select('*').eq('trip_id', tripId).order('created_at', { ascending: false })) as FunEntry[];
+}
+
+export async function listFunVotes(tripId: string): Promise<FunVote[]> {
+  return check(await supabase.from('trip_fun_votes').select('*').eq('trip_id', tripId)) as FunVote[];
+}
+
+export async function addFunEntry(
+  tripId: string,
+  me: string,
+  input: {
+    kind: Exclude<FunKind, 'scavenger'>;
+    title: string;
+    details?: string;
+    food_kind?: FoodKind | null;
+    place_name?: string | null;
+    photo_path?: string | null;
+    link_url?: string | null;
+    assigned_to?: string | null;
+  },
+): Promise<void> {
+  check(
+    await supabase.from('trip_fun_entries').insert({
+      trip_id: tripId,
+      created_by: me,
+      kind: input.kind,
+      title: input.title.trim(),
+      details: (input.details ?? '').trim(),
+      food_kind: input.kind === 'food' ? input.food_kind ?? 'dish' : null,
+      place_name: input.kind === 'food' ? input.place_name?.trim() || null : null,
+      photo_path: input.kind === 'food' ? input.photo_path ?? null : null,
+      link_url: input.kind === 'soundtrack' ? input.link_url ?? null : null,
+      assigned_to: input.kind === 'mission' ? input.assigned_to ?? null : null,
+    }),
+  );
+}
+
+/** Mark a mission or checklist item done (who and when are set by the server). */
+export async function setFunEntryDone(id: string, done: boolean): Promise<void> {
+  check(await supabase.from('trip_fun_entries').update({ is_complete: done }).eq('id', id));
+}
+
+export async function deleteFunEntry(id: string): Promise<void> {
+  check(await supabase.from('trip_fun_entries').delete().eq('id', id));
+}
+
+/** Your vote for an award: a new vote, or a change of nominee. */
+export async function voteAward(tripId: string, me: string, awardKey: string, nomineeId: string, existingVoteId?: string | null): Promise<void> {
+  if (existingVoteId) check(await supabase.from('trip_fun_votes').update({ nominee_id: nomineeId }).eq('id', existingVoteId));
+  else check(await supabase.from('trip_fun_votes').insert({ trip_id: tripId, award_key: awardKey, voter_id: me, nominee_id: nomineeId }));
+}
+
+export async function withdrawAwardVote(voteId: string): Promise<void> {
+  check(await supabase.from('trip_fun_votes').delete().eq('id', voteId));
+}
+
+/** Every post in a trip, oldest first (for the scrapbook and timeline). */
+export async function listTripPosts(tripId: string): Promise<FeedPost[]> {
+  return check(await supabase.from('trip_posts').select(FEED_SELECT).eq('trip_id', tripId).order('created_at', { ascending: true }).limit(1000)) as FeedPost[];
+}
+
+/** Scrapbook memories, oldest day first. */
+export async function listMemories(tripId: string): Promise<TripMemory[]> {
+  return check(
+    await supabase.from('trip_memories').select('*').eq('trip_id', tripId).order('happened_on', { ascending: true }).order('created_at', { ascending: true }),
+  ) as TripMemory[];
+}
+
+export type MemoryInput = { caption: string; description: string | null; happened_on: string; photo_paths: string[] };
+
+/** Add a memory, or (with an id) change your own. */
+export async function saveMemory(tripId: string, input: MemoryInput, id?: string | null): Promise<void> {
+  const row = { caption: input.caption.trim(), description: input.description?.trim() || null, happened_on: input.happened_on, photo_paths: input.photo_paths };
+  if (id) check(await supabase.from('trip_memories').update(row).eq('id', id));
+  else check(await supabase.from('trip_memories').insert({ trip_id: tripId, ...row }));
+}
+
+export async function deleteMemory(id: string): Promise<void> {
+  check(await supabase.from('trip_memories').delete().eq('id', id));
+}
+
+/** Your passport stamps (only yours are ever returned), newest visit first. */
+export async function listStamps(): Promise<PassportStamp[]> {
+  return check(await supabase.from('passport_stamps').select('*').order('visited_on', { ascending: false }).order('created_at', { ascending: false })) as PassportStamp[];
+}
+
+export type StampInput = Pick<PassportStamp, 'place' | 'country' | 'country_code' | 'lat' | 'lng' | 'visited_on' | 'trip_id' | 'note'>;
+
+export async function addStamp(input: StampInput): Promise<void> {
+  const res = await supabase.from('passport_stamps').insert(input);
+  if ((res.error as { code?: string } | null)?.code === '23505') throw new Error('That place is already in your passport for that day.');
+  check(res);
+}
+
+export async function deleteStamp(id: string): Promise<void> {
+  check(await supabase.from('passport_stamps').delete().eq('id', id));
 }

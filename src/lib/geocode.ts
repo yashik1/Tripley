@@ -21,6 +21,9 @@ export type GeoResult = {
   category: string;
   /** "Lisbon, Portugal": for a city or country, the short form used as a trip destination. */
   short: string;
+  /** "Portugal" and "PT", when the result has a country. */
+  country?: string;
+  countryCode?: string;
 };
 
 export type SearchScope = 'any' | 'area';
@@ -101,6 +104,8 @@ export function toResult(feature: PhotonFeature): GeoResult | null {
     lng: Math.round(lng * 1e6) / 1e6,
     category: [clean(p.osm_key), clean(p.osm_value)].filter(Boolean).join(':'),
     short,
+    ...(clean(p.country) ? { country: clean(p.country) } : {}),
+    ...(/^[A-Za-z]{2}$/.test(clean(p.countrycode)) ? { countryCode: clean(p.countrycode).toUpperCase() } : {}),
   };
 }
 

@@ -422,3 +422,60 @@ export type TripTemplate = {
   data: { stops: unknown[]; ideas: unknown[]; tasks: string[]; packing: string[] };
   created_at: string;
 };
+
+// ---------------------------------------------------------------- Trip Fun
+
+export type FunKind = 'mission' | 'scavenger' | 'soundtrack' | 'food';
+export type FoodKind = 'dish' | 'restaurant' | 'experience';
+
+/** A food find, a song, or (older or optional kinds) a mission or checklist item. */
+export type FunEntry = {
+  id: string;
+  trip_id: string;
+  kind: FunKind;
+  title: string;
+  details: string;
+  created_by: string;
+  assigned_to: string | null;
+  is_complete: boolean;
+  completed_by: string | null;
+  completed_at: string | null;
+  created_at: string;
+  food_kind: FoodKind | null;
+  place_name: string | null;
+  photo_path: string | null;
+  link_url: string | null;
+};
+
+export type FunVote = { id: string; trip_id: string; award_key: string; voter_id: string; nominee_id: string; created_at: string };
+
+/** One row of the Trip Fun feature catalogue (on or off, free or Pro). */
+export type FunFeature = { feature_key: string; title: string; enabled: boolean; minimum_plan: 'free' | 'pro' };
+
+/** A scrapbook memory: caption, description, the day it happened, photos. */
+export type TripMemory = {
+  id: string;
+  trip_id: string;
+  created_by: string;
+  caption: string;
+  description: string | null;
+  happened_on: string;
+  photo_paths: string[];
+  created_at: string;
+  updated_at: string;
+};
+
+/** A place in your travel passport (only you see these). */
+export type PassportStamp = {
+  id: string;
+  user_id: string;
+  trip_id: string | null;
+  place: string;
+  country: string | null;
+  country_code: string | null;
+  lat: number | null;
+  lng: number | null;
+  visited_on: string;
+  note: string | null;
+  created_at: string;
+};

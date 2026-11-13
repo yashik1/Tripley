@@ -11,7 +11,7 @@
  * people to what they can do themselves in the app.
  */
 
-export const LEGAL_UPDATED = '12 November 2026';
+export const LEGAL_UPDATED = '13 November 2026';
 
 /** One paragraph (optionally with a bold lead-in) or a bulleted list. */
 export type LegalBlock = { text: string; lead?: string } | { list: string[] };
@@ -89,7 +89,7 @@ export const PRIVACY: LegalDoc = {
         },
         {
           lead: 'Trips and plans.',
-          text: 'Trip names, dates, destinations and cover photos; who is on each trip and who invited them; plans, RSVPs, comments, places you pin, ideas, polls and votes (including how you ranked the options), the days you said you can go, stays, rooms and who sleeps where, group tasks, challenges, and your own packing list.',
+          text: 'Trip names, dates, destinations and cover photos; who is on each trip and who invited them; plans, RSVPs, comments, places you pin, ideas, polls and votes (including how you ranked the options), the days you said you can go, stays, rooms and who sleeps where, group tasks, scavenger hunt challenges, award votes, and your own packing list.',
         },
         {
           lead: 'Your location, only if you share it.',
@@ -109,7 +109,11 @@ export const PRIVACY: LegalDoc = {
         },
         {
           lead: 'Posts and photos.',
-          text: 'What you post to a trip’s feed, including photos, places, reactions and comments.',
+          text: 'What you post to a trip’s feed, including photos, places, reactions and comments, and what you add to Trip Fun: scrapbook memories (a caption, a story, the day and photos), food finds (with notes and a photo), and songs with their links. Only people on the trip see these. Tripley links to songs; it never hosts or plays music.',
+        },
+        {
+          lead: 'Your travel passport.',
+          text: 'Places you add to your passport (a city or destination, its country, the date and an optional note) and which of your trips each one belongs to. Only you can see your stamps, and you can remove any of them.',
         },
         {
           lead: 'Tripley Pro.',
@@ -232,7 +236,7 @@ export const PRIVACY: LegalDoc = {
             'Shared location: until the trip ends or you leave it (see above).',
             'AI results (receipts, bookings, plan drafts): one day. Request records: 90 days.',
             'Your account and trips: for as long as you have an account. Trip records such as bills, payments and plans are shared with your group, so what you added to a trip stays for the others after you leave it.',
-            'When you delete your account, your sign-in details, name, payment details, posts, comments, photos, documents, private bookings, packing lists, templates, invite code and location are deleted straight away. Trips nobody else is on are deleted too. On shared trips, bills, payments and plans stay in the group’s records under the name “Former member”, so everyone’s balances still add up.',
+            'When you delete your account, your sign-in details, name, payment details, posts, comments, photos, scrapbook memories, food finds, songs, award votes, passport stamps, documents, private bookings, packing lists, templates, invite code and location are deleted straight away. Trips nobody else is on are deleted too. On shared trips, bills, payments and plans stay in the group’s records under the name “Former member”, so everyone’s balances still add up.',
             'Any copies in backups are overwritten as the backups are replaced.',
             'Server logs: kept only for a limited time by our hosting provider.',
             'Data on your device: the copy kept for offline use, documents you keep offline, and plans or bills waiting to sync are tied to your account and removed when you sign out.',

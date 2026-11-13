@@ -116,6 +116,7 @@ function AppNavigator() {
         <Stack.Screen name="trips/new" options={{ title: 'New trip', presentation: 'modal' }} />
         <Stack.Screen name="trip/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="profile" options={{ title: 'Profile' }} />
+        <Stack.Screen name="passport" options={{ title: 'My Travel Passport' }} />
         <Stack.Screen name="delete-account" options={{ title: 'Delete account' }} />
         <Stack.Screen name="battery-help" options={{ title: 'Keep sharing on' }} />
         <Stack.Screen name="notifications" options={{ title: 'Notifications' }} />

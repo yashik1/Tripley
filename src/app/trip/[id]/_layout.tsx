@@ -69,8 +69,16 @@ export default function TripLayout() {
       <Stack.Screen name="bookings" options={{ title: 'Bookings' }} />
       <Stack.Screen name="insights" options={{ title: 'Trip insights' }} />
       <Stack.Screen name="booking/new" options={{ title: 'Add a booking', presentation: 'modal' }} />
-      <Stack.Screen name="challenges" options={{ title: 'Challenges' }} />
-      <Stack.Screen name="fun" options={{ title: 'Trip Fun' }} />
+      <Stack.Screen name="challenges" options={{ title: 'Scavenger Hunt' }} />
+      <Stack.Screen name="fun/index" options={{ title: 'Trip Fun' }} />
+      <Stack.Screen name="fun/scrapbook" options={{ title: 'Scrapbook' }} />
+      <Stack.Screen name="fun/memory" options={{ title: 'Add a memory', presentation: 'modal' }} />
+      <Stack.Screen name="fun/food" options={{ title: 'Food Explorer' }} />
+      <Stack.Screen name="fun/soundtrack" options={{ title: 'Trip Soundtrack' }} />
+      <Stack.Screen name="fun/awards" options={{ title: 'Trip Awards' }} />
+      <Stack.Screen name="fun/timeline" options={{ title: 'Timeline' }} />
+      <Stack.Screen name="fun/wheel" options={{ title: 'Adventure Wheel' }} />
+      <Stack.Screen name="fun/missions" options={{ title: 'Secret Missions' }} />
       <Stack.Screen name="memories" options={{ title: 'Trip memories' }} />
       <Stack.Screen name="post/[postId]" options={{ title: 'Post' }} />
     </Stack>

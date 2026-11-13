@@ -28,7 +28,9 @@ Avoid competitor names in keywords (Apple rejects them).
 >
 > **Split every bill fairly.** Tap who had what; Tripley handles shared dishes, tax, tip, discounts and other currencies, then shows who owes whom. Pay with UPI, Venmo, Zelle, PayPal, Revolut, Monzo, Wise, Pix, PromptPay or a SEPA QR code.
 >
-> **Rooms, packing and more.** Pick beds and split the stay by room, get packing suggestions for the weather, share group tasks, and keep a recap of the trip.
+> **Rooms, packing and more.** Pick beds and split the stay by room, get packing suggestions for the weather and share group tasks.
+>
+> **Trip Fun.** A shared scrapbook of the trip, day by day; a scavenger hunt with photo proof; trip awards; a soundtrack; the group's food finds; a timeline of everything that happened; and your own travel passport of countries and cities.
 >
 > Free for the whole group. Tripley Pro adds AI helpers: reading receipts and booking confirmations, and drafting a plan from your bucket list.
 
@@ -56,7 +58,8 @@ Match these to the Privacy Policy (`src/lib/legal.ts`); update both together.
 | Photos and files | Yes (what you choose to upload) | Yes | App functionality | Receipts, trip photos, booking documents |
 | Financial info | Yes (bills, payment handles you add) | Yes | App functionality | No card or bank logins |
 | Purchase history | Yes (Pro status) | Yes | App functionality | Via the store and RevenueCat |
-| User content | Yes (plans, posts, polls, bookings) | Yes | App functionality | |
+| User content | Yes (plans, posts, polls, bookings, scrapbook memories, food finds, songs, award votes) | Yes | App functionality | Shared only with the trip's members |
+| Travel passport (places you've been) | Yes (only what you add) | Yes | App functionality | Typed or picked by you, not read from the device; only you see it |
 | Contacts | No | | | Only the one number you pick is used, not uploaded |
 | Identifiers | Yes (push token) | Yes | App functionality | |
 | Diagnostics / analytics / ads | No | | | No analytics or ad SDKs |

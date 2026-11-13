@@ -26,6 +26,13 @@ export const CHALLENGE_IDEAS = [
   { emoji: '📸', title: 'Take the best group photo', description: 'Everyone in it, everyone smiling.' },
   { emoji: '🎭', title: 'Try a local experience', description: 'A class, a festival, a tradition.' },
   { emoji: '🗺️', title: 'Visit somewhere new', description: 'A place none of you has been before.' },
+  { emoji: '🎨', title: 'Find hidden street art', description: 'The more tucked away, the better.' },
+  { emoji: '😋', title: 'Try a dish you can’t pronounce yet', description: 'Bonus points for ordering it in the local language.' },
+  { emoji: '🏛️', title: 'Group photo with a landmark', description: 'Everyone in the shot, landmark included.' },
+  { emoji: '🌅', title: 'Find the best view in town', description: 'Sunrise, sunset or rooftop: your call.' },
+  { emoji: '🙋', title: 'Ask a local for a tip', description: 'One thing tourists usually miss.' },
+  { emoji: '🛍️', title: 'Find a market or independent shop', description: 'Something you can’t get at home.' },
+  { emoji: '🪧', title: 'Capture a funny sign', description: 'Lost in translation counts.' },
 ];
 
 /** Packing items you haven't added yet (case-insensitive). */

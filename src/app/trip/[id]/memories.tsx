@@ -4,6 +4,7 @@
  * private to the trip, and no locations or individual amounts are included.
  */
 import * as Clipboard from 'expo-clipboard';
+import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Platform, Share, Switch, View } from 'react-native';
 
@@ -107,6 +108,8 @@ export default function Memories() {
           <Text variant="caption" muted>{members.length} travellers</Text>
         </Row>
       </Stack>
+
+      <Button title="Open the scrapbook" icon="photo" kind="secondary" onPress={() => router.push(`/trip/${id}/fun/scrapbook`)} testID="recap-scrapbook" />
 
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
         {[

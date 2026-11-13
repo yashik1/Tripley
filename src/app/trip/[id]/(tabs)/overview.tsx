@@ -339,12 +339,12 @@ export default function TripOverview() {
             onPress={() => router.push(`/trip/${id}/polls`)}
           />
           <SectionTile
-            icon="trophy"
-            title="Challenges"
-            detail={`${challenges.data?.length ?? 0} going`}
-            onPress={() => router.push(`/trip/${id}/challenges`)}
+            icon="sparkles"
+            title="Trip Fun"
+            detail="Scrapbook, passport, hunt, awards & more"
+            sub={challenges.data?.length ? `${challenges.data.filter((c) => c.challenge_entries.length).length} of ${challenges.data.length} challenges done` : undefined}
+            onPress={() => router.push(`/trip/${id}/fun`)}
           />
-          <SectionTile icon="idea" title="Trip Fun" detail="Wheel, missions, food & memories" onPress={() => router.push(`/trip/${id}/fun`)} />
           <SectionTile icon="map" title="Map" detail={`${places.data?.length ?? 0} places pinned`} onPress={() => router.push(`/trip/${id}/map`)} />
           <SectionTile
             icon="wallet"

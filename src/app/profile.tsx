@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { useState } from 'react';
+import { View } from 'react-native';
 
 import { ChangePasswordCard, InviteFriendsCard, NotificationPrefsCard, PassportCard, SaveAccountCard } from '@/components/AccountCards';
 import { CurrencyPicker } from '@/components/CurrencyPicker';
@@ -123,6 +124,16 @@ export default function Profile() {
         ))}
       </Stack>
 
+      <Card onPress={() => router.push('/passport')} accessibilityLabel="My Travel Passport" testID="profile-passport">
+        <Row gap={space.md}>
+          <Text style={{ fontSize: 26 }}>🛂</Text>
+          <View style={{ flex: 1 }}>
+            <Text variant="heading">My Travel Passport</Text>
+            <Text variant="caption" muted>Countries, cities and milestones from your trips</Text>
+          </View>
+          <Text variant="label" color={t.primary}>Open</Text>
+        </Row>
+      </Card>
       <PassportCard />
 
       <NotificationPrefsCard />

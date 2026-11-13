@@ -59,6 +59,10 @@ export const keys = {
   challenges: (id: string) => ['challenges', id] as const,
   tripFun: (id: string) => ['tripFun', id] as const,
   tripFunVotes: (id: string) => ['tripFunVotes', id] as const,
+  tripPosts: (id: string) => ['tripPosts', id] as const,
+  memories: (id: string) => ['memories', id] as const,
+  funCatalogue: ['funCatalogue'] as const,
+  stamps: ['stamps'] as const,
   itinerary: (id: string) => ['itinerary', id] as const,
   rsvps: (id: string) => ['rsvps', id] as const,
   itineraryComments: (itemId: string) => ['itineraryComments', itemId] as const,
@@ -123,6 +127,14 @@ export const useDocuments = (id: string) => useQuery({ queryKey: keys.documents(
 export const useTasks = (id: string) => useQuery({ queryKey: keys.tasks(id), queryFn: () => api.listTasks(id), enabled: !!id });
 export const useChallenges = (id: string) =>
   useQuery({ queryKey: keys.challenges(id), queryFn: () => api.listChallenges(id), enabled: !!id });
+/** Trip Fun: which features are on (five minutes is fresh enough). */
+export const useFunCatalogue = () => useQuery({ queryKey: keys.funCatalogue, queryFn: api.listFunCatalogue, staleTime: 5 * 60_000 });
+export const useFunEntries = (id: string) => useQuery({ queryKey: keys.tripFun(id), queryFn: () => api.listFunEntries(id), enabled: !!id });
+export const useFunVotes = (id: string) => useQuery({ queryKey: keys.tripFunVotes(id), queryFn: () => api.listFunVotes(id), enabled: !!id });
+/** All of a trip's posts, oldest first (scrapbook and timeline). */
+export const useTripPosts = (id: string) => useQuery({ queryKey: keys.tripPosts(id), queryFn: () => api.listTripPosts(id), enabled: !!id });
+export const useMemories = (id: string) => useQuery({ queryKey: keys.memories(id), queryFn: () => api.listMemories(id), enabled: !!id });
+export const useStamps = () => useQuery({ queryKey: keys.stamps, queryFn: api.listStamps, staleTime: 0 });
 export const useAchievements = (userId: string | undefined) =>
   useQuery({ queryKey: keys.achievements(userId ?? ''), queryFn: () => api.getAchievements(userId!), enabled: !!userId });
 export const useItinerary = (id: string) =>
@@ -185,6 +197,7 @@ export function useTripRealtime(tripId: string) {
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'trip_posts', filter }, () => {
         qc.invalidateQueries({ queryKey: keys.feed(tripId) });
+        qc.invalidateQueries({ queryKey: keys.tripPosts(tripId) });
         qc.invalidateQueries({ queryKey: keys.recentPosts });
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'post_reactions', filter }, (payload) => {
@@ -243,6 +256,9 @@ export function useTripRealtime(tripId: string) {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'trip_fun_votes', filter }, () => {
         qc.invalidateQueries({ queryKey: keys.tripFunVotes(tripId) });
       })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'trip_memories', filter }, () => {
+        qc.invalidateQueries({ queryKey: keys.memories(tripId) });
+      })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'trip_members', filter }, () => {
         // The trip too: a role change means the organizer changed (the old one deleted their account).
         qc.invalidateQueries({ queryKey: keys.trip(tripId) });
@@ -253,7 +269,7 @@ export function useTripRealtime(tripId: string) {
       })
       .on('system', {}, (msg) => {
         if (!isListenerReady(msg)) return;
-        for (const key of [keys.trip, keys.availability, keys.stays, keys.bookings, keys.documents, keys.locations, keys.members, keys.bills, keys.shares, keys.settlements, keys.places, keys.kitties, keys.kittyCash, keys.itinerary, keys.rsvps, keys.feed, keys.suggestions, keys.polls, keys.tasks, keys.challenges, keys.tripFun, keys.tripFunVotes]) {
+        for (const key of [keys.trip, keys.availability, keys.stays, keys.bookings, keys.documents, keys.locations, keys.members, keys.bills, keys.shares, keys.settlements, keys.places, keys.kitties, keys.kittyCash, keys.itinerary, keys.rsvps, keys.feed, keys.suggestions, keys.polls, keys.tasks, keys.challenges, keys.tripFun, keys.tripFunVotes, keys.tripPosts, keys.memories]) {
           qc.invalidateQueries({ queryKey: key(tripId) });
         }
       })

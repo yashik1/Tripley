@@ -41,6 +41,8 @@ describe('toResult', () => {
       lng: -9.1458,
       category: 'amenity:food_court',
       short: 'Time Out Market, Portugal',
+      country: 'Portugal',
+      countryCode: 'PT',
     });
   });
 

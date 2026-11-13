@@ -87,6 +87,7 @@ export default function NewPost() {
         qc.invalidateQueries({ queryKey: keys.feed(id) }),
         qc.invalidateQueries({ queryKey: keys.recentPosts }),
         qc.invalidateQueries({ queryKey: keys.challenges(id) }),
+        qc.invalidateQueries({ queryKey: keys.tripPosts(id) }),
       ]);
       if (router.canGoBack()) router.back();
       else router.replace({ pathname: '/trip/[id]/feed', params: { id } });
