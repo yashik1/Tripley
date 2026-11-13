@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useMembers } from '@/lib/queries';
 import { supabase } from '@/lib/supabase';
 
@@ -31,6 +31,7 @@ export default function TripFunScreen() {
   if(!v.error)setVotes((v.data??[]) as Vote[]); setLoading(false);
  },[id]);
  useEffect(()=>{void load()},[load]);
+ useEffect(()=>{if(!id)return;const channel=supabase.channel('trip-fun-screen:'+id).on('postgres_changes',{event:'*',schema:'public',table:'trip_fun_entries',filter:'trip_id=eq.'+id},()=>{void load()}).on('postgres_changes',{event:'*',schema:'public',table:'trip_fun_votes',filter:'trip_id=eq.'+id},()=>{void load()}).subscribe();return()=>{void supabase.removeChannel(channel)}},[id,load]);
  const add=async(kind:Kind,preset?:string)=>{
   const name=(preset??title).trim(); if(!name||!user)return;
   if(kind==='mission'&&!assignee){Alert.alert('Choose a traveller','Secret missions need someone to receive them.');return}
@@ -58,7 +59,7 @@ export default function TripFunScreen() {
    feature==='awards'?<View style={{gap:10}}>{awards.map(([key,label])=>{const mine=votes.find(v=>v.award_key===key&&v.voter_id===user);return <View key={key} style={panel}><Text style={tileTitle}>🏅 {label}</Text><Text style={muted}>{mine?'Your vote is saved. Tap another name to change it.':'Who deserves this one?'}</Text>{members.map(m=>{const n=m.user_id, count=votes.filter(v=>v.award_key===key&&v.nominee_id===n).length;return <Pressable key={n} disabled={n===user} onPress={()=>void vote(key,n)} style={[voteRow,mine?.nominee_id===n?{backgroundColor:'#EAF0FF'}:null]}><Text style={{color:n===user?'#94A3B8':'#26344D'}}>{m.profile?.display_name||'Traveller'}{n===user?' (you)':''}</Text><Text style={{color:'#315FC4',fontWeight:'700'}}>{count} votes {mine?.nominee_id===n?'✓':''}</Text></Pressable>})}</View>})}</View>:
    feature==='timeline'?<View style={{gap:9}}>{visible.length?visible.map(e=><EntryCard key={e.id} e={e} name={name} complete={()=>void complete(e)}/>):<Empty text="Your trip story will appear here as you add food finds, songs, missions and challenges."/>}</View>:
    <View style={{gap:12}}>
-    {feature==='scavenger'?<View style={panel}><Text style={tileTitle}>Starter challenges</Text>{hunt.map((h,i)=><Pressable key={h} onPress={()=>void add('scavenger',h)} style={{paddingVertical:8,borderBottomWidth:i===hunt.length-1?0:1,borderColor:'#EEF1F6'}}><Text style={{color:'#315FC4'}}>＋ {h}</Text></Pressable>)}</View>:null}
+    {feature==='scavenger'?<View style={panel}><Text style={tileTitle}>Starter challenges</Text>{hunt.map((h,i)=><Pressable key={h} onPress={()=>void add('scavenger',h)} style={{paddingVertical:8,borderBottomWidth:i===hunt.length-1?0:1,borderColor:'#EEF1F6'}}><Text style={{color:'#315FC4'}}>＋ {h}</Text></Pressable>)}<Pressable onPress={()=>router.push(`/trip/${id}/post/new`)} style={{padding:10,backgroundColor:'#EAF0FF',borderRadius:9}}><Text style={{color:'#315FC4',fontWeight:'700'}}>📸 Add photo proof in the trip feed</Text></Pressable></View>:null}
     <View style={panel}><Text style={tileTitle}>{addLabel}</Text><TextInput value={title} onChangeText={setTitle} placeholder={feature==='mission'?'e.g. Get the group to say “wow”':feature==='soundtrack'?'Song title — artist':feature==='food'?'Dish or place name':'Challenge title'} placeholderTextColor="#94A3B8" style={input}/><TextInput value={details} onChangeText={setDetails} placeholder={feature==='soundtrack'?'Music link or memory (optional)':'Add a note (optional)'} placeholderTextColor="#94A3B8" multiline style={[input,{minHeight:70,textAlignVertical:'top'}]}/>
     {feature==='mission'?<View style={{gap:7}}><Text style={muted}>Assign to</Text>{members.filter(m=>m.user_id!==user).map(m=><Pressable key={m.user_id} onPress={()=>setAssignee(m.user_id)} style={[voteRow,assignee===m.user_id?{backgroundColor:'#EAF0FF'}:null]}><Text style={{color:'#26344D'}}>{m.profile?.display_name||'Traveller'} {assignee===m.user_id?'✓':''}</Text></Pressable>)}</View>:null}
     <Pressable disabled={saving||!title.trim()} onPress={()=>kind&&void add(kind)} style={[primary,{opacity:saving||!title.trim()?0.5:1}]}><Text style={white}>{saving?'Saving…':addLabel}</Text></Pressable></View>
