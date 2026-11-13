@@ -8,6 +8,9 @@ export type Profile = {
   payment_handles: PaymentHandles;
   notification_prefs?: NotificationPrefs;
   show_achievements?: boolean;
+  /** How the app looks for you: System, Light or Dark, and a colour palette. */
+  appearance?: 'system' | 'light' | 'dark';
+  palette?: 'teal' | 'ocean' | 'sunset' | 'forest' | 'lavender' | 'midnight' | 'berry';
 };
 
 export type Account = {
@@ -54,7 +57,11 @@ export type Trip = {
   date_length: number | null;
   /** Cover photo in the private trip-photos bucket (shown through a signed link). */
   cover_path: string | null;
+  /** Trip theme (set by the organizer): colours, cover art and ideas. */
+  theme?: TripTheme | null;
 };
+
+export type TripTheme = 'beach' | 'ski' | 'city' | 'road_trip' | 'camping' | 'celebration';
 
 export type TripMemberPreview = { user_id: string; profile: { display_name: string; avatar_url: string | null } | null };
 

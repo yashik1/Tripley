@@ -34,14 +34,15 @@ export default function SuggestIdea() {
   const fix = useMyFix();
   const near = useSearchNear(id);
   // Pre-filled from a search on the map.
-  const params = useLocalSearchParams<{ name?: string; address?: string; lat?: string; lng?: string }>();
+  const params = useLocalSearchParams<{ name?: string; address?: string; lat?: string; lng?: string; category?: string }>();
   const fromMap =
     params.lat && params.lng && Number.isFinite(Number(params.lat)) && Number.isFinite(Number(params.lng))
       ? { lat: Number(params.lat), lng: Number(params.lng) }
       : null;
   const base = trip?.base_currency ?? 'USD';
   const days = useMemo(() => planDays(trip ?? { starts_on: null, ends_on: null }, itinerary.data ?? [], todayISO()), [trip, itinerary.data]);
-  const [category, setCategory] = useState<SuggestionCategory>('food');
+  // Pre-filled from a trip-theme starter ("Ideas for a beach trip").
+  const [category, setCategory] = useState<SuggestionCategory>(CATEGORIES.find((c) => c.key === params.category)?.key ?? 'food');
   const [name, setName] = useState((params.name ?? '').slice(0, 120));
   const [description, setDescription] = useState('');
   const [address, setAddress] = useState((params.address ?? '').slice(0, 300));

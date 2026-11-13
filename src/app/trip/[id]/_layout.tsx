@@ -3,7 +3,8 @@ import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { IconButton, Row } from '@/components/ui';
 import { useTrip, useTripRealtime } from '@/lib/queries';
 import { TripIdContext } from '@/lib/trip-context';
-import { space, useTheme } from '@/theme';
+import { themeInfo } from '@/lib/trip-themes';
+import { space, TripPaletteContext, useTheme } from '@/theme';
 
 // Deep links (notifications, /trip/x/invite) open on top of the trip tabs.
 export const unstable_settings = { initialRouteName: '(tabs)' };
@@ -14,8 +15,12 @@ export default function TripLayout() {
   const trip = useTrip(id);
   useTripRealtime(id);
 
+  // A trip with a theme uses that theme's colours on every trip screen.
+  const tripPalette = themeInfo(trip.data?.theme)?.palette ?? null;
+
   return (
     <TripIdContext.Provider value={id}>
+    <TripPaletteContext.Provider value={tripPalette}>
     <Stack
       screenOptions={{
         headerStyle: { backgroundColor: t.surface },
@@ -82,6 +87,7 @@ export default function TripLayout() {
       <Stack.Screen name="memories" options={{ title: 'Trip memories' }} />
       <Stack.Screen name="post/[postId]" options={{ title: 'Post' }} />
     </Stack>
+    </TripPaletteContext.Provider>
     </TripIdContext.Provider>
   );
 }

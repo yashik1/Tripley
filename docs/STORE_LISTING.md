@@ -30,6 +30,8 @@ Avoid competitor names in keywords (Apple rejects them).
 >
 > **Rooms, packing and more.** Pick beds and split the stay by room, get packing suggestions for the weather and share group tasks.
 >
+> **Make it yours.** Light or dark, seven colours, and a theme for each trip (beach, ski, city break, road trip, camping, celebration) with its own cover art and packing and activity ideas.
+>
 > **Trip Fun.** A shared scrapbook of the trip, day by day; a scavenger hunt with photo proof; trip awards; a soundtrack; the group's food finds; a timeline of everything that happened; and your own travel passport of countries and cities.
 >
 > Free for the whole group. Tripley Pro adds AI helpers: reading receipts and booking confirmations, and drafting a plan from your bucket list.

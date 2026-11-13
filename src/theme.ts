@@ -1,82 +1,52 @@
+import { createContext, useContext } from 'react';
 import { useColorScheme } from 'react-native';
 
-// Travel palette: warm off-white, deep ink text, teal as the brand colour with
-// coral and sunny yellow accents. Buttons use the deep teal so white text on
-// them stays readable (WCAG AA); the brighter teal is for accents and progress.
-const light = {
-  scheme: 'light' as 'light' | 'dark',
-  bg: '#F7F8F5',
-  surface: '#FFFFFF',
-  surfaceAlt: '#EEF2EF',
-  border: '#E5EBE8',
-  text: '#172B3A',
-  textMuted: '#5F707B',
-  textFaint: '#6C7B85',
-  primary: '#117C78',
-  primaryPressed: '#0D6663',
-  primaryText: '#FFFFFF',
-  primarySoft: '#E6F5F2',
-  accent: '#18A999',
-  coral: '#FF806E',
-  coralText: '#B4422F',
-  coralSoft: '#FFE8E3',
-  yellow: '#F5C451',
-  yellowText: '#8A6206',
-  yellowSoft: '#FDF3D7',
-  sky: '#4C8DF6',
-  skySoft: '#E3EEFF',
-  danger: '#C93B3B',
-  dangerSoft: '#FBE7E7',
-  success: '#1F8A4C',
-  successSoft: '#E1F4E8',
-  warning: '#A36A0F',
-  warningSoft: '#FCF1DC',
-  overlay: 'rgba(23,43,58,0.45)',
-  /** Soft elevation for cards (CSS box-shadow syntax, supported on iOS, Android and web). */
-  shadow: '0px 1px 2px rgba(23,43,58,0.05), 0px 6px 16px rgba(23,43,58,0.06)',
-  shadowRaised: '0px 2px 4px rgba(23,43,58,0.06), 0px 12px 28px rgba(23,43,58,0.10)',
+import { buildTheme, type AppearancePref, type PaletteKey, type Theme } from './lib/palettes';
+
+export {
+  brand,
+  buildTheme,
+  isAppearancePref,
+  isPaletteKey,
+  PALETTE_KEYS,
+  PALETTES,
+  type AppearancePref,
+  type PaletteKey,
+  type Theme,
+} from './lib/palettes';
+
+// ------------------------------------------------------------------ preferences
+
+export type ThemePrefs = {
+  appearance: AppearancePref;
+  palette: PaletteKey;
+  setAppearance: (appearance: AppearancePref) => void;
+  setPalette: (palette: PaletteKey) => void;
+  /** Set when saving to your account failed (the change still applies on this device). */
+  saveError: string | null;
 };
+export const DEFAULT_PREFS = { appearance: 'system' as AppearancePref, palette: 'teal' as PaletteKey };
 
-const dark: typeof light = {
-  scheme: 'dark',
-  bg: '#0E181D',
-  surface: '#152329',
-  surfaceAlt: '#1D2F36',
-  border: '#27393F',
-  text: '#EEF3F2',
-  textMuted: '#A2B2B7',
-  textFaint: '#7D8E94',
-  primary: '#2EC4B2',
-  primaryPressed: '#25A999',
-  primaryText: '#03201D',
-  primarySoft: '#123B37',
-  accent: '#2EC4B2',
-  coral: '#FF8F7E',
-  coralText: '#FFAB9E',
-  coralSoft: '#3D2420',
-  yellow: '#F5C451',
-  yellowText: '#F5C451',
-  yellowSoft: '#3A3118',
-  sky: '#7AABFF',
-  skySoft: '#1B2B45',
-  danger: '#EF6B6B',
-  dangerSoft: '#3A1D1D',
-  success: '#4CC27D',
-  successSoft: '#163323',
-  warning: '#E3A43A',
-  warningSoft: '#3A2D15',
-  overlay: 'rgba(0,0,0,0.6)',
-  shadow: '0px 1px 2px rgba(0,0,0,0.35)',
-  shadowRaised: '0px 6px 20px rgba(0,0,0,0.45)',
-};
+/** Your appearance and colour (src/providers/ThemePrefsProvider.tsx fills this in). */
+export const ThemePrefsContext = createContext<ThemePrefs>({ ...DEFAULT_PREFS, setAppearance: () => undefined, setPalette: () => undefined, saveError: null });
+/** Inside a trip that has a theme: the trip's palette, which replaces yours there. */
+export const TripPaletteContext = createContext<PaletteKey | null>(null);
 
-/** Brand colours for places with no theme (map markers, app icon, manifest). */
-export const brand = { teal: '#117C78', brightTeal: '#18A999', coral: '#FF806E', yellow: '#F5C451', ink: '#172B3A' };
+export const useThemePrefs = () => useContext(ThemePrefsContext);
 
-export type Theme = typeof light;
+/** Light or dark: your choice, or the device's when you chose System. */
+export function useResolvedScheme(): 'light' | 'dark' {
+  const system = useColorScheme();
+  const { appearance } = useContext(ThemePrefsContext);
+  if (appearance !== 'system') return appearance;
+  return system === 'dark' ? 'dark' : 'light';
+}
 
 export function useTheme(): Theme {
-  return useColorScheme() === 'dark' ? dark : light;
+  const scheme = useResolvedScheme();
+  const { palette } = useContext(ThemePrefsContext);
+  const tripPalette = useContext(TripPaletteContext);
+  return buildTheme(scheme, tripPalette ?? palette);
 }
 
 export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 };

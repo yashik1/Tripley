@@ -5,13 +5,14 @@ import { useState } from 'react';
 import { CurrencyPicker } from '@/components/CurrencyPicker';
 import { DateTimeField } from '@/components/DateTimeField';
 import { FoundNote, PlaceField } from '@/components/PlaceField';
+import { TripThemePicker } from '@/components/TripThemePicker';
 import { Banner, Button, Card, Chip, Field, Row, Screen, Text } from '@/components/ui';
 import { createTrip, startTripFromTemplate } from '@/lib/api';
 import { errorMessage } from '@/lib/errors';
 import type { GeoResult } from '@/lib/geocode';
 import { isISODate } from '@/lib/format';
 import { keys, useTemplates } from '@/lib/queries';
-import type { TripTemplate } from '@/lib/types';
+import type { TripTemplate, TripTheme } from '@/lib/types';
 import { useAuth } from '@/providers/AuthProvider';
 import { space } from '@/theme';
 
@@ -26,6 +27,7 @@ export default function NewTrip() {
   const [currency, setCurrency] = useState(params.currency && /^[A-Z]{3}$/.test(params.currency) ? params.currency : profile?.default_currency ?? 'USD');
   const [start, setStart] = useState('');
   const [end, setEnd] = useState('');
+  const [theme, setTheme] = useState<TripTheme | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const templates = useTemplates();
@@ -63,6 +65,7 @@ export default function NewTrip() {
         destination: destination.trim() || null,
         destination_lat: found ? found.lat : null,
         destination_lng: found ? found.lng : null,
+        theme,
       });
       await Promise.all([
         qc.invalidateQueries({ queryKey: keys.trips }),
@@ -124,6 +127,8 @@ export default function NewTrip() {
         maxLength={80}
       />
       <FoundNote found={found} typed={destination} testID="trip-destination-note" />
+      <Text variant="label" muted>Trip theme (optional)</Text>
+      <TripThemePicker value={theme} onChange={setTheme} />
       <CurrencyPicker label="Trip currency" value={currency} onChange={setCurrency} />
       <Text variant="caption" faint>
         Balances are shown in this currency. Bills in other currencies are converted automatically.

@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { View } from 'react-native';
 
-import { ChangePasswordCard, InviteFriendsCard, NotificationPrefsCard, PassportCard, SaveAccountCard } from '@/components/AccountCards';
+import { AppearanceCard, ChangePasswordCard, InviteFriendsCard, NotificationPrefsCard, PassportCard, SaveAccountCard } from '@/components/AccountCards';
 import { CurrencyPicker } from '@/components/CurrencyPicker';
 import { LegalLinks } from '@/components/Legal';
 import { Avatar, Banner, Button, Card, Field, Row, Screen, SectionTitle, Stack, Text } from '@/components/ui';
@@ -135,6 +135,8 @@ export default function Profile() {
         </Row>
       </Card>
       <PassportCard />
+
+      <AppearanceCard />
 
       <NotificationPrefsCard />
 

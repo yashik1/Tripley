@@ -95,7 +95,7 @@ export default function Prepare() {
   const nights = trip?.starts_on && trip.ends_on ? Math.round((Date.parse(trip.ends_on) - Date.parse(trip.starts_on)) / 86_400_000) : null;
   const suggested =
     list === 'packing'
-      ? packingSuggestions({ nights, weather: weather.data ?? null, bookingKinds: (bookings.data ?? []).map((b) => b.kind), existing: items.map((i) => i.title) })
+      ? packingSuggestions({ nights, weather: weather.data ?? null, bookingKinds: (bookings.data ?? []).map((b) => b.kind), existing: items.map((i) => i.title), theme: trip?.theme })
       : [];
 
   const row = (task: TripTask) => (

@@ -35,6 +35,8 @@ Group trips without the "where are you?" texts and the spreadsheet at the end.
 - **More ways to pay.** Pix (Brazil) and PromptPay (Thailand) QR codes, alongside UPI, Venmo, SEPA and the rest.
 - **Keep sharing on.** On Android, step-by-step help for the phone's maker (Samsung, Xiaomi, OnePlus…) so battery savers don't stop location sharing.
 - **Invite friends.** Share your invite link; when a friend signs up and goes on a trip with someone, you both get a month of Pro (up to 6 a year).
+- **Trip Fun.** One tile opens a scrapbook of the trip day by day, your own travel passport (countries, cities, milestones), a scavenger hunt with photo proof, trip awards, a soundtrack, the group's food finds and a living timeline of everything that happened.
+- **Themes.** Choose how the app looks: System, Light or Dark, and a colour (Teal, Ocean, Sunset, Forest, Lavender, Midnight or Berry), saved to your account so every device matches. The organizer can give a trip a theme (Beach, Ski, City break, Road trip, Camping or Celebration): it sets the trip's colours and cover art and suggests packing, scavenger-hunt and bucket-list ideas. Every colour passes WCAG AA contrast (`tests/unit/theme.test.ts`).
 - **Free + Pro.** Everything is free except the **AI helpers** (Tripley Pro), which share one monthly allowance: **receipt reading** (items, prices, tax and tip filled in), **booking reading** (a confirmation PDF, screenshot or photo becomes a booking to check) and **plan drafts** (a day-by-day draft from your bucket list, votes and bookings, for the group to pick from).
 
 One codebase (Expo / React Native) runs on iPhone, Android and the web. Backend is Supabase (Postgres, Auth, Realtime, Storage, Edge Functions).

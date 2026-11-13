@@ -81,7 +81,7 @@ export async function getProfile(userId: string): Promise<Profile | null> {
 }
 
 export async function updateProfile(
-  patch: Partial<Pick<Profile, 'display_name' | 'avatar_url' | 'default_currency' | 'payment_handles'>>,
+  patch: Partial<Pick<Profile, 'display_name' | 'avatar_url' | 'default_currency' | 'payment_handles' | 'appearance' | 'palette'>>,
 ): Promise<void> {
   const id = await uid();
   check(await supabase.from('profiles').update(patch).eq('id', id));
@@ -158,6 +158,7 @@ export async function createTrip(input: {
   destination?: string | null;
   destination_lat?: number | null;
   destination_lng?: number | null;
+  theme?: Trip['theme'];
 }): Promise<Trip> {
   const organizer_id = await uid();
   return check(
@@ -168,7 +169,7 @@ export async function createTrip(input: {
 export async function updateTrip(
   id: string,
   patch: Partial<
-    Pick<Trip, 'name' | 'starts_on' | 'ends_on' | 'invite_enabled' | 'ended_at' | 'destination' | 'destination_lat' | 'destination_lng' | 'cover_path'>
+    Pick<Trip, 'name' | 'starts_on' | 'ends_on' | 'invite_enabled' | 'ended_at' | 'destination' | 'destination_lat' | 'destination_lng' | 'cover_path' | 'theme'>
   >,
 ): Promise<void> {
   check(await supabase.from('trips').update(patch).eq('id', id));

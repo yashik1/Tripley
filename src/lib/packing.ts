@@ -3,6 +3,8 @@
  * destination, and how you're getting there (bookings). Rules, not AI: free
  * for everyone, and they work offline once the weather is known.
  */
+import { themeInfo } from './trip-themes';
+import type { TripTheme } from './types';
 import type { TripWeather } from './weather';
 
 export type PackingSuggestion = { title: string; why: string };
@@ -15,6 +17,8 @@ export function packingSuggestions(input: {
   bookingKinds: string[];
   /** What's already on the list (anything similar isn't suggested again). */
   existing: string[];
+  /** The trip's theme (beach, ski…): its own essentials come first. */
+  theme?: TripTheme | null;
 }): PackingSuggestion[] {
   const out: PackingSuggestion[] = [];
   const add = (title: string, why: string, already: string[] = [title.toLowerCase()]) => {
@@ -27,6 +31,8 @@ export function packingSuggestions(input: {
     if (nights >= 7) add('Laundry bag', 'A week or more away', ['laundry']);
   }
   add('Phone charger', 'Every trip', ['charger']);
+  const theme = themeInfo(input.theme);
+  if (theme) for (const item of theme.packing) add(item.title, `${theme.label} trip`, item.match);
   const w = input.weather;
   if (w) {
     if (w.rainyDays > 0) add('Umbrella or rain jacket', `Rain on ${w.rainyDays} ${w.rainyDays === 1 ? 'day' : 'days'}`, ['umbrella', 'rain']);

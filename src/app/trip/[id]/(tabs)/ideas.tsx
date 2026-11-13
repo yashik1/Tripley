@@ -5,19 +5,23 @@ import { RefreshControl, ScrollView } from 'react-native';
 
 import { PlanSwitch, SuggestionCard } from '@/components/GroupDecisions';
 import { Skeleton } from '@/components/Travel';
-import { Button, Chip, EmptyState, Screen, Stack, Text } from '@/components/ui';
+import { Button, Card, Chip, EmptyState, Screen, Stack, Text } from '@/components/ui';
 import { CATEGORIES, rankSuggestions } from '@/lib/group-decisions';
 import { useSuggestions } from '@/lib/queries';
 import { useTripId } from '@/lib/trip-context';
 import { useTripData } from '@/lib/trip-hooks';
+import { themeIdeas, themeInfo } from '@/lib/trip-themes';
 import { space } from '@/theme';
 
 export default function Ideas() {
   const id = useTripId();
-  const { me, nameOf, isOrganizer, active } = useTripData(id);
+  const { trip, me, nameOf, isOrganizer, active } = useTripData(id);
   const ideas = useSuggestions(id);
   const [cat, setCat] = useState<string | null>(null);
   const list = rankSuggestions((ideas.data ?? []).filter((s) => !cat || s.category === cat));
+  // Starters for the trip's theme that nobody has suggested yet.
+  const theme = themeInfo(trip?.theme);
+  const starters = active && !ideas.isLoading ? themeIdeas(trip?.theme, (ideas.data ?? []).map((s) => s.name)) : [];
   return (
     <Screen
       refreshControl={<RefreshControl refreshing={ideas.isRefetching} onRefresh={() => { ideas.refetch(); }} />}
@@ -29,6 +33,23 @@ export default function Ideas() {
           <Chip key={c.key} label={`${c.emoji} ${c.label}`} selected={cat === c.key} onPress={() => setCat(cat === c.key ? null : c.key)} />
         ))}
       </ScrollView>
+      {theme && starters.length ? (
+        <Card testID="idea-theme-starters" style={{ gap: space.sm }}>
+          <Text variant="label">
+            {theme.emoji} Ideas for {theme.phrase}
+          </Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space.xs }}>
+            {starters.map((s) => (
+              <Chip
+                key={s.name}
+                label={`＋ ${s.name}`}
+                onPress={() => router.push({ pathname: '/trip/[id]/idea/new', params: { id, name: s.name, category: s.category } })}
+                testID={`idea-starter-${s.name}`}
+              />
+            ))}
+          </ScrollView>
+        </Card>
+      ) : null}
       {ideas.isLoading ? (
         <Stack gap={space.sm}>
           <Skeleton height={140} />

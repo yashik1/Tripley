@@ -20,13 +20,14 @@ import { CHALLENGE_IDEAS } from '@/lib/preparation';
 import { keys, useChallenges, useTripPosts } from '@/lib/queries';
 import { useTripId } from '@/lib/trip-context';
 import { useTripData } from '@/lib/trip-hooks';
+import { themeInfo } from '@/lib/trip-themes';
 import { radius, space, useTheme } from '@/theme';
 
 export default function ScavengerHunt() {
   const id = useTripId();
   const t = useTheme();
   const qc = useQueryClient();
-  const { me, nameOf, active } = useTripData(id);
+  const { trip, me, nameOf, active } = useTripData(id);
   const challenges = useChallenges(id);
   // Every post (not just the feed's first page), so older proof still shows.
   const posts = useTripPosts(id).data ?? [];
@@ -35,6 +36,9 @@ export default function ScavengerHunt() {
   const [own, setOwn] = useState('');
   const list = challenges.data ?? [];
   const started = new Set(list.map((c) => c.title.trim().toLowerCase()));
+  // The trip's theme (beach, ski…) suggests its own challenges first.
+  const theme = themeInfo(trip?.theme);
+  const themed = (theme?.challenges ?? []).filter((c) => !started.has(c.title.toLowerCase()));
   const done = list.filter((c) => c.challenge_entries.length > 0).length;
   const mineDone = list.filter((c) => c.challenge_entries.some((e) => e.user_id === me)).length;
 
@@ -134,7 +138,12 @@ export default function ScavengerHunt() {
               testID="challenge-own-start"
             />
           </Card>
-          {CHALLENGE_IDEAS.filter((c) => !started.has(c.title.toLowerCase())).map((c) => (
+          {theme && themed.length ? (
+            <Text variant="label" muted testID="hunt-theme-ideas">
+              {theme.emoji} For {theme.phrase}
+            </Text>
+          ) : null}
+          {[...themed, ...CHALLENGE_IDEAS.filter((c) => !started.has(c.title.toLowerCase()))].map((c) => (
             <Card key={c.title}>
               <Row gap={space.md}>
                 <Text style={{ fontSize: 22 }}>{c.emoji}</Text>

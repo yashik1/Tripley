@@ -17,6 +17,7 @@ import { useOutboxSync } from '@/lib/use-outbox-sync';
 import { configureNotificationHandling, registerForPush } from '@/notifications/push';
 import { AuthProvider, useAuth } from '@/providers/AuthProvider';
 import { SharingProvider } from '@/providers/SharingProvider';
+import { ThemePrefsProvider } from '@/providers/ThemePrefsProvider';
 import { setupPurchases } from '@/purchases/purchases';
 import { useTheme } from '@/theme';
 
@@ -39,7 +40,9 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <PersistQueryClientProvider client={queryClient} persistOptions={persistOptions}>
         <AuthProvider>
-          <AppNavigator />
+          <ThemePrefsProvider>
+            <AppNavigator />
+          </ThemePrefsProvider>
         </AuthProvider>
       </PersistQueryClientProvider>
     </SafeAreaProvider>

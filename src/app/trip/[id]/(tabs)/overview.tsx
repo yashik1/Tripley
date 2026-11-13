@@ -97,7 +97,7 @@ export default function TripOverview() {
       }>
       {/* Header */}
       <View testID="trip-overview" style={{ gap: space.md }}>
-        <TripCover seed={trip.id} path={trip.cover_path} height={190}>
+        <TripCover seed={trip.id} path={trip.cover_path} theme={trip.theme} height={190}>
           {status.countdown ? (
             <View style={{ position: 'absolute', top: space.md, left: space.md, backgroundColor: t.surface, borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 6, boxShadow: t.shadow }}>
               <Text variant="label">{status.kind === 'upcoming' ? '✈️ ' : '📍 '}{status.countdown}</Text>

@@ -98,6 +98,7 @@
     "test:e2e:templates-insights": "node tests/e2e/templates-insights.cjs",
     "test:e2e:referrals": "node tests/e2e/referrals.cjs",
     "test:e2e:trip-fun": "node tests/e2e/trip-fun.cjs",
+    "test:e2e:themes": "node tests/e2e/themes.cjs",
     "screens": "node tests/e2e/screens.cjs"
   },
   "private": true,

@@ -58,7 +58,7 @@ export default function Scrapbook() {
     <Screen footer={<Button title="Add a memory" icon="add" onPress={() => router.push(`/trip/${id}/fun/memory`)} testID="scrapbook-add" />}>
       {trip ? (
         <Stack gap={space.sm}>
-          <TripCover seed={trip.id} path={trip.cover_path} height={150} />
+          <TripCover seed={trip.id} path={trip.cover_path} theme={trip.theme} height={150} />
           <Text variant="title" accessibilityRole="header">{trip.name}</Text>
           <Text muted>{[trip.destination, formatDateRange(trip.starts_on, trip.ends_on)].filter(Boolean).join(' · ')}</Text>
           <Row gap={space.sm}>

@@ -9,6 +9,8 @@ import { Banner, Button, Card, Field, Loading, Row, Screen, SectionTitle, Stack,
 import { deleteTrip, leaveTrip, regenerateInviteCode, saveTripAsTemplate, setTripCover, updateMySharing, updateTrip } from '@/lib/api';
 import { pickPhoto } from '@/lib/photos';
 import { TripCover } from '@/components/Travel';
+import { TripThemePicker } from '@/components/TripThemePicker';
+import { themeInfo } from '@/lib/trip-themes';
 import { confirm } from '@/lib/confirm';
 import { errorMessage } from '@/lib/errors';
 import { isISODate } from '@/lib/format';
@@ -86,6 +88,11 @@ function TripSettingsForm({ id, trip, isOrganizer, active }: { id: string; trip:
     return (
       <Screen>
         <ArrivalAlertsCard tripId={id} />
+        {themeInfo(trip.theme) ? (
+          <Text testID="settings-theme-readonly">
+            Trip theme: {themeInfo(trip.theme)?.emoji} {themeInfo(trip.theme)?.label}
+          </Text>
+        ) : null}
         <Text muted>Only the organizer can change trip details.</Text>
         {error ? <Banner tone="danger">{error}</Banner> : null}
         <Button
@@ -109,7 +116,7 @@ function TripSettingsForm({ id, trip, isOrganizer, active }: { id: string; trip:
       <ArrivalAlertsCard tripId={id} />
       <Card>
         <Text variant="label">Cover photo</Text>
-        <TripCover seed={trip.id} path={trip.cover_path} height={140} />
+        <TripCover seed={trip.id} path={trip.cover_path} theme={trip.theme} height={140} />
         <Row>
           <Button
             title={trip.cover_path ? 'Change photo' : 'Add a cover photo'}
@@ -131,6 +138,11 @@ function TripSettingsForm({ id, trip, isOrganizer, active }: { id: string; trip:
           ) : null}
         </Row>
         <Text variant="caption" faint>Only people on the trip can see it.</Text>
+      </Card>
+      <Card testID="settings-theme">
+        <Text variant="label">Trip theme</Text>
+        <TripThemePicker value={trip.theme ?? null} disabled={busy === 'theme'} onChange={(theme) => run('theme', () => updateTrip(id, { theme }))} />
+        <Text variant="caption" faint>Sets the trip’s colours and cover art, and suggests packing, scavenger-hunt and bucket-list ideas. Everyone on the trip sees it.</Text>
       </Card>
       <Card>
         <Field label="Trip name" value={name} onChangeText={setName} maxLength={80} />

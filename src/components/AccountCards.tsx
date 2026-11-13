@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { Share, Switch, View } from 'react-native';
+import { Pressable, Share, Switch, View } from 'react-native';
 
 import { config } from '@/config';
 
@@ -11,9 +11,10 @@ import { keys, useAchievements } from '@/lib/queries';
 import { errorMessage } from '@/lib/errors';
 import type { NotificationPrefs } from '@/lib/types';
 import { useAuth } from '@/providers/AuthProvider';
-import { space, useTheme } from '@/theme';
+import { PALETTE_KEYS, PALETTES, space, useThemePrefs, useTheme, type AppearancePref } from '@/theme';
+import { Icon } from './Icon';
 import { PasswordField } from './AuthLayout';
-import { Banner, Button, Card, Field, Row, Stack, Text } from './ui';
+import { Banner, Button, Card, Chip, Field, Row, Stack, Text } from './ui';
 
 /** For guests: add an email and password to keep this account (same trips) and log in anywhere. */
 export function SaveAccountCard({ onSaved }: { onSaved?: () => void }) {
@@ -285,6 +286,64 @@ export function InviteFriendsCard({ guest }: { guest: boolean }) {
         <Button title="Use it" small onPress={claim} loading={busy} disabled={friendCode.trim().length !== 8} testID="referral-claim" />
       </Row>
       {note ? <Text variant="caption" muted testID="referral-note">{note}</Text> : null}
+    </Card>
+  );
+}
+
+/**
+ * How the app looks for you: System, Light or Dark, and a colour. Saved to
+ * your account, so every device you sign in on matches.
+ */
+export function AppearanceCard() {
+  const t = useTheme();
+  const { appearance, palette, setAppearance, setPalette, saveError } = useThemePrefs();
+  const modes: { value: AppearancePref; label: string }[] = [
+    { value: 'system', label: 'System' },
+    { value: 'light', label: 'Light' },
+    { value: 'dark', label: 'Dark' },
+  ];
+  return (
+    <Card testID="appearance">
+      <Text variant="heading">Appearance</Text>
+      <Row gap={space.sm} style={{ flexWrap: 'wrap' }}>
+        {modes.map((m) => (
+          <Chip key={m.value} label={m.label} selected={appearance === m.value} onPress={() => setAppearance(m.value)} testID={`appearance-${m.value}`} />
+        ))}
+      </Row>
+      <Text variant="label" muted>Colour</Text>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.md }} accessibilityRole="radiogroup">
+        {PALETTE_KEYS.map((k) => {
+          const chosen = palette === k;
+          const swatch = PALETTES[k][t.scheme].primary;
+          return (
+            <Pressable
+              key={k}
+              onPress={() => setPalette(k)}
+              accessibilityRole="radio"
+              accessibilityState={{ checked: chosen }}
+              accessibilityLabel={`${PALETTES[k].label} colour`}
+              testID={`palette-${k}`}
+              style={{ alignItems: 'center', gap: 4, width: 64 }}>
+              <View
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 20,
+                  backgroundColor: swatch,
+                  borderWidth: 3,
+                  borderColor: chosen ? t.text : 'transparent',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                {chosen ? <Icon name="check" size={18} color={PALETTES[k][t.scheme].primaryText} /> : null}
+              </View>
+              <Text variant="caption" muted={!chosen}>{PALETTES[k].label}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+      <Text variant="caption" faint>Trips with a theme use their own colours inside the trip.</Text>
+      {saveError ? <Text variant="caption" color={t.danger}>{saveError}</Text> : null}
     </Card>
   );
 }

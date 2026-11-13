@@ -85,11 +85,11 @@ export const PRIVACY: LegalDoc = {
       blocks: [
         {
           lead: 'Your account.',
-          text: 'Your name, your usual currency and, depending on how you sign in, your email address, your phone number, or the name and email address your Google or Apple account shares with us. Passwords are stored only in hashed form. A guest account has no email address or phone number.',
+          text: 'Your name, your usual currency and, depending on how you sign in, your email address, your phone number, or the name and email address your Google or Apple account shares with us. Passwords are stored only in hashed form. A guest account has no email address or phone number. We also keep how you chose the app to look (System, Light or Dark, and a colour) so it matches on every device.',
         },
         {
           lead: 'Trips and plans.',
-          text: 'Trip names, dates, destinations and cover photos; who is on each trip and who invited them; plans, RSVPs, comments, places you pin, ideas, polls and votes (including how you ranked the options), the days you said you can go, stays, rooms and who sleeps where, group tasks, scavenger hunt challenges, award votes, and your own packing list.',
+          text: 'Trip names, dates, destinations, themes and cover photos; who is on each trip and who invited them; plans, RSVPs, comments, places you pin, ideas, polls and votes (including how you ranked the options), the days you said you can go, stays, rooms and who sleeps where, group tasks, scavenger hunt challenges, award votes, and your own packing list.',
         },
         {
           lead: 'Your location, only if you share it.',
