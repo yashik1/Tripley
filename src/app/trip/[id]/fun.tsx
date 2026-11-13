@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMemo, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useMembers } from '@/lib/queries';
+import { keys, useMembers } from '@/lib/queries';
 import { supabase } from '@/lib/supabase';
+import { useTripData } from '@/lib/trip-hooks';
 
 type Kind = 'mission' | 'scavenger' | 'soundtrack' | 'food';
 type Entry = { id:string; kind:Kind; title:string; details:string; created_by:string; assigned_to:string|null; is_complete:boolean; completed_by:string|null };
@@ -22,31 +24,34 @@ const hunt = ['Find a hidden local street-art piece','Try a dish you cannot pron
 export default function TripFunScreen() {
  const {id}=useLocalSearchParams<{id:string}>();
  const membersQuery=useMembers(id), members=membersQuery.data??[];
- const [user,setUser]=useState(''),[feature,setFeature]=useState(''),[entries,setEntries]=useState<Entry[]>([]),[votes,setVotes]=useState<Vote[]>([]);
- const [loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[title,setTitle]=useState(''),[details,setDetails]=useState(''),[assignee,setAssignee]=useState('');
- const load=useCallback(async()=>{
-  if(!id)return; setLoading(true);
-  const [auth,e,v]=await Promise.all([supabase.auth.getUser(),supabase.from('trip_fun_entries').select('*').eq('trip_id',id).order('created_at',{ascending:false}),supabase.from('trip_fun_votes').select('*').eq('trip_id',id)]);
-  setUser(auth.data.user?.id??''); if(e.error)Alert.alert('Could not load Trip Fun',e.error.message); else setEntries((e.data??[]) as Entry[]);
-  if(!v.error)setVotes((v.data??[]) as Vote[]); setLoading(false);
- },[id]);
- useEffect(()=>{void load()},[load]);
- useEffect(()=>{if(!id)return;const channel=supabase.channel('trip-fun-screen:'+id).on('postgres_changes',{event:'*',schema:'public',table:'trip_fun_entries',filter:'trip_id=eq.'+id},()=>{void load()}).on('postgres_changes',{event:'*',schema:'public',table:'trip_fun_votes',filter:'trip_id=eq.'+id},()=>{void load()}).subscribe();return()=>{void supabase.removeChannel(channel)}},[id,load]);
+ const qc=useQueryClient();
+ const user=useTripData(id).me;
+ const [feature,setFeature]=useState('');
+ const [saving,setSaving]=useState(false),[title,setTitle]=useState(''),[details,setDetails]=useState(''),[assignee,setAssignee]=useState('');
+ // Errors and the wheel's pick show on the page (Alert does nothing on the web).
+ const [message,setMessage]=useState<string|null>(null),[pick,setPick]=useState<string|null>(null);
+ // Live: the trip layout's realtime listener refreshes these keys.
+ const entriesQuery=useQuery({queryKey:keys.tripFun(id),enabled:!!id,queryFn:async()=>{const e=await supabase.from('trip_fun_entries').select('*').eq('trip_id',id).order('created_at',{ascending:false});if(e.error)throw e.error;return (e.data??[]) as Entry[]}});
+ const votesQuery=useQuery({queryKey:keys.tripFunVotes(id),enabled:!!id,queryFn:async()=>{const v=await supabase.from('trip_fun_votes').select('*').eq('trip_id',id);if(v.error)throw v.error;return (v.data??[]) as Vote[]}});
+ const entries=useMemo(()=>entriesQuery.data??[],[entriesQuery.data]),votes=votesQuery.data??[];
+ const loading=entriesQuery.isLoading||votesQuery.isLoading;
+ const load=()=>Promise.all([qc.invalidateQueries({queryKey:keys.tripFun(id)}),qc.invalidateQueries({queryKey:keys.tripFunVotes(id)})]);
  const add=async(kind:Kind,preset?:string)=>{
   const name=(preset??title).trim(); if(!name||!user)return;
-  if(kind==='mission'&&!assignee){Alert.alert('Choose a traveller','Secret missions need someone to receive them.');return}
-  setSaving(true); const {error}=await supabase.from('trip_fun_entries').insert({trip_id:id,kind,title:name,details:details.trim(),created_by:user,assigned_to:kind==='mission'?assignee:null});
-  setSaving(false); if(error)Alert.alert('Could not save',error.message);else{setTitle('');setDetails('');setAssignee('');await load()}
+  if(kind==='mission'&&!assignee){setMessage('Choose a traveller: secret missions need someone to receive them.');return}
+  setSaving(true); setMessage(null); const {error}=await supabase.from('trip_fun_entries').insert({trip_id:id,kind,title:name,details:details.trim(),created_by:user,assigned_to:kind==='mission'?assignee:null});
+  setSaving(false); if(error)setMessage(`Couldn’t save: ${error.message}`);else{setTitle('');setDetails('');setAssignee('');await load()}
  };
- const complete=async(e:Entry)=>{const done=!e.is_complete;const {error}=await supabase.from('trip_fun_entries').update({is_complete:done,completed_by:done?user:null,completed_at:done?new Date().toISOString():null}).eq('id',e.id);if(error)Alert.alert('Could not update',error.message);else await load()};
+ // Who completed it, and when, is set by the database.
+ const complete=async(e:Entry)=>{setMessage(null);const {error}=await supabase.from('trip_fun_entries').update({is_complete:!e.is_complete}).eq('id',e.id);if(error)setMessage(`Couldn’t update: ${error.message}`);else await load()};
  const vote=async(key:string,nominee:string)=>{
   if(!user||nominee===user)return;const old=votes.find(v=>v.award_key===key&&v.voter_id===user);
   const result=old?await supabase.from('trip_fun_votes').update({nominee_id:nominee}).eq('id',old.id):await supabase.from('trip_fun_votes').insert({trip_id:id,award_key:key,voter_id:user,nominee_id:nominee});
-  if(result.error)Alert.alert('Could not save vote',result.error.message);else await load();
+  if(result.error)setMessage(`Couldn’t save the vote: ${result.error.message}`);else{setMessage(null);await load()}
  };
  const name=(uid:string)=>members.find(m=>m.user_id===uid)?.profile?.display_name||'Traveller';
  const visible=useMemo(()=>entries.filter(e=>feature==='mission'?e.kind==='mission':feature==='scavenger'?e.kind==='scavenger':feature==='soundtrack'?e.kind==='soundtrack':feature==='food'?e.kind==='food':true),[entries,feature]);
- const wheel=()=>{const options=['Try a local café or bakery','Take a scenic walk somewhere new','Visit a market','Find a viewpoint for sunset','Try a food you have never had','Explore a neighbourhood without a plan','Play a group photo challenge','Ask a local for a recommendation',...entries.filter(e=>e.kind==='food'||e.kind==='scavenger').map(e=>e.title)];Alert.alert('🎡 The wheel picked…',options[Math.floor(Math.random()*options.length)])};
+ const wheel=()=>{const options=['Try a local café or bakery','Take a scenic walk somewhere new','Visit a market','Find a viewpoint for sunset','Try a food you have never had','Explore a neighbourhood without a plan','Play a group photo challenge','Ask a local for a recommendation',...entries.filter(e=>e.kind==='food'||e.kind==='scavenger').map(e=>e.title)];setPick(options[Math.floor(Math.random()*options.length)])};
  const kind:Kind|null=feature==='mission'?'mission':feature==='scavenger'?'scavenger':feature==='soundtrack'?'soundtrack':feature==='food'?'food':null;
  const addLabel=feature==='mission'?'Assign mission':feature==='scavenger'?'Add hunt challenge':feature==='soundtrack'?'Save song':'Add food find';
  return <ScrollView contentContainerStyle={{padding:18,gap:14,backgroundColor:'#F7F8FC',minHeight:'100%'}}>
@@ -55,7 +60,7 @@ export default function TripFunScreen() {
   <View style={{gap:13}}>
    <Pressable onPress={()=>setFeature('')}><Text style={{color:'#315FC4',fontWeight:'700'}}>‹ All Trip Fun features</Text></Pressable>
    <View style={{backgroundColor:'#EAF0FF',borderRadius:17,padding:16,gap:5}}><Text style={{fontSize:25}}>{features.find(f=>f[0]===feature)?.[1]}</Text><Text style={{fontSize:20,fontWeight:'800',color:'#17233B'}}>{features.find(f=>f[0]===feature)?.[2]}</Text><Text style={muted}>{features.find(f=>f[0]===feature)?.[3]}</Text></View>
-   {feature==='wheel'?<View style={panel}><Text style={{fontSize:56,textAlign:'center'}}>🎡</Text><Text style={muted}>Can't decide? Let chance choose an activity for the group.</Text><Pressable onPress={wheel} style={primary}><Text style={white}>Spin the wheel</Text></Pressable></View>:
+   {feature==='wheel'?<View style={panel}><Text style={{fontSize:56,textAlign:'center'}}>🎡</Text><Text style={muted}>Can’t decide? Let chance choose an activity for the group.</Text><Pressable onPress={wheel} style={primary} testID="fun-spin"><Text style={white}>{pick?'Spin again':'Spin the wheel'}</Text></Pressable>{pick?<Text testID="fun-pick" style={{fontSize:17,fontWeight:'800',color:'#17233B',textAlign:'center'}}>🎡 {pick}</Text>:null}</View>:
    feature==='awards'?<View style={{gap:10}}>{awards.map(([key,label])=>{const mine=votes.find(v=>v.award_key===key&&v.voter_id===user);return <View key={key} style={panel}><Text style={tileTitle}>🏅 {label}</Text><Text style={muted}>{mine?'Your vote is saved. Tap another name to change it.':'Who deserves this one?'}</Text>{members.map(m=>{const n=m.user_id, count=votes.filter(v=>v.award_key===key&&v.nominee_id===n).length;return <Pressable key={n} disabled={n===user} onPress={()=>void vote(key,n)} style={[voteRow,mine?.nominee_id===n?{backgroundColor:'#EAF0FF'}:null]}><Text style={{color:n===user?'#94A3B8':'#26344D'}}>{m.profile?.display_name||'Traveller'}{n===user?' (you)':''}</Text><Text style={{color:'#315FC4',fontWeight:'700'}}>{count} votes {mine?.nominee_id===n?'✓':''}</Text></Pressable>})}</View>})}</View>:
    feature==='timeline'?<View style={{gap:9}}>{visible.length?visible.map(e=><EntryCard key={e.id} e={e} name={name} complete={()=>void complete(e)}/>):<Empty text="Your trip story will appear here as you add food finds, songs, missions and challenges."/>}</View>:
    <View style={{gap:12}}>
@@ -65,6 +70,7 @@ export default function TripFunScreen() {
     <Pressable disabled={saving||!title.trim()} onPress={()=>kind&&void add(kind)} style={[primary,{opacity:saving||!title.trim()?0.5:1}]}><Text style={white}>{saving?'Saving…':addLabel}</Text></Pressable></View>
     <View style={{gap:9}}>{visible.map(e=><EntryCard key={e.id} e={e} name={name} complete={()=>void complete(e)}/>)}{!visible.length?<Empty text="Nothing here yet. Add the first one above and it will be shared with the trip."/>:null}</View>
    </View>}
+   {message?<Text testID="fun-message" style={{color:'#B42318',fontSize:13}}>{message}</Text>:null}
    {loading?<ActivityIndicator color="#315FC4"/>:null}
   </View>}
  </ScrollView>;

@@ -59,6 +59,7 @@
     "start_trip_from_template",
     "toggle_reaction",
     "toggle_suggestion_vote",
+    "trip_fun_feature_available",
     "trip_is_active",
     "trip_preview",
     "try_uuid",

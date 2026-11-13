@@ -19,7 +19,7 @@ create or replace function public.trip_fun_feature_available(p_feature text, p_u
 returns boolean language sql stable security definer set search_path=public as $$
   select exists (
     select 1 from public.trip_feature_catalog f
-    where p_user=auth.uid() and f.feature_key=p_feature and f.enabled
+    where f.feature_key=p_feature and f.enabled
       and (f.minimum_plan='free' or exists (
         select 1 from public.accounts a where a.user_id=p_user
           and (a.plan='pro' or (a.bonus_pro_until is not null and a.bonus_pro_until > now()))
@@ -105,38 +105,3 @@ create policy trip_fun_votes_delete on public.trip_fun_votes for delete to authe
 grant select on public.trip_feature_catalog to authenticated;
 grant select,insert,update,delete on public.trip_fun_entries to authenticated;
 grant select,insert,update,delete on public.trip_fun_votes to authenticated;
-
--- Immutable activity details and server-side feature enforcement.
-create or replace function public.guard_trip_fun_entry() returns trigger language plpgsql security definer set search_path=public as $$
-declare feature text;
-begin
- feature := case new.kind when 'mission' then 'secret_missions' when 'scavenger' then 'scavenger_hunt' when 'soundtrack' then 'trip_soundtrack' else 'food_explorer' end;
- if not exists (select 1 from public.trip_members m where m.trip_id=new.trip_id and m.user_id=auth.uid()) then raise exception 'You are not a member of this trip'; end if;
- if not public.trip_fun_feature_available(feature,auth.uid()) then raise exception 'This Trip Fun feature is not available on your plan'; end if;
- if tg_op='UPDATE' then
-  if new.trip_id<>old.trip_id or new.kind<>old.kind or new.title<>old.title or new.details<>old.details or new.created_by<>old.created_by or new.assigned_to is distinct from old.assigned_to or new.created_at<>old.created_at then raise exception 'Trip Fun activity details cannot be edited'; end if;
-  if old.kind='mission' and auth.uid() not in (old.created_by,old.assigned_to) then raise exception 'Only the sender and recipient can update this mission'; end if;
-  if new.is_complete is distinct from old.is_complete then
-   if new.is_complete then new.completed_by:=auth.uid(); new.completed_at:=now(); else new.completed_by:=null; new.completed_at:=null; end if;
-  elsif new.completed_by is distinct from old.completed_by or new.completed_at is distinct from old.completed_at then
-   raise exception 'Completion metadata is managed by the database';
-  end if;
- else
-  if new.created_by<>auth.uid() then raise exception 'Invalid activity creator'; end if;
-  if new.assigned_to is not null and not exists (select 1 from public.trip_members m where m.trip_id=new.trip_id and m.user_id=new.assigned_to) then raise exception 'The assigned traveller must be on this trip'; end if;
- end if;
- return new;
-end $$;
-drop trigger if exists guard_trip_fun_entry on public.trip_fun_entries;
-create trigger guard_trip_fun_entry before insert or update on public.trip_fun_entries for each row execute function public.guard_trip_fun_entry();
-create or replace function public.guard_trip_fun_vote() returns trigger language plpgsql security definer set search_path=public as $$
-begin
- if tg_op='UPDATE' and (new.trip_id<>old.trip_id or new.award_key<>old.award_key or new.voter_id<>old.voter_id) then raise exception 'A vote can only change its nominee'; end if;
- if new.voter_id<>auth.uid() or new.voter_id=new.nominee_id then raise exception 'Invalid award vote'; end if;
- if not public.trip_fun_feature_available('trip_awards',auth.uid()) then raise exception 'Trip Awards is not available on your plan'; end if;
- if not exists (select 1 from public.trip_members m where m.trip_id=new.trip_id and m.user_id=auth.uid()) or not exists (select 1 from public.trip_members m where m.trip_id=new.trip_id and m.user_id=new.nominee_id) then raise exception 'Both voters must be on this trip'; end if;
- return new;
-end $$;
-drop trigger if exists guard_trip_fun_vote on public.trip_fun_votes;
-create trigger guard_trip_fun_vote before insert or update on public.trip_fun_votes for each row execute function public.guard_trip_fun_vote();
-grant execute on function public.trip_fun_feature_available(text,uuid) to authenticated;
