@@ -70,6 +70,7 @@ export default function TripLayout() {
       <Stack.Screen name="insights" options={{ title: 'Trip insights' }} />
       <Stack.Screen name="booking/new" options={{ title: 'Add a booking', presentation: 'modal' }} />
       <Stack.Screen name="challenges" options={{ title: 'Challenges' }} />
+      <Stack.Screen name="fun" options={{ title: 'Trip Fun' }} />
       <Stack.Screen name="memories" options={{ title: 'Trip memories' }} />
       <Stack.Screen name="post/[postId]" options={{ title: 'Post' }} />
     </Stack>
