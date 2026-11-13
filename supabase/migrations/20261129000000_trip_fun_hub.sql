@@ -116,6 +116,11 @@ begin
  if tg_op='UPDATE' then
   if new.trip_id<>old.trip_id or new.kind<>old.kind or new.title<>old.title or new.details<>old.details or new.created_by<>old.created_by or new.assigned_to is distinct from old.assigned_to or new.created_at<>old.created_at then raise exception 'Trip Fun activity details cannot be edited'; end if;
   if old.kind='mission' and auth.uid() not in (old.created_by,old.assigned_to) then raise exception 'Only the sender and recipient can update this mission'; end if;
+  if new.is_complete is distinct from old.is_complete then
+   if new.is_complete then new.completed_by:=auth.uid(); new.completed_at:=now(); else new.completed_by:=null; new.completed_at:=null; end if;
+  elsif new.completed_by is distinct from old.completed_by or new.completed_at is distinct from old.completed_at then
+   raise exception 'Completion metadata is managed by the database';
+  end if;
  else
   if new.created_by<>auth.uid() then raise exception 'Invalid activity creator'; end if;
   if new.assigned_to is not null and not exists (select 1 from public.trip_members m where m.trip_id=new.trip_id and m.user_id=new.assigned_to) then raise exception 'The assigned traveller must be on this trip'; end if;
