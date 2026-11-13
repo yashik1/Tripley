@@ -344,6 +344,7 @@ export default function TripOverview() {
             detail={`${challenges.data?.length ?? 0} going`}
             onPress={() => router.push(`/trip/${id}/challenges`)}
           />
+          <SectionTile icon="idea" title="Trip Fun" detail="Wheel, missions, food & memories" onPress={() => router.push(\x60/trip/${id}/fun\x60)} />
           <SectionTile icon="map" title="Map" detail={`${places.data?.length ?? 0} places pinned`} onPress={() => router.push(`/trip/${id}/map`)} />
           <SectionTile
             icon="wallet"
