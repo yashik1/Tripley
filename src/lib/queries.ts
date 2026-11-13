@@ -57,6 +57,8 @@ export const keys = {
   tasks: (id: string) => ['tasks', id] as const,
   achievements: (userId: string) => ['achievements', userId] as const,
   challenges: (id: string) => ['challenges', id] as const,
+  tripFun: (id: string) => ['tripFun', id] as const,
+  tripFunVotes: (id: string) => ['tripFunVotes', id] as const,
   itinerary: (id: string) => ['itinerary', id] as const,
   rsvps: (id: string) => ['rsvps', id] as const,
   itineraryComments: (itemId: string) => ['itineraryComments', itemId] as const,
@@ -235,6 +237,12 @@ export function useTripRealtime(tripId: string) {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'trip_challenges', filter }, () => {
         qc.invalidateQueries({ queryKey: keys.challenges(tripId) });
       })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'trip_fun_entries', filter }, () => {
+        qc.invalidateQueries({ queryKey: keys.tripFun(tripId) });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'trip_fun_votes', filter }, () => {
+        qc.invalidateQueries({ queryKey: keys.tripFunVotes(tripId) });
+      })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'trip_members', filter }, () => {
         // The trip too: a role change means the organizer changed (the old one deleted their account).
         qc.invalidateQueries({ queryKey: keys.trip(tripId) });
@@ -245,7 +253,7 @@ export function useTripRealtime(tripId: string) {
       })
       .on('system', {}, (msg) => {
         if (!isListenerReady(msg)) return;
-        for (const key of [keys.trip, keys.availability, keys.stays, keys.bookings, keys.documents, keys.locations, keys.members, keys.bills, keys.shares, keys.settlements, keys.places, keys.kitties, keys.kittyCash, keys.itinerary, keys.rsvps, keys.feed, keys.suggestions, keys.polls, keys.tasks, keys.challenges]) {
+        for (const key of [keys.trip, keys.availability, keys.stays, keys.bookings, keys.documents, keys.locations, keys.members, keys.bills, keys.shares, keys.settlements, keys.places, keys.kitties, keys.kittyCash, keys.itinerary, keys.rsvps, keys.feed, keys.suggestions, keys.polls, keys.tasks, keys.challenges, keys.tripFun, keys.tripFunVotes]) {
           qc.invalidateQueries({ queryKey: key(tripId) });
         }
       })
