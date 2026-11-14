@@ -11,6 +11,7 @@ import { View } from 'react-native';
 import { PhotoGrid } from '@/components/FeedPost';
 import { AvatarStack, TripCover } from '@/components/Travel';
 import { Banner, Button, Card, EmptyState, Row, Screen, SectionTitle, Stack, Text } from '@/components/ui';
+import { tripPlacePhoto } from '@/lib/place-photo';
 import { deleteMemory } from '@/lib/api';
 import { errorMessage } from '@/lib/errors';
 import { firstName, formatDateRange } from '@/lib/format';
@@ -58,7 +59,7 @@ export default function Scrapbook() {
     <Screen footer={<Button title="Add a memory" icon="add" onPress={() => router.push(`/trip/${id}/fun/memory`)} testID="scrapbook-add" />}>
       {trip ? (
         <Stack gap={space.sm}>
-          <TripCover seed={trip.id} path={trip.cover_path} theme={trip.theme} height={150} />
+          <TripCover seed={trip.id} path={trip.cover_path} theme={trip.theme} place={tripPlacePhoto(trip)} height={150} />
           <Text variant="title" accessibilityRole="header">{trip.name}</Text>
           <Text muted>{[trip.destination, formatDateRange(trip.starts_on, trip.ends_on)].filter(Boolean).join(' · ')}</Text>
           <Row gap={space.sm}>

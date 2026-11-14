@@ -89,7 +89,7 @@ export const PRIVACY: LegalDoc = {
         },
         {
           lead: 'Trips and plans.',
-          text: 'Trip names, dates, destinations, themes and cover photos; who is on each trip and who invited them; plans, RSVPs, comments, places you pin, ideas, polls and votes (including how you ranked the options), the days you said you can go, stays, rooms and who sleeps where, group tasks, scavenger hunt challenges, award votes, and your own packing list.',
+          text: 'Trip names, dates, destinations, themes, cover photos and the destination photo chosen from Wikipedia (its address and credit); who is on each trip and who invited them; plans, RSVPs, comments, places you pin, ideas, polls and votes (including how you ranked the options), the days you said you can go, stays, rooms and who sleeps where, group tasks, scavenger hunt challenges, award votes, and your own packing list.',
         },
         {
           lead: 'Your location, only if you share it.',
@@ -194,6 +194,7 @@ export const PRIVACY: LegalDoc = {
             'Photon by komoot: address and place search. It receives what you type into a search box, a rough area to search near (such as the trip’s destination) and your IP address, not the location you share.',
             'Frankfurter: exchange rates. No personal data is sent.',
             'Open-Meteo: the weather for packing suggestions. It receives the map point of the trip’s destination and the trip’s dates, and your IP address, not the location you share.',
+            'Wikipedia and Wikimedia Commons: a famous photo of the trip’s destination, shown with its photographer’s credit. They receive the destination’s name when the organizer’s device looks the photo up, and your IP address when a photo is shown, not the location you share.',
           ],
         },
         {

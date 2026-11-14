@@ -12,6 +12,7 @@ import { Brand } from '@/components/AuthLayout';
 import { Icon, type IconName } from '@/components/Icon';
 import { AvatarStack, Postcard, ProgressBar, QuickAction, Skeleton, StatusPill, TripCover } from '@/components/Travel';
 import { Avatar, Banner, Button, Card, Row, Screen, SectionTitle, Stack, Text } from '@/components/ui';
+import { tripPlacePhoto } from '@/lib/place-photo';
 import { respondToInvitation } from '@/lib/api';
 import { formatMoney } from '@/lib/currency';
 import { errorMessage } from '@/lib/errors';
@@ -275,7 +276,7 @@ function FeaturedTrip({ trip, stats }: { trip: TripWithCount; stats?: TripStats 
   return (
     <Card raised style={{ padding: 0, gap: 0, overflow: 'hidden' }} testID="featured-trip">
       <Pressable onPress={open} accessibilityRole="button" accessibilityLabel={`Open ${trip.name}`}>
-        <TripCover seed={trip.id} path={trip.cover_path} theme={trip.theme} height={168} rounded={0}>
+        <TripCover seed={trip.id} path={trip.cover_path} theme={trip.theme} place={tripPlacePhoto(trip)} height={168} rounded={0}>
           {status.countdown ? (
             <View style={{ position: 'absolute', top: space.md, left: space.md, backgroundColor: t.surface, borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 6, boxShadow: t.shadow }}>
               <Text variant="label" color={t.text} testID="featured-countdown">
@@ -390,7 +391,7 @@ export function TripCard({ trip, stats, me }: { trip: TripWithCount; stats?: Tri
   return (
     <Card onPress={() => router.push(`/trip/${trip.id}/overview`)} accessibilityLabel={`Open ${trip.name}`} testID={`trip-card-${trip.name}`}>
       <Row gap={space.md} align="flex-start">
-        <TripCover seed={trip.id} path={trip.cover_path} theme={trip.theme} height={72} rounded={radius.md} style={{ width: 72 }} />
+        <TripCover seed={trip.id} path={trip.cover_path} theme={trip.theme} place={tripPlacePhoto(trip)} height={72} rounded={radius.md} style={{ width: 72 }} />
         <View style={{ flex: 1, gap: 4 }}>
           <Row gap={space.sm} style={{ justifyContent: 'space-between' }}>
             <Text variant="heading" numberOfLines={1} style={{ flex: 1 }}>{trip.name}</Text>

@@ -11,6 +11,7 @@ import { Platform, Share, Switch, View } from 'react-native';
 import { PhotoGrid } from '@/components/FeedPost';
 import { AvatarStack, StatusPill, TripCover } from '@/components/Travel';
 import { Banner, Button, Card, Row, Screen, SectionTitle, Stack, Text } from '@/components/ui';
+import { tripPlacePhoto } from '@/lib/place-photo';
 import { formatMoney } from '@/lib/currency';
 import { firstName, formatDateRange, todayISO } from '@/lib/format';
 import { pollIsOpen, pollResults } from '@/lib/group-decisions';
@@ -98,7 +99,7 @@ export default function Memories() {
 
   return (
     <Screen footer={<Button title="Share the recap" icon="share" onPress={share} testID="recap-share" />}>
-      <TripCover seed={trip.id} path={trip.cover_path} theme={trip.theme} height={170} />
+      <TripCover seed={trip.id} path={trip.cover_path} theme={trip.theme} place={tripPlacePhoto(trip)} height={170} />
       <Stack gap={4}>
         <StatusPill kind={status.kind} label={status.kind === 'completed' ? 'Memories' : 'So far'} />
         <Text variant="title">{trip.name}</Text>

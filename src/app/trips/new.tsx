@@ -7,7 +7,7 @@ import { DateTimeField } from '@/components/DateTimeField';
 import { FoundNote, PlaceField } from '@/components/PlaceField';
 import { TripThemePicker } from '@/components/TripThemePicker';
 import { Banner, Button, Card, Chip, Field, Row, Screen, Text } from '@/components/ui';
-import { createTrip, startTripFromTemplate } from '@/lib/api';
+import { createTrip, refreshPlacePhoto, startTripFromTemplate } from '@/lib/api';
 import { errorMessage } from '@/lib/errors';
 import type { GeoResult } from '@/lib/geocode';
 import { isISODate } from '@/lib/format';
@@ -72,6 +72,12 @@ export default function NewTrip() {
         qc.invalidateQueries({ queryKey: keys.overview }),
         qc.invalidateQueries({ queryKey: keys.sharing }),
       ]);
+      // A famous photo of the destination for the cover, found in the background.
+      if (trip.destination) {
+        refreshPlacePhoto(trip)
+          .then(() => Promise.all([qc.invalidateQueries({ queryKey: keys.trip(trip.id) }), qc.invalidateQueries({ queryKey: keys.trips })]))
+          .catch(() => undefined);
+      }
       router.replace(`/trip/${trip.id}/invite`);
     } catch (e) {
       setError(errorMessage(e));

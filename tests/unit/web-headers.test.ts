@@ -14,7 +14,7 @@ describe('web security headers', () => {
     const csp = securityHeaders(env, true)['Content-Security-Policy'];
     expect(directive(csp, 'script-src')).toBe("script-src 'self'");
     expect(directive(csp, 'connect-src')).toBe(
-      "connect-src 'self' blob: data: https://api.tripley.test wss://api.tripley.test https://tiles.openfreemap.org https://api.frankfurter.dev https://photon.komoot.io https://api.open-meteo.com https://archive-api.open-meteo.com",
+      "connect-src 'self' blob: data: https://api.tripley.test wss://api.tripley.test https://tiles.openfreemap.org https://api.frankfurter.dev https://photon.komoot.io https://api.open-meteo.com https://archive-api.open-meteo.com https://en.wikipedia.org https://commons.wikimedia.org",
     );
     expect(directive(csp, 'img-src')).toBe("img-src 'self' data: blob: https: https://api.tripley.test");
     expect(csp).toContain("frame-ancestors 'none'");

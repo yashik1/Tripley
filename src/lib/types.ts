@@ -59,6 +59,14 @@ export type Trip = {
   cover_path: string | null;
   /** Trip theme (set by the organizer): colours, cover art and ideas. */
   theme?: TripTheme | null;
+  /** A famous photo of the destination from Wikipedia (Wikimedia Commons), with its credit. */
+  place_photo_url?: string | null;
+  place_photo_page?: string | null;
+  place_photo_credit?: string | null;
+  /** The destination the photo was looked up for (a new destination means a new lookup). */
+  place_photo_for?: string | null;
+  /** The organizer chose the illustration instead. */
+  place_photo_off?: boolean;
 };
 
 export type TripTheme = 'beach' | 'ski' | 'city' | 'road_trip' | 'camping' | 'celebration';

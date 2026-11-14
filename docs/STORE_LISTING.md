@@ -30,7 +30,7 @@ Avoid competitor names in keywords (Apple rejects them).
 >
 > **Rooms, packing and more.** Pick beds and split the stay by room, get packing suggestions for the weather and share group tasks.
 >
-> **Make it yours.** Light or dark, seven colours, and a theme for each trip (beach, ski, city break, road trip, camping, celebration) with its own cover art and packing and activity ideas.
+> **Make it yours.** A famous photo of where you're going on every trip's cover, light or dark, seven colours, and a theme for each trip (beach, ski, city break, road trip, camping, celebration) with its own cover art and packing and activity ideas.
 >
 > **Trip Fun.** A shared scrapbook of the trip, day by day; a scavenger hunt with photo proof; trip awards; a soundtrack; the group's food finds; a timeline of everything that happened; and your own travel passport of countries and cities.
 >
@@ -57,7 +57,7 @@ Match these to the Privacy Policy (`src/lib/legal.ts`); update both together.
 |---|---|---|---|---|
 | Name, email, phone (sign-in) | Yes | Yes | App functionality, account | Phone only with phone sign-in |
 | Precise location | Yes (only while sharing is on and a trip is on) | Yes | App functionality | Latest position only; deleted when the trip ends or you leave |
-| Photos and files | Yes (what you choose to upload) | Yes | App functionality | Receipts, trip photos, booking documents |
+| Photos and files | Yes (what you choose to upload) | Yes | App functionality | Receipts, trip photos, booking documents. Destination photos come from Wikipedia (only their address and credit are stored) |
 | Financial info | Yes (bills, payment handles you add) | Yes | App functionality | No card or bank logins |
 | Purchase history | Yes (Pro status) | Yes | App functionality | Via the store and RevenueCat |
 | User content | Yes (plans, posts, polls, bookings, scrapbook memories, food finds, songs, award votes) | Yes | App functionality | Shared only with the trip's members |

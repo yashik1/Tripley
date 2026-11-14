@@ -99,6 +99,7 @@
     "test:e2e:referrals": "node tests/e2e/referrals.cjs",
     "test:e2e:trip-fun": "node tests/e2e/trip-fun.cjs",
     "test:e2e:themes": "node tests/e2e/themes.cjs",
+    "test:e2e:place-photo": "node tests/e2e/place-photo.cjs",
     "screens": "node tests/e2e/screens.cjs"
   },
   "private": true,

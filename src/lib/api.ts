@@ -6,6 +6,7 @@
 import { FunctionsHttpError } from '@supabase/supabase-js';
 
 import { extensionFor, type ReadBooking } from './documents';
+import { findPlacePhoto } from './place-photo';
 import { Platform } from 'react-native';
 
 import type { ShareRow, SettlementRow } from './balances';
@@ -169,7 +170,7 @@ export async function createTrip(input: {
 export async function updateTrip(
   id: string,
   patch: Partial<
-    Pick<Trip, 'name' | 'starts_on' | 'ends_on' | 'invite_enabled' | 'ended_at' | 'destination' | 'destination_lat' | 'destination_lng' | 'cover_path' | 'theme'>
+    Pick<Trip, 'name' | 'starts_on' | 'ends_on' | 'invite_enabled' | 'ended_at' | 'destination' | 'destination_lat' | 'destination_lng' | 'cover_path' | 'theme' | 'place_photo_off'>
   >,
 ): Promise<void> {
   check(await supabase.from('trips').update(patch).eq('id', id));
@@ -1278,4 +1279,50 @@ export async function addStamp(input: StampInput): Promise<void> {
 
 export async function deleteStamp(id: string): Promise<void> {
   check(await supabase.from('passport_stamps').delete().eq('id', id));
+}
+
+// ---------------------------------------------------------------- destination photo
+
+// Photos already shown for a trip this session, so "Find another photo" moves on.
+const seenPlacePhotos = new Map<string, string[]>();
+
+/**
+ * Look up a famous photo of the trip's destination on Wikipedia and save it on
+ * the trip (the organizer's device does this; members only show it).
+ * `another`: skip the photos already shown. Returns what happened, so the
+ * screen can say so. A network failure saves nothing, so it's tried again later.
+ */
+export async function refreshPlacePhoto(
+  trip: Pick<Trip, 'id' | 'destination' | 'place_photo_page'>,
+  opts: { another?: boolean } = {},
+): Promise<'found' | 'none' | 'no-more' | 'offline'> {
+  const destination = trip.destination?.trim() ?? '';
+  const clear = { place_photo_url: null, place_photo_page: null, place_photo_credit: null };
+  if (!destination) {
+    check(await supabase.from('trips').update({ ...clear, place_photo_for: null }).eq('id', trip.id));
+    return 'none';
+  }
+  const seen = opts.another ? [...(seenPlacePhotos.get(trip.id) ?? []), ...(trip.place_photo_page ? [trip.place_photo_page] : [])] : [];
+  let photo;
+  try {
+    photo = await findPlacePhoto(destination, { exclude: seen });
+  } catch {
+    return 'offline';
+  }
+  if (!photo) {
+    if (opts.another) {
+      seenPlacePhotos.delete(trip.id);
+      return 'no-more';
+    }
+    check(await supabase.from('trips').update({ ...clear, place_photo_for: destination }).eq('id', trip.id));
+    return 'none';
+  }
+  seenPlacePhotos.set(trip.id, [...seen, photo.page]);
+  check(
+    await supabase
+      .from('trips')
+      .update({ place_photo_url: photo.url, place_photo_page: photo.page, place_photo_credit: photo.credit, place_photo_for: destination })
+      .eq('id', trip.id),
+  );
+  return 'found';
 }

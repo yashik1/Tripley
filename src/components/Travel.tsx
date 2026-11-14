@@ -7,12 +7,13 @@
  */
 import { Image } from 'expo-image';
 import { useEffect, type ReactNode } from 'react';
-import { Pressable, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Linking, Pressable, View, type StyleProp, type ViewStyle } from 'react-native';
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 import Svg, { Circle, Defs, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
 
 import { usePhotoUrl } from '@/lib/queries';
 import type { TripStatusKind } from '@/lib/trip-status';
+import { themeInfo } from '@/lib/trip-themes';
 import type { TripTheme } from '@/lib/types';
 import { radius, space, useTheme } from '@/theme';
 import { Icon, type IconName } from './Icon';
@@ -202,13 +203,36 @@ export function Postcard({ seed, emoji, theme }: { seed: string; emoji?: string;
   );
 }
 
-/** The trip's cover photo (private, via a short-lived link), or a postcard. */
+/** A destination photo from Wikimedia Commons, with the credit its licence requires. */
+export type CoverPlacePhoto = { url: string; page: string; credit: string };
+
+/** A soft fade at the bottom of a photo, so the credit and badges stay readable. */
+function PhotoShade({ id }: { id: string }) {
+  return (
+    <Svg width="100%" height="100%" viewBox="0 0 1 1" preserveAspectRatio="none" style={{ position: 'absolute', inset: 0 }} pointerEvents="none">
+      <Defs>
+        <LinearGradient id={id} x1="0" y1="0" x2="0" y2="1">
+          <Stop offset="0.45" stopColor="#000" stopOpacity={0} />
+          <Stop offset="1" stopColor="#000" stopOpacity={0.5} />
+        </LinearGradient>
+      </Defs>
+      <Rect x="0" y="0" width="1" height="1" fill={`url(#${id})`} />
+    </Svg>
+  );
+}
+
+/**
+ * The trip's cover, from the top layer down: a photo the organizer uploaded
+ * (private, via a short-lived link); a famous photo of the destination (with
+ * its credit and the trip theme's emoji); the theme's scene or a postcard.
+ */
 export function TripCover({
   seed,
   path,
   height,
   rounded = radius.lg,
   theme,
+  place,
   children,
   style,
 }: {
@@ -217,15 +241,53 @@ export function TripCover({
   height: number;
   /** The trip's theme: its scene replaces the default illustration. */
   theme?: TripTheme | null;
+  /** A famous photo of the destination (src/lib/place-photo.ts). */
+  place?: CoverPlacePhoto | null;
   rounded?: number;
   children?: ReactNode;
   style?: StyleProp<ViewStyle>;
 }) {
   const t = useTheme();
   const url = usePhotoUrl(path);
+  const showPlace = !!place && !url.data;
+  const big = height >= 140;
+  const emoji = themeInfo(theme)?.emoji;
   return (
-    <View style={[{ height, borderRadius: rounded, overflow: 'hidden', backgroundColor: t.surfaceAlt }, style]}>
+    <View
+      style={[{ height, borderRadius: rounded, overflow: 'hidden', backgroundColor: t.surfaceAlt }, style]}
+      accessibilityLabel={showPlace && !big ? `Photo: ${place.credit}` : undefined}>
       <Postcard seed={seed} theme={theme} />
+      {showPlace ? (
+        <>
+          <Image
+            source={{ uri: place.url }}
+            style={{ position: 'absolute', inset: 0 }}
+            contentFit="cover"
+            transition={250}
+            accessibilityIgnoresInvertColors
+            testID="cover-place-photo"
+          />
+          {big ? <PhotoShade id={`shade${hash(seed)}`} /> : null}
+          {emoji && big ? (
+            <View style={{ position: 'absolute', top: space.md, right: space.md, backgroundColor: t.surface, borderRadius: radius.pill, width: 34, height: 34, alignItems: 'center', justifyContent: 'center', boxShadow: t.shadow }}>
+              <Text style={{ fontSize: 18 }}>{emoji}</Text>
+            </View>
+          ) : null}
+          {big ? (
+            <Pressable
+              onPress={() => Linking.openURL(place.page).catch(() => undefined)}
+              accessibilityRole="link"
+              accessibilityLabel={`Photo: ${place.credit}. Opens on Wikimedia Commons.`}
+              hitSlop={6}
+              testID="cover-credit"
+              style={{ position: 'absolute', left: space.sm, bottom: space.sm, maxWidth: '60%' }}>
+              <Text variant="caption" color="#fff" numberOfLines={1} style={{ fontSize: 11, textShadowColor: 'rgba(0,0,0,0.6)', textShadowRadius: 3 }}>
+                📷 {place.credit}
+              </Text>
+            </Pressable>
+          ) : null}
+        </>
+      ) : null}
       {url.data ? (
         <Image
           source={{ uri: url.data }}
@@ -236,6 +298,31 @@ export function TripCover({
         />
       ) : null}
       {children}
+    </View>
+  );
+}
+
+/**
+ * A soft, blurred copy of the destination photo behind the top of a page,
+ * fading into the background. Put it first inside a padded Screen.
+ */
+export function PlaceBackdrop({ url }: { url: string }) {
+  const t = useTheme();
+  return (
+    <View
+      pointerEvents="none"
+      testID="place-backdrop"
+      style={{ position: 'absolute', top: -space.lg, left: -space.lg, right: -space.lg, height: 360, overflow: 'hidden' }}>
+      <Image source={{ uri: url }} style={{ position: 'absolute', inset: 0, opacity: t.scheme === 'dark' ? 0.28 : 0.38 }} contentFit="cover" blurRadius={22} />
+      <Svg width="100%" height="100%" viewBox="0 0 1 1" preserveAspectRatio="none" style={{ position: 'absolute', inset: 0 }}>
+        <Defs>
+          <LinearGradient id="placeFade" x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0" stopColor={t.bg} stopOpacity={0.15} />
+            <Stop offset="1" stopColor={t.bg} stopOpacity={1} />
+          </LinearGradient>
+        </Defs>
+        <Rect x="0" y="0" width="1" height="1" fill="url(#placeFade)" />
+      </Svg>
     </View>
   );
 }

@@ -6,7 +6,8 @@ import { Switch, View } from 'react-native';
 import { DateTimeField } from '@/components/DateTimeField';
 import { FoundNote, PlaceField } from '@/components/PlaceField';
 import { Banner, Button, Card, Field, Loading, Row, Screen, SectionTitle, Stack, Text } from '@/components/ui';
-import { deleteTrip, leaveTrip, regenerateInviteCode, saveTripAsTemplate, setTripCover, updateMySharing, updateTrip } from '@/lib/api';
+import { searchTerm, tripPlacePhoto } from '@/lib/place-photo';
+import { deleteTrip, leaveTrip, refreshPlacePhoto, regenerateInviteCode, saveTripAsTemplate, setTripCover, updateMySharing, updateTrip } from '@/lib/api';
 import { pickPhoto } from '@/lib/photos';
 import { TripCover } from '@/components/Travel';
 import { TripThemePicker } from '@/components/TripThemePicker';
@@ -73,14 +74,17 @@ function TripSettingsForm({ id, trip, isOrganizer, active }: { id: string; trip:
       if (!name.trim()) throw new Error('Give the trip a name.');
       if ((start && !isISODate(start)) || (end && !isISODate(end))) throw new Error('Dates should look like 2026-12-20.');
       if (start && end && end < start) throw new Error('The trip ends before it starts.');
+      const newDestination = destination.trim() || null;
       await updateTrip(id, {
         name: name.trim(),
-        destination: destination.trim() || null,
+        destination: newDestination,
         destination_lat: destPoint?.lat ?? null,
         destination_lng: destPoint?.lng ?? null,
         starts_on: start || null,
         ends_on: end || null,
       });
+      // A new destination gets a new photo (unless the organizer chose the illustration).
+      if (newDestination !== (trip.destination ?? null) && !trip.place_photo_off) await refreshPlacePhoto({ ...trip, destination: newDestination });
       setSaved(true);
     });
 
@@ -116,7 +120,7 @@ function TripSettingsForm({ id, trip, isOrganizer, active }: { id: string; trip:
       <ArrivalAlertsCard tripId={id} />
       <Card>
         <Text variant="label">Cover photo</Text>
-        <TripCover seed={trip.id} path={trip.cover_path} theme={trip.theme} height={140} />
+        <TripCover seed={trip.id} path={trip.cover_path} theme={trip.theme} place={tripPlacePhoto(trip)} height={140} />
         <Row>
           <Button
             title={trip.cover_path ? 'Change photo' : 'Add a cover photo'}
@@ -138,6 +142,56 @@ function TripSettingsForm({ id, trip, isOrganizer, active }: { id: string; trip:
           ) : null}
         </Row>
         <Text variant="caption" faint>Only people on the trip can see it.</Text>
+        {trip.destination ? (
+          <View style={{ gap: space.xs }} testID="place-photo-settings">
+            <Row gap={space.md}>
+              <View style={{ flex: 1 }}>
+                <Text variant="label">Photo of {searchTerm(trip.destination)}</Text>
+                <Text variant="caption" muted testID="place-photo-status">
+                  {trip.place_photo_off
+                    ? 'Off: the illustration shows instead.'
+                    : tripPlacePhoto(trip)
+                      ? `A famous photo from Wikipedia${trip.cover_path ? ', behind your own photo' : ''}. 📷 ${trip.place_photo_credit}`
+                      : trip.place_photo_for === trip.destination.trim()
+                        ? 'No free photo found on Wikipedia, so the illustration shows.'
+                        : 'Looking for a photo…'}
+                </Text>
+              </View>
+              <Switch
+                value={!trip.place_photo_off}
+                disabled={busy === 'place'}
+                onValueChange={(on) =>
+                  run('place', async () => {
+                    await updateTrip(id, { place_photo_off: !on });
+                    if (on && trip.place_photo_for !== trip.destination?.trim()) await refreshPlacePhoto(trip);
+                  })
+                }
+                trackColor={{ true: t.primary, false: t.border }}
+                thumbColor="#fff"
+                accessibilityLabel={`Photo of ${searchTerm(trip.destination)} from Wikipedia`}
+                testID="place-photo-switch"
+              />
+            </Row>
+            {!trip.place_photo_off && tripPlacePhoto(trip) ? (
+              <Button
+                title="Find another photo"
+                icon="refresh"
+                kind="ghost"
+                small
+                loading={busy === 'another'}
+                testID="place-photo-another"
+                onPress={() =>
+                  run('another', async () => {
+                    const result = await refreshPlacePhoto(trip, { another: true });
+                    if (result === 'no-more') throw new Error('No other free photo found; keeping this one.');
+                    if (result === 'offline') throw new Error('Wikipedia couldn’t be reached. Try again in a moment.');
+                  })
+                }
+                style={{ alignSelf: 'flex-start' }}
+              />
+            ) : null}
+          </View>
+        ) : null}
       </Card>
       <Card testID="settings-theme">
         <Text variant="label">Trip theme</Text>
@@ -206,7 +260,7 @@ function TripSettingsForm({ id, trip, isOrganizer, active }: { id: string; trip:
           <Button title="Trip insights" icon="insights" kind="ghost" small onPress={() => router.push(`/trip/${id}/insights`)} testID="settings-insights" style={{ alignSelf: 'flex-start' }} />
         ) : null}
         <Text variant="caption" faint>Currency: {trip.base_currency} (can&apos;t change once bills are added)</Text>
-        <Button title="Save" onPress={save} loading={busy === 'save'} />
+        <Button title="Save" onPress={save} loading={busy === 'save'} testID="settings-save" />
       </Card>
 
       <Stack gap={space.sm}>

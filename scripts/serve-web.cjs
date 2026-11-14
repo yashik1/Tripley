@@ -42,6 +42,9 @@ function securityHeaders(env, https) {
     // Weather for packing suggestions (src/lib/weather.ts).
     originOf(env.EXPO_PUBLIC_WEATHER_URL) || 'https://api.open-meteo.com',
     originOf(env.EXPO_PUBLIC_WEATHER_ARCHIVE_URL) || 'https://archive-api.open-meteo.com',
+    // A famous photo of the trip's destination (src/lib/place-photo.ts); the photo itself is an image (img-src).
+    'https://en.wikipedia.org',
+    'https://commons.wikimedia.org',
     ...(webPurchases ? ['https://api.revenuecat.com', 'https://api.stripe.com'] : []),
     ...String(env.CSP_CONNECT_EXTRA || '').split(/\s+/).filter((x) => /^(https|wss):\/\/[^\s;,']+$/.test(x)),
   ].filter(Boolean);

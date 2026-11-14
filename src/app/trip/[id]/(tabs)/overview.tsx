@@ -4,18 +4,20 @@
  * part of the trip with a way into each.
  */
 import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, RefreshControl, View } from 'react-native';
 
 import { Icon, type IconName } from '@/components/Icon';
-import { AvatarStack, ProgressBar, QuickAction, StatusPill, TripCover } from '@/components/Travel';
+import { AvatarStack, PlaceBackdrop, ProgressBar, QuickAction, StatusPill, TripCover } from '@/components/Travel';
 import { Banner, Button, Card, Row, Screen, SectionTitle, Stack, Text } from '@/components/ui';
-import { toSettlementRows } from '@/lib/api';
+import { tripPlacePhoto } from '@/lib/place-photo';
+import { refreshPlacePhoto, toSettlementRows } from '@/lib/api';
 import { summarizeForUser, computePairBalances } from '@/lib/balances';
 import { formatMoney } from '@/lib/currency';
 import { formatDate, formatDateRange, todayISO } from '@/lib/format';
 import { rsvpSummary, timeRange } from '@/lib/itinerary';
-import { useAvailability, useBookings, useStays, useChallenges, useFeed, useItinerary, usePlaces, usePolls, useRsvps, useSettlements, useShareRows, useSuggestions, useTasks, useTripOverview } from '@/lib/queries';
+import { keys, useAvailability, useBookings, useStays, useChallenges, useFeed, useItinerary, usePlaces, usePolls, useRsvps, useSettlements, useShareRows, useSuggestions, useTasks, useTripOverview } from '@/lib/queries';
 import { packingStep, progress as taskProgress } from '@/lib/preparation';
 import { pollIsOpen } from '@/lib/group-decisions';
 import { sortBookings } from '@/lib/documents';
@@ -24,6 +26,9 @@ import { useTripId } from '@/lib/trip-context';
 import { useTripData } from '@/lib/trip-hooks';
 import { planningSteps, tripStatus } from '@/lib/trip-status';
 import { radius, space, useTheme } from '@/theme';
+
+// Destination photo lookups already tried this session (trip and destination).
+const placePhotoTried = new Set<string>();
 
 export default function TripOverview() {
   const id = useTripId();
@@ -64,7 +69,21 @@ export default function TripOverview() {
   );
   const upcoming = (itinerary.data ?? []).filter((i) => i.day >= today).slice(0, 3);
 
+  // A trip from before destination photos, or whose destination changed: the
+  // organizer's device looks a photo up, once (members only show it).
+  const qc = useQueryClient();
+  const destination = trip?.destination?.trim() ?? '';
+  const needsPhoto = !!trip && isOrganizer && !!destination && !trip.place_photo_off && trip.place_photo_for !== destination;
+  useEffect(() => {
+    if (!needsPhoto || !trip || placePhotoTried.has(`${trip.id}|${destination}`)) return;
+    placePhotoTried.add(`${trip.id}|${destination}`);
+    refreshPlacePhoto(trip)
+      .then(() => Promise.all([qc.invalidateQueries({ queryKey: keys.trip(trip.id) }), qc.invalidateQueries({ queryKey: keys.trips })]))
+      .catch(() => undefined);
+  }, [needsPhoto, trip, destination, qc]);
+
   if (!trip) return <Screen>{null}</Screen>;
+  const place = trip.cover_path ? null : tripPlacePhoto(trip);
   const status = tripStatus(trip, today);
   // Live trip data wins over the dashboard summary, which may be a moment old.
   const progress = planningSteps(trip, {
@@ -95,9 +114,11 @@ export default function TripOverview() {
           }}
         />
       }>
+      {/* A soft copy of the destination photo behind the top of the page. */}
+      {place ? <PlaceBackdrop url={place.url} /> : null}
       {/* Header */}
       <View testID="trip-overview" style={{ gap: space.md }}>
-        <TripCover seed={trip.id} path={trip.cover_path} theme={trip.theme} height={190}>
+        <TripCover seed={trip.id} path={trip.cover_path} theme={trip.theme} place={tripPlacePhoto(trip)} height={190}>
           {status.countdown ? (
             <View style={{ position: 'absolute', top: space.md, left: space.md, backgroundColor: t.surface, borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 6, boxShadow: t.shadow }}>
               <Text variant="label">{status.kind === 'upcoming' ? '✈️ ' : '📍 '}{status.countdown}</Text>
