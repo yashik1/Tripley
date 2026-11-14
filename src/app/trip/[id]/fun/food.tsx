@@ -31,12 +31,14 @@ export default function FoodExplorer() {
   const [photo, setPhoto] = useState<PickedPhoto[]>([]);
   const [filter, setFilter] = useState<FoodKind | 'all'>('all');
   const [busy, setBusy] = useState<string | null>(null);
+  const [picking, setPicking] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const finds = useMemo(() => (entries.data ?? []).filter((e) => e.kind === 'food'), [entries.data]);
   const shown = filter === 'all' ? finds : finds.filter((e) => (e.food_kind ?? 'dish') === filter);
 
   const add = async () => {
+    if (picking) return;
     setError(null);
     if (!title.trim()) return setError(kind === 'restaurant' ? 'What’s the restaurant called?' : 'What was it?');
     try {
@@ -87,9 +89,9 @@ export default function FoodExplorer() {
           <Field label="Where (optional)" value={where} onChangeText={setWhere} placeholder="Manteigaria, Chiado" maxLength={120} testID="food-where" />
         ) : null}
         <Field label="Notes (optional)" value={notes} onChangeText={setNotes} placeholder="Still warm, with cinnamon. Go early." multiline maxLength={1000} testID="food-notes" />
-        <PhotoPicker photos={photo} onChange={setPhoto} max={1} onError={setError} testID="food-add-photo" />
+        <PhotoPicker photos={photo} onChange={setPhoto} max={1} onError={setError} onBusy={setPicking} testID="food-add-photo" />
         {error ? <Banner tone="danger">{error}</Banner> : null}
-        <Button title={busy ?? 'Add food find'} icon="add" onPress={add} loading={!!busy} testID="food-add" />
+        <Button title={picking ? 'Adding the photo…' : busy ?? 'Add food find'} icon="add" onPress={add} loading={!!busy} disabled={picking} testID="food-add" />
       </Card>
 
       {finds.length ? (

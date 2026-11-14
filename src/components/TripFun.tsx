@@ -1,6 +1,7 @@
 /** Pieces shared by the Trip Fun screens: the feature header and a photo picker. */
 import { Image } from 'expo-image';
-import { Platform, Pressable, View } from 'react-native';
+import { useState } from 'react';
+import { ActivityIndicator, Platform, Pressable, View } from 'react-native';
 
 import { pickPhoto } from '@/lib/photos';
 import { usePhotoUrl } from '@/lib/queries';
@@ -37,21 +38,30 @@ export function PhotoPicker({
   onChange,
   max,
   onError,
+  onBusy,
   testID,
 }: {
   photos: PickedPhoto[];
   onChange: (photos: PickedPhoto[]) => void;
   max: number;
   onError: (message: string) => void;
+  /** True while a picked photo is still being prepared: hold off saving until it's in. */
+  onBusy?: (busy: boolean) => void;
   testID?: string;
 }) {
   const t = useTheme();
+  const [adding, setAdding] = useState(false);
   const add = async () => {
+    setAdding(true);
+    onBusy?.(true);
     try {
       const uri = await pickPhoto(false);
       if (uri) onChange([...photos, { uri }].slice(0, max));
     } catch (e) {
       onError(e instanceof Error ? e.message : 'Couldn’t add that photo.');
+    } finally {
+      setAdding(false);
+      onBusy?.(false);
     }
   };
   return (
@@ -72,7 +82,19 @@ export function PhotoPicker({
             </Pressable>
           </View>
         ))}
-        {photos.length < max ? (
+        {adding ? (
+          // Tapping stops waiting (in case a browser never says the file dialog was closed).
+          <Pressable
+            onPress={() => {
+              setAdding(false);
+              onBusy?.(false);
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Adding the photo. Tap to stop waiting."
+            style={{ width: 92, height: 92, borderRadius: radius.md, backgroundColor: t.surfaceAlt, alignItems: 'center', justifyContent: 'center' }}>
+            <ActivityIndicator color={t.primary} />
+          </Pressable>
+        ) : photos.length < max ? (
           <Pressable
             onPress={add}
             accessibilityRole="button"

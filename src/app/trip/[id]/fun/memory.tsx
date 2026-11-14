@@ -48,9 +48,11 @@ function Editor({
   const [day, setDay] = useState(existing?.happened_on ?? defaultDay);
   const [photos, setPhotos] = useState<PickedPhoto[]>((existing?.photo_paths ?? []).map((path) => ({ path })));
   const [busy, setBusy] = useState<string | null>(null);
+  const [picking, setPicking] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const save = async () => {
+    if (picking) return;
     setError(null);
     if (!caption.trim()) return setError('Give the memory a caption.');
     if (!isISODate(day)) return setError('Pick the day it happened.');
@@ -77,7 +79,7 @@ function Editor({
   };
 
   return (
-    <Screen footer={<Button title={busy ?? (existing ? 'Save changes' : 'Add to the scrapbook')} icon="check" onPress={save} loading={!!busy} testID="memory-save" />}>
+    <Screen footer={<Button title={picking ? 'Adding the photo…' : busy ?? (existing ? 'Save changes' : 'Add to the scrapbook')} icon="check" onPress={save} loading={!!busy} disabled={picking} testID="memory-save" />}>
       <RouterStack.Screen options={{ title: existing ? 'Edit memory' : 'Add a memory' }} />
       {error ? <Banner tone="danger">{error}</Banner> : null}
       <Field label="Caption" value={caption} onChangeText={setCaption} placeholder="Sunset at the miradouro" maxLength={120} testID="memory-caption" />
@@ -91,7 +93,7 @@ function Editor({
         testID="memory-description"
       />
       <DateTimeField mode="date" label="The day it happened" value={day} onChangeText={setDay} max={todayISO()} testID="memory-day" />
-      <PhotoPicker photos={photos} onChange={setPhotos} max={MAX_PHOTOS} onError={setError} testID="memory-add-photo" />
+      <PhotoPicker photos={photos} onChange={setPhotos} max={MAX_PHOTOS} onError={setError} onBusy={setPicking} testID="memory-add-photo" />
     </Screen>
   );
 }

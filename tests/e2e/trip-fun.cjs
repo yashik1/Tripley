@@ -165,6 +165,7 @@ const visible = (page, text) => page.locator(`text=${JSON.stringify(text)} >> vi
     await ben.getByTestId('memory-description').fill('Everyone sang along to the busker.');
     await ben.getByTestId('memory-day').fill(inDays(-1));
     await upload(ben, 'memory-add-photo');
+    // Saving waits while the picked photo is still being prepared (the button is disabled until it's in).
     await ben.getByTestId('memory-save').click();
     await ben.waitForURL((u) => u.pathname.endsWith('/fun/scrapbook'), { timeout: 20000 });
     await visible(ben, 'Sunset at the miradouro').waitFor({ timeout: 15000 });
