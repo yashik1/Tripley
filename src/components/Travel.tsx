@@ -302,31 +302,6 @@ export function TripCover({
   );
 }
 
-/**
- * A soft, blurred copy of the destination photo behind the top of a page,
- * fading into the background. Put it first inside a padded Screen.
- */
-export function PlaceBackdrop({ url }: { url: string }) {
-  const t = useTheme();
-  return (
-    <View
-      pointerEvents="none"
-      testID="place-backdrop"
-      style={{ position: 'absolute', top: -space.lg, left: -space.lg, right: -space.lg, height: 360, overflow: 'hidden' }}>
-      <Image source={{ uri: url }} style={{ position: 'absolute', inset: 0, opacity: t.scheme === 'dark' ? 0.28 : 0.38 }} contentFit="cover" blurRadius={22} />
-      <Svg width="100%" height="100%" viewBox="0 0 1 1" preserveAspectRatio="none" style={{ position: 'absolute', inset: 0 }}>
-        <Defs>
-          <LinearGradient id="placeFade" x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0" stopColor={t.bg} stopOpacity={0.15} />
-            <Stop offset="1" stopColor={t.bg} stopOpacity={1} />
-          </LinearGradient>
-        </Defs>
-        <Rect x="0" y="0" width="1" height="1" fill="url(#placeFade)" />
-      </Svg>
-    </View>
-  );
-}
-
 // ------------------------------------------------------------------ people
 
 export function AvatarStack({

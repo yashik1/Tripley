@@ -2,7 +2,7 @@
  * Tripley's small UI kit: consistent spacing, type and colors in light and dark mode.
  */
 import { Image } from 'expo-image';
-import { Children, type ReactNode } from 'react';
+import { Children, useContext, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -20,6 +20,7 @@ import {
 import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
 
 import { colorFor, radius, space, useTheme, type Theme } from '@/theme';
+import { ContentSheet, PageBackdrop, ScreenBackdropContext } from './Backdrop';
 import { Icon, type IconName } from './Icon';
 
 // ------------------------------------------------------------------ layout
@@ -31,6 +32,7 @@ export function Screen({
   edges = ['bottom'],
   footer,
   refreshControl,
+  backdropReveal = 0,
 }: {
   children: ReactNode;
   scroll?: boolean;
@@ -38,13 +40,21 @@ export function Screen({
   edges?: Edge[];
   footer?: ReactNode;
   refreshControl?: React.ComponentProps<typeof ScrollView>['refreshControl'];
+  /** Inside a trip with a photo: how many px at the top let the photo show through (the overview, behind its cover). */
+  backdropReveal?: number;
 }) {
   const t = useTheme();
+  // Inside a trip: its photo as the page background (src/components/Backdrop.tsx).
+  const backdrop = useContext(ScreenBackdropContext);
   const content = (
-    <View style={[styles.content, padded && styles.padded]}>{children}</View>
+    <View style={[styles.content, padded && styles.padded]}>
+      {backdrop ? <ContentSheet reveal={backdropReveal} /> : null}
+      {children}
+    </View>
   );
   return (
     <SafeAreaView edges={edges} style={{ flex: 1, backgroundColor: t.bg }}>
+      {backdrop ? <PageBackdrop url={backdrop} /> : null}
       {scroll ? (
         <ScrollView
           keyboardShouldPersistTaps="handled"

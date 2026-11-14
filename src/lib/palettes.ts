@@ -122,3 +122,15 @@ export function buildTheme(scheme: 'light' | 'dark', palette: PaletteKey = 'teal
   return theme;
 }
 
+
+// ------------------------------------------------------------------ trip photo backdrop
+
+/**
+ * How much of the page colour covers a trip's photo when it's the page
+ * background (src/components/Backdrop.tsx): BACKDROP_TINT over the whole page
+ * (the margins), plus SHEET_TINT behind the content column. Behind text the
+ * photo only tints: 18% shows in dark mode, 3% in light mode, as grey text on
+ * a light page has little contrast to spare (tests/unit/backdrop.test.ts).
+ */
+export const BACKDROP_TINT = { light: 0.42, dark: 0.5 };
+export const SHEET_TINT = { light: 0.95, dark: 0.64 };

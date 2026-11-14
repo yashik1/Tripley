@@ -1,7 +1,9 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 
 import { IconButton, Row } from '@/components/ui';
-import { useTrip, useTripRealtime } from '@/lib/queries';
+import { ScreenBackdropContext } from '@/components/Backdrop';
+import { tripPlacePhoto } from '@/lib/place-photo';
+import { usePhotoUrl, useTrip, useTripRealtime } from '@/lib/queries';
 import { TripIdContext } from '@/lib/trip-context';
 import { themeInfo } from '@/lib/trip-themes';
 import { space, TripPaletteContext, useTheme } from '@/theme';
@@ -17,10 +19,14 @@ export default function TripLayout() {
 
   // A trip with a theme uses that theme's colours on every trip screen.
   const tripPalette = themeInfo(trip.data?.theme)?.palette ?? null;
+  // And its photo (an uploaded cover, else the famous photo of the destination) is the page background.
+  const cover = usePhotoUrl(trip.data?.cover_path);
+  const backdrop = cover.data ?? (trip.data ? tripPlacePhoto(trip.data)?.url : null) ?? null;
 
   return (
     <TripIdContext.Provider value={id}>
     <TripPaletteContext.Provider value={tripPalette}>
+    <ScreenBackdropContext.Provider value={backdrop}>
     <Stack
       screenOptions={{
         headerStyle: { backgroundColor: t.surface },
@@ -87,6 +93,7 @@ export default function TripLayout() {
       <Stack.Screen name="memories" options={{ title: 'Trip memories' }} />
       <Stack.Screen name="post/[postId]" options={{ title: 'Post' }} />
     </Stack>
+    </ScreenBackdropContext.Provider>
     </TripPaletteContext.Provider>
     </TripIdContext.Provider>
   );

@@ -9,7 +9,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Pressable, RefreshControl, View } from 'react-native';
 
 import { Icon, type IconName } from '@/components/Icon';
-import { AvatarStack, PlaceBackdrop, ProgressBar, QuickAction, StatusPill, TripCover } from '@/components/Travel';
+import { AvatarStack, ProgressBar, QuickAction, StatusPill, TripCover } from '@/components/Travel';
 import { Banner, Button, Card, Row, Screen, SectionTitle, Stack, Text } from '@/components/ui';
 import { tripPlacePhoto } from '@/lib/place-photo';
 import { refreshPlacePhoto, toSettlementRows } from '@/lib/api';
@@ -83,7 +83,6 @@ export default function TripOverview() {
   }, [needsPhoto, trip, destination, qc]);
 
   if (!trip) return <Screen>{null}</Screen>;
-  const place = trip.cover_path ? null : tripPlacePhoto(trip);
   const status = tripStatus(trip, today);
   // Live trip data wins over the dashboard summary, which may be a moment old.
   const progress = planningSteps(trip, {
@@ -104,6 +103,8 @@ export default function TripOverview() {
 
   return (
     <Screen
+      // The trip's photo shows through at the top, around the cover.
+      backdropReveal={230}
       refreshControl={
         <RefreshControl
           refreshing={false}
@@ -114,8 +115,6 @@ export default function TripOverview() {
           }}
         />
       }>
-      {/* A soft copy of the destination photo behind the top of the page. */}
-      {place ? <PlaceBackdrop url={place.url} /> : null}
       {/* Header */}
       <View testID="trip-overview" style={{ gap: space.md }}>
         <TripCover seed={trip.id} path={trip.cover_path} theme={trip.theme} place={tripPlacePhoto(trip)} height={190}>
